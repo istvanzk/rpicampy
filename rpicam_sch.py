@@ -98,7 +98,7 @@ except yaml.YAMLError as e:
 
 ### ThingSpeak feed
 if TSPKFEEDUSE:
-	RESTfeed = thingspk.ThingSpeakAPIClient(TSPKCH_ID, TSPKCH_WKEY)
+	RESTfeed = thingspk.ThingSpeakAPIClient(TSPKCH_ID, TSPK_FILE)
 	logging.info("ThingSpeak channel (%d) initialized" % TSPKCH_ID)
 else:
 	RESTfeed = None

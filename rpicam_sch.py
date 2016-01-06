@@ -2,11 +2,22 @@
 # -*- coding: utf-8 -*-
 
 """
-Time-lapse with Rasberry Pi controlled camera - VER 2.1 for Python 3.4 (3.5?)
+    Time-lapse with Rasberry Pi controlled camera - VER 2.1 for Python 3.4+
+    Copyright (C) 2016 Istvan Z. Kovacs
 
-Uses APscheduler module to background schedule a daily job and three interval jobs: rpimgdir, rpicam, rpimgdb
-Reads configuration from the //rpiconfig.yaml//
-No other threads are used!
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 TODO: 
 1) Loop over the defined periods per day
@@ -42,11 +53,10 @@ DAILYPER = True
 ### DB API keys
 DBTOKEN_FILE = 'token_store.txt'
 
-### ThingSpeak API feed
+### ThingSpeak API feed and TalkBack app
 TSPK_FILE = 'tspk_keys.txt'
 TSPKFEEDUSE = True
 TSPKCH_ID   = 9981
-### ThingSpeak TalkBack app
 TSPKTBUSE  = False
 TSPKTB_ID  = 104
 
@@ -88,7 +98,7 @@ except yaml.YAMLError as e:
 
 ### ThingSpeak feed
 if TSPKFEEDUSE:
-	RESTfeed = thingspk.ThingSpeakAPIClient(TSPKCH_ID, TSPKCH_WKEY)
+	RESTfeed = thingspk.ThingSpeakAPIClient(TSPKCH_ID, TSPK_FILE)
 	logging.info("ThingSpeak channel (%d) initialized" % TSPKCH_ID)
 else:
 	RESTfeed = None

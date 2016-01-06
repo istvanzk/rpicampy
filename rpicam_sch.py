@@ -53,11 +53,10 @@ DAILYPER = True
 ### DB API keys
 DBTOKEN_FILE = 'token_store.txt'
 
-### ThingSpeak API feed
+### ThingSpeak API feed and TalkBack app
 TSPK_FILE = 'tspk_keys.txt'
 TSPKFEEDUSE = True
 TSPKCH_ID   = 9981
-### ThingSpeak TalkBack app
 TSPKTBUSE  = False
 TSPKTB_ID  = 104
 

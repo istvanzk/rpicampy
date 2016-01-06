@@ -40,20 +40,16 @@ import thingspk
 DAILYPER = True
 
 ### DB API keys
-#DBAPI_KEY = 'dxoa61eqy9qdyz5'
-#DBSEC_KEY = 'c3606s4trqq01ov'
 DBTOKEN_FILE = 'token_store.txt'
 
 ### ThingSpeak API feed
+TSPK_FILE = 'tspk_keys.txt'
 TSPKFEEDUSE = True
 TSPKCH_ID   = 9981
-TSPKCH_WKEY = 'OL781KU6SZ6F5T70'  
-TSPKCH_RKEY = 'F1BMQ8XFWZ41INP3'
-
 ### ThingSpeak TalkBack app
 TSPKTBUSE  = False
 TSPKTB_ID  = 104
-TSPKTB_KEY = 'DTO8LIOKL3KD9Y9Y'
+
 
 ### Set up the logging
 logging.basicConfig(filename='rpicam.log', filemode='w',
@@ -74,8 +70,6 @@ try:
 	with open('rpiconfig.yaml', 'r') as stream:
 		timerConfig, camImgConfig, dirImgConfig, dbImgConfig = yaml.load_all(stream)
 		
-	#dbImgConfig['app_key'] = DBAPI_KEY
-	#dbImgConfig['app_secret'] = DBSEC_KEY
 	dbImgConfig['token_file'] = DBTOKEN_FILE
 	dbImgConfig['image_dir'] = camImgConfig['image_dir']
 	dirImgConfig['image_dir'] = camImgConfig['image_dir']

@@ -260,10 +260,21 @@ class ThingSpeakTBClient(object):
 	"""
 	client_class = RESTClient
 
-	def __init__(self, talkback_id=None, write_key=None, use_ssl=True, text_response=False, tconfig=None ):
+	def __init__(self, talkback_id=None, key_file=None, use_ssl=True, text_response=False, tconfig=None ):
 		self.talkback_id = talkback_id or {} 
-		self.tbapi_key = write_key or {}
+		self.key_file = key_file or ''
 		self.tconfig = tconfig or None
+		
+		# Read the access key
+		try:
+			with open(self.key_file,'r') as f:
+				tspk_keys = f.read().split('\n',3)
+			
+			self.tbapi_key = tspk_keys[2]
+				
+		except IOError:
+			logging.error("ThingSpeak TB::: Keys file ''%s'' not found! Exiting!" % (self.key_file), exc_info=True)
+			raise
 		
 		# REST client
 		self.client = self.client_class(use_ssl=use_ssl, text_response=text_response)			
@@ -403,15 +414,26 @@ class ThingSpeakAPIClient(object):
 	"""
 	client_class = RESTClient
 
-	def __init__(self, channel_id=None, write_key=None, use_ssl=True, text_response=False, tconfig=None ):
-		self.channel_id = channel_id or {}
-		self.write_key = write_key or {}
-		self.read_key  = self.write_key
+	def __init__(self, channel_id=None, key_file=None, use_ssl=True, text_response=False, tconfig=None ):
+		self.channel_id = channel_id or None
+		self.key_file = key_file or ''
 		self.tconfig = tconfig or None
 		
 		# REST client
 		self.client = self.client_class(use_ssl=use_ssl, text_response=text_response)
+		
+		# Read the access keys
+		try:
+			with open(self.key_file,'r') as f:
+				tspk_keys = f.read().split('\n',3)
 			
+			self.write_key = tspk_keys[0]
+			self.read_key  = self.write_key #tspk_keys[1]
+				
+		except IOError:
+			logging.error("ThingSpeak API::: Keys file ''%s'' not found! Exiting!" % (self.key_file), exc_info=True)
+			raise
+				
 		# Channel manager
 		self._channel =  None	
 		if self.client is not None and \
@@ -555,9 +577,10 @@ class TalkBacksManager(ManagerBase):
 	"""
 
 	def __init__(self, client, talkback_id, tbkey):
-		self.client = client
-		self.talkback_id = talkback_id
-		self.tbkey = tbkey
+		self.client = client or None
+		self.talkback_id = talkback_id or None
+		self.tbkey = tbkey or None		
+				
 		self.base_url = urljoin(client.baseapi_url , 'talkbacks/' + str(self.talkback_id))
 		# The self.response format depends on the self.client.text_format flag
 		self.response = {}

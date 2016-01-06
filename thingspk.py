@@ -243,8 +243,8 @@ class ThingSpeakTBClient(object):
 
 	:param channel_id: The TalkBack Channel ID
 	:type channel_id: string or integer
-	:param write_key: the TalkBack API Key
-	:type write_key: string
+	:param key_file: the ThingSpeak API keys file
+	:type key_file: string
 	:param use_ssl: Use https for all connections instead of http
 	:type use_ssl: bool [False]
 	:param text_response: Use text format for all the request() responses 
@@ -253,7 +253,7 @@ class ThingSpeakTBClient(object):
 	:type tconfig: dictionary [None]
 
 	Usage::
-		tspk = thingspk.ThingSpeakTBClient('channelName', 'write_api_key')
+		tspk = thingspk.ThingSpeakTBClient('channelName', 'keys_file.txt')
 		tspk.talkback.
 		print tspk.talkback.response	
 
@@ -397,8 +397,8 @@ class ThingSpeakAPIClient(object):
 
 	:param channel_id: The ThingSpeak Channel ID
 	:type channel_id: string or integer
-	:param write_key: the Write API Key
-	:type write_key: string
+	:param key_file: the ThingSpeak API keys file
+	:type key_file: string
 	:param use_ssl: Use https for all connections instead of http
 	:type use_ssl: bool [False]
 	:param text_response: Use text format for all the request() responses 
@@ -407,7 +407,7 @@ class ThingSpeakAPIClient(object):
 	:type tconfig: dictionary [None]
 
 	Usage::
-		tspk = thingspk.ThingSpeakAPIClient('channelName', 'write_api_key')
+		tspk = thingspk.ThingSpeakAPIClient('channelName', 'keys_file.txt')
 		tspk.channel.getuserinfo(username='user0')
 		print tspk.channel.response	
 

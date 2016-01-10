@@ -17,9 +17,11 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
     
-Implements the rpiCam class, to run and control:
-	- a Raspberry PI camera using the raspistill utility or the picamera module
-	- a web camera using fswebcam utility    
+Implements the rpiCam class, to run and control a:
+	- Raspberry PI camera using the raspistill utility or 
+	- Raspberry PI camera usingthe picamera module, or
+	- a web camera using fswebcam utility.
+GPIO ON/OFF control of an IR/VL reflector for night imaging. 	    
 """
 import os
 import glob

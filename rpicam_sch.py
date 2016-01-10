@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 2.1 for Python 3.4+
-    Copyright (C) 2016 Istvan Z. Kovacs
+Time-lapse with Rasberry Pi controlled camera - VER 2.1 for Python 3.4+
+Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,6 +18,16 @@
     You should have received a copy of the GNU General Public License along
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+Uses APScheduler (Advanced Python Scheduler: http://pythonhosted.org/APScheduler/) 
+to background schedule three interval jobs: 
+	1. rpicam:		Run and control a:
+					- Raspberry PI camera using using the picamera module, or
+					- Raspberry PI camera using the raspistill utility, or 
+					- USB web camera using fswebcam utility 
+	2. rpimgdir:	Manage the set of saved images by rpiCam.  
+	3. rpimgdb:		Manage images in a remote directory (Dropbox SDK, API V2, Python 3.4).
+The configuration parameters are read from the rpiconfig.yaml
 
 TODO: 
 1) Loop over the defined periods per day

@@ -61,7 +61,7 @@ import thingspk
 DAILYPER = True
 
 ### DB API keys
-DBTOKEN_FILE = 'token_store.txt'
+DBTOKEN_FILE = 'token_key.txt'
 
 ### ThingSpeak API feed and TalkBack app
 TSPK_FILE = 'tspk_keys.txt'

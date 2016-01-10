@@ -32,6 +32,7 @@ from urllib.parse import urljoin
 from requests.sessions import Session
 from threading import Thread, Semaphore, Event
 from queue import Queue
+import logging
 
 #import unittest
 

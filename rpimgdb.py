@@ -75,8 +75,8 @@ class rpiImageDbClass():
 		
 								                    			                    				
 	def __str__(self):
-		return "%s::: dbinfo:%s\nconfig:%s\nimageDbListMv:%s\neventErrdelay:%s" % \
-				(self.name, self.dbinfo, self.config, self.imageDbListMv, self.eventErrdelay)
+		return "%s::: dbinfo:%s\nconfig:%s\nimageUpldList:%s\neventErrdelay:%s" % \
+				(self.name, self.dbinfo, self.config, self.imageUpldList, self.eventErrdelay)
 	
 #	def __del__(self):
 #		logging.debug("%s::: Deleted!" % self.name)

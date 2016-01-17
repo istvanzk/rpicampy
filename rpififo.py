@@ -17,7 +17,7 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
     
-Implements the a FIFO bufer for the image file names    
+Implements the a FIFO buffer for the image file names (full path).
 """
 
 from threading import BoundedSemaphore
@@ -25,11 +25,12 @@ from collections import deque
 
 class rpiFIFOClass(deque):
 	"""
-	Implements the a Deque with BoundedSemaphore
+	Implements the a Deque with BoundedSemaphore.
+	Used as a FIFO buffer for the image file names (full path).
 	"""
 	def __init__(self, *args):
 		deque.__init__(self, *args)
-		self.FIFOSema = BoundedSemaphore()
+		self.FIFOSema  = BoundedSemaphore()
 		
 	def acquireSemaphore(self):
 		self.FIFOSema.acquire()
@@ -37,5 +38,6 @@ class rpiFIFOClass(deque):
 	def releaseSemaphore(self):
 		self.FIFOSema.release()		
 
-#	def __del__(self):
+	def __del__(self):
 #		self.FIFOSema.release()	
+		self.imgSubDir = ''

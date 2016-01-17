@@ -30,11 +30,11 @@ to background schedule three interval jobs:
 The configuration parameters are read from the rpiconfig.yaml
 
 TODOs: 
-1) Save images directly in the dated folder
-2) Use/enable ThingSpeak TalkBack API
+0) Save images directly in the dated folder
+1) Use/enable ThingSpeak TalkBack API
+2) Integrate with RasPiConnectServer
 3) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
-4) Integrate with RasPiConnectServer
-5) Use configurable logging (http://victorlin.me/posts/2012/08/26/good-logging-practice-in-python)
+4) Use configurable logging (http://victorlin.me/posts/2012/08/26/good-logging-practice-in-python)
 
 
 """

@@ -20,6 +20,7 @@
 Implements the rpiImageDir class to manage the set of saved images by rpiCam    
 """
 
+import os
 import sys
 import glob
 import time
@@ -46,6 +47,8 @@ class rpiImageDirClass():
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]
 							
 		self.eventDbErr 	= rpi_events.eventErrList['DBJob']
+			
+		self.imgSubDir      = rpi_events.imgSubDir
 									
 		self.restapi = restapi 
 		
@@ -94,8 +97,9 @@ class rpiImageDirClass():
 				
 				else:
 							
-					### List all jpg files
-					self.imagelist = sorted(glob.glob(self.config['image_dir'] + '/' + time.strftime('%d%m%y', time.localtime()) + '-*.jpg'))
+					### List all jpg files in the current local sub-folder
+					self.locdir = os.path.join(self.config['image_dir'], self.imgSubDir)
+					self.imagelist = sorted(glob.glob(self.locdir + '/' + self.imgSubDir + '-*.jpg'))
 					if len(self.imagelist) > 0:
 						logging.debug("imagelist: %s .. %s" % (self.imagelist[0], self.imagelist[-1]))
 					else:
@@ -126,8 +130,8 @@ class rpiImageDirClass():
 						### Update REST feed
 						self.rest_update(len(self.imagelist))
 					
-						### Update image list
-						self.imagelist_ref = sorted(glob.glob(self.config['image_dir'] + '/' + time.strftime('%d%m%y', time.localtime()) + '-*.jpg'))
+						### Update image list in the current local sub-folder
+						self.imagelist_ref = sorted(glob.glob(self.locdir + '/' + self.imgSubDir + '-*.jpg'))
 						if len(self.imagelist_ref) > 0:
 							logging.debug("imagelist_ref: %s .. %s" % (self.imagelist_ref[0], self.imagelist[-1]))
 						else:

@@ -81,6 +81,7 @@ class rpiCamClass(object):
 		self.eventErr 		= rpi_events.eventErrList[self.name]
 		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]
+		self.imgSubDir      = rpi_events.imgSubDir
 		
 		self.restapi = restapi
 
@@ -134,22 +135,24 @@ class rpiCamClass(object):
 		
 			### Create the daily output sub-folder
 			### Set the full image file path
-			self.subdir = os.path.join(self.config['image_dir'], time.strftime('%d%m%y', time.localtime()))
+			self.imgSubDir = time.strftime('%d%m%y', time.localtime())
+			self.locdir = os.path.join(self.config['image_dir'], self.imgSubDir)
 			try:
-				os.mkdir(self.subdir)
-				logging.info("%s::: Local daily output folder ''%s'' created." % (self.name, self.subdir))
+				os.mkdir(self.locdir)
+				logging.info("%s::: Local daily output folder ''%s'' created." % (self.name, self.locdir))
 			
 			except OSError as e:
 				if e.errno == EEXIST:
-					logging.debug("%s::: Local daily output folder ''%s'' already exist!" % (self.name, self.subdir))
+					logging.debug("%s::: Local daily output folder ''%s'' already exist!" % (self.name, self.locdir))
 					pass	
 				else:
-					logging.error("%s::: Local daily output folder ''%s'' could not be created!" % (self.name, self.subdir))
+					logging.error("%s::: Local daily output folder ''%s'' could not be created!" % (self.name, self.locdir))
 					raise	
 					
 			finally:
-				self.image_name = time.strftime('%d%m%y-%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
-				self.image_path = os.path.join(self.subdir, self.image_name) 
+				self.image_name = self.imgSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
+				self.image_path = os.path.join(self.locdir, self.image_name) 
+				
 	
 	
 			### Take a new snapshot and save the image locally 	

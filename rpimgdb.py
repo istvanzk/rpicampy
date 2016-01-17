@@ -64,7 +64,8 @@ class rpiImageDbClass():
 		self.eventEnd 		= rpi_events.eventEnd	
 		self.eventErr 		= rpi_events.eventErrList[self.name]
 		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
-		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]
+		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]		
+		self.imgSubDir      = rpi_events.imgSubDir
 				
 		self.restapi = restapi 
 		
@@ -110,18 +111,18 @@ class rpiImageDbClass():
 		
 			try:					
 				### End-of-day OAM:
-				# 1) Init Dropbox API client
-				# 2) Make new subfolder with the name DayMonthYear
-				# 3) Move all pictures to the new subfolder
+				# 1) List all files found in the remote upload sub-folder
+				# 2) Dumps the list of all uploaded image files to the log file
+				# 3) Init Dropbox API client
 				if self.eventDayEnd.is_set():
 					self.endDayOAM()
 				
 				else:
 					
-					### Init the remote sub-folder
-					self.subdir = os.path.join(self.config['image_dir'], time.strftime('%d%m%y', time.localtime()))
-					self.mkdirImage(self.subdir)
-					#self.lsImage(self.subdir)
+					### Init the remote upload sub-folder
+					self.upldir = os.path.normpath(os.path.join(self.config['image_dir'], self.imgSubDir))
+					self.mkdirImage(self.upldir)
+					#self.lsImage(self.upldir)
 								
 					### Get the current images in the FIFO
 					### Refresh the last remote image when available
@@ -137,8 +138,8 @@ class rpiImageDbClass():
 
 						### Upload all images in the FIFO which have not been uploaded yet
 						for img in self.imageFIFO:
-							if (img not in self.imageDbList):
-								self.putImage(img, os.path.join(self.subdir, os.path.basename(img))
+							if (img not in self.imageUpldList):
+								self.putImage(img, os.path.join(self.upldir, os.path.basename(img))
 								logging.info("Uploaded %s" % img )
 
 						### Update REST feed
@@ -229,11 +230,12 @@ class rpiImageDbClass():
 		#self.imageDbHash = None
 		self.imageDbCursor = None
 		self.imageDbList = [] 
+		self.imageUpldList = []
 		self.numImgUpdDb = 0
 		
 		self.current_path = '.'
 		self.crt_image_snap = 'none'
-		self.subdir = os.path.normpath(self.config['image_dir'])
+		self.upldir = os.path.normpath(self.config['image_dir'])
 		self.logfile = './upldlog.json'		
 		
 		### When there are already images listed in the upload log file, then
@@ -242,7 +244,7 @@ class rpiImageDbClass():
 		try:
 			if os.path.isfile(self.logfile):
 				with open(self.logfile,'r') as logf:
-					self.imageDbList = json.load(logf)
+					self.imageUpldList = json.load(logf)
 					logging.info("%s::: Json log file ''%s'' found and loaded." % (self.name, self.logfile))
 			else:
 				with open(self.logfile,'w') as logf:
@@ -272,7 +274,7 @@ class rpiImageDbClass():
 			
 			logging.info("%s::: Loaded access token from ''%s''" % (self.name, self.token_file) )
 	
-			### Create remote root folder (relative to app root)
+			### Create remote root folder (relative to app root) if it does not exist yet
 			self.mkdirImage(os.path.normpath(self.config['image_dir']))
 					
 		except IOError:
@@ -305,30 +307,23 @@ class rpiImageDbClass():
 		
 		logging.info("%s::: EoD maintenance sequence run" % self.name) 
 
-# 		self.mvdir = os.path.normpath(time.strftime('%d%m%y', time.localtime()))
-# 		self.mkdirImage(self.mvdir)
- 
-# 		self.imageDbListMv = []	
+		### List all files found in the remote sub-folder
+		### Dumps the list of all uploaded image files to the log file
  		if not self.eventErr.is_set():	
-# 			self.lsImage(self.subdir)		
-# 			for img in self.imageDbList:	
-# 				imgpath = os.path.split(img)				
-# 				self.mvImage(img, self.mvdir + '/' + imgpath[-1])
-# 
-# 			self.lsImage(self.subdir)		
-# 			
+ 		
+ 			self.lsImage(self.upldir)		
+  			logging.info("%s::: %d images in the remote folder %s" % (self.name, len(self.imageDbList), self.upldir))
+			
  			try:
  				with open(self.logfile,'w') as logf:
- 					json.dump(self.imageDbList, logf)
+ 					json.dump(self.imageUpldList, logf)
  			
  			except IOError:
  				self.eventErr_set("endDayOAM()")
  				self.rest_update(-5)
  				logging.error("%s::: Local log file ''%s'' could not be created! Exiting!" % (self.name, self.logfile), exc_info=True)
  				raise
-				
- 			logging.info("%s::: %d images in the remote folder %s" % (self.name, len(self.imageDbList), self.subdir))
- 		
+				 		
  			self.eventDayEnd.clear()
  			logging.debug("%s::: Reset eventEndDay" % self.name)
  	
@@ -351,7 +346,8 @@ class rpiImageDbClass():
 				
 	def lsImage(self,from_path):
 		"""
-		List the image/video files in the remote directory.	
+		List the image/video files in the remote directory.
+		Stores the found file names in self.imageDbList.	
 		"""
 		if not self.eventErr.is_set():
 			try:
@@ -395,9 +391,10 @@ class rpiImageDbClass():
 			logging.debug("lsImage():: eventErr is set")	
 	
 	
-	def putImage(self, from_path, to_path, overwrite=False, log=False):
+	def putImage(self, from_path, to_path, overwrite=False):
 		"""
 		Copy local file to remote file.
+		Stores the uploaded files names in self.imageUpldList.	
 
 		Examples:
 		putImage('./path/test.jpg', './path/dropbox-upload-test.jpg')
@@ -411,11 +408,9 @@ class rpiImageDbClass():
 					self.dbx.files_upload( from_file, '/' + os.path.normpath(to_path), mode)
 					
 					if not overwrite:
-						self.imageDbList.append(from_path)
-						
-					if log:
 						self.imageUpldList.append(from_path)
-
+						#self.imageDbList.append(from_path)
+						
 					logging.debug("putImage():: Uploaded file from %s to remote %s" % (from_path, to_path))
 			
 			except ApiError as e: 
@@ -469,7 +464,6 @@ class rpiImageDbClass():
 			try:
 				self.dbx.files_move( '/' + os.path.normpath(from_path), '/' +  os.path.normpath(to_path) )
 				
-				self.imageDbListMv.append(from_path)
 				logging.debug("mvImage():: Moved file from %s to %s" % (from_path, to_path))
 										
 			except ApiError as e: 

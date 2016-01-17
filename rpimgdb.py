@@ -138,8 +138,8 @@ class rpiImageDbClass():
 
 						### Upload all images in the FIFO which have not been uploaded yet
 						for img in self.imageFIFO:
-							if (img not in self.imageUpldList):
-								self.putImage(img, os.path.join(self.upldir, os.path.basename(img))
+							if img not in self.imageUpldList:
+								self.putImage(img, os.path.join(self.upldir, os.path.basename(img)))
 								logging.info("Uploaded %s" % img )
 
 						### Update REST feed
@@ -309,26 +309,26 @@ class rpiImageDbClass():
 
 		### List all files found in the remote sub-folder
 		### Dumps the list of all uploaded image files to the log file
- 		if not self.eventErr.is_set():	
- 		
- 			self.lsImage(self.upldir)		
-  			logging.info("%s::: %d images in the remote folder %s" % (self.name, len(self.imageDbList), self.upldir))
-			
- 			try:
- 				with open(self.logfile,'w') as logf:
- 					json.dump(self.imageUpldList, logf)
- 			
- 			except IOError:
- 				self.eventErr_set("endDayOAM()")
- 				self.rest_update(-5)
- 				logging.error("%s::: Local log file ''%s'' could not be created! Exiting!" % (self.name, self.logfile), exc_info=True)
- 				raise
-				 		
- 			self.eventDayEnd.clear()
- 			logging.debug("%s::: Reset eventEndDay" % self.name)
- 	
- 		else:
- 			logging.debug("%s::: eventErr is set" % self.name)	
+		if not self.eventErr.is_set():
+
+			self.lsImage(self.upldir)		
+			logging.info("%s::: %d images in the remote folder %s" % (self.name, len(self.imageDbList), self.upldir))
+
+			try:
+				with open(self.logfile,'w') as logf:
+					json.dump(self.imageUpldList, logf)
+
+			except IOError:
+				self.eventErr_set("endDayOAM()")
+				self.rest_update(-5)
+				logging.error("%s::: Local log file ''%s'' could not be created! Exiting!" % (self.name, self.logfile), exc_info=True)
+				raise
+
+			self.eventDayEnd.clear()
+			logging.debug("%s::: Reset eventEndDay" % self.name)
+	
+		else:
+			logging.debug("%s::: eventErr is set" % self.name)	
 			
 
 		### Init class	

@@ -24,6 +24,7 @@ Implements the rpiCam class, to run and control a:
 GPIO ON/OFF control of an IR/VL reflector for night imaging. 	    
 """
 import os
+from errno import EEXIST
 import glob
 import time
 import datetime

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 2.1 for Python 3.4+
+    Time-lapse with Rasberry Pi controlled camera - VER 3.0 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -117,6 +117,11 @@ class rpiImageDbClass():
 					self.endDayOAM()
 				
 				else:
+					
+					### Init the remote sub-folder
+					self.subdir = os.path.join(self.config['image_dir'], time.strftime('%d%m%y', time.localtime()))
+					self.mkdirImage(self.subdir)
+					#self.lsImage(self.subdir)
 								
 					### Get the current images in the FIFO
 					### Refresh the last remote image when available
@@ -132,9 +137,8 @@ class rpiImageDbClass():
 
 						### Upload all images in the FIFO which have not been uploaded yet
 						for img in self.imageFIFO:
-							if (img not in self.imageDbList) and \
-								(img not in self.imageDbListMv):
-								self.putImage(img, img)
+							if (img not in self.imageDbList):
+								self.putImage(img, os.path.join(self.subdir, os.path.basename(img))
 								logging.info("Uploaded %s" % img )
 
 						### Update REST feed
@@ -225,13 +229,11 @@ class rpiImageDbClass():
 		#self.imageDbHash = None
 		self.imageDbCursor = None
 		self.imageDbList = [] 
-		self.imageDbListMv = []			
 		self.numImgUpdDb = 0
 		
 		self.current_path = '.'
 		self.crt_image_snap = 'none'
 		self.subdir = os.path.normpath(self.config['image_dir'])
-		self.mvdir = self.current_path
 		self.logfile = './upldlog.json'		
 		
 		### When there are already images listed in the upload log file, then
@@ -240,7 +242,7 @@ class rpiImageDbClass():
 		try:
 			if os.path.isfile(self.logfile):
 				with open(self.logfile,'r') as logf:
-					self.imageDbListMv = json.load(logf)
+					self.imageDbList = json.load(logf)
 					logging.info("%s::: Json log file ''%s'' found and loaded." % (self.name, self.logfile))
 			else:
 				with open(self.logfile,'w') as logf:
@@ -270,12 +272,9 @@ class rpiImageDbClass():
 			
 			logging.info("%s::: Loaded access token from ''%s''" % (self.name, self.token_file) )
 	
-			### Create remote output folder (relative to self.current_path)
-			self.mkdirImage(self.subdir)
-	
-			### Init the list of remote files in the output folder
-			self.lsImage(self.subdir)
-				
+			### Create remote root folder (relative to app root)
+			self.mkdirImage(os.path.normpath(self.config['image_dir']))
+					
 		except IOError:
 			self.eventErr_set("initClass()")
 			self.rest_update(-5)
@@ -306,38 +305,39 @@ class rpiImageDbClass():
 		
 		logging.info("%s::: EoD maintenance sequence run" % self.name) 
 
+# 		self.mvdir = os.path.normpath(time.strftime('%d%m%y', time.localtime()))
+# 		self.mkdirImage(self.mvdir)
+ 
+# 		self.imageDbListMv = []	
+ 		if not self.eventErr.is_set():	
+# 			self.lsImage(self.subdir)		
+# 			for img in self.imageDbList:	
+# 				imgpath = os.path.split(img)				
+# 				self.mvImage(img, self.mvdir + '/' + imgpath[-1])
+# 
+# 			self.lsImage(self.subdir)		
+# 			
+ 			try:
+ 				with open(self.logfile,'w') as logf:
+ 					json.dump(self.imageDbList, logf)
+ 			
+ 			except IOError:
+ 				self.eventErr_set("endDayOAM()")
+ 				self.rest_update(-5)
+ 				logging.error("%s::: Local log file ''%s'' could not be created! Exiting!" % (self.name, self.logfile), exc_info=True)
+ 				raise
+				
+ 			logging.info("%s::: %d images in the remote folder %s" % (self.name, len(self.imageDbList), self.subdir))
+ 		
+ 			self.eventDayEnd.clear()
+ 			logging.debug("%s::: Reset eventEndDay" % self.name)
+ 	
+ 		else:
+ 			logging.debug("%s::: eventErr is set" % self.name)	
+			
+
 		### Init class	
 		self.initClass()																				
-
-		self.mvdir = os.path.normpath(time.strftime('%d%m%y', time.localtime()))
-		self.mkdirImage(self.mvdir)
-
-		self.imageDbListMv = []	
-		if not self.eventErr.is_set():	
-			self.lsImage(self.subdir)		
-			for img in self.imageDbList:	
-				imgpath = os.path.split(img)				
-				self.mvImage(img, self.mvdir + '/' + imgpath[-1])
-
-			self.lsImage(self.subdir)		
-			
-			try:
-				with open(self.logfile,'w') as logf:
-					json.dump(self.imageDbListMv, logf)
-			
-			except IOError:
-				self.eventErr_set("endDayOAM()")
-				self.rest_update(-5)
-				logging.error("%s::: Local log file ''%s'' could not be created! Exiting!" % (self.name, self.logfile), exc_info=True)
-				raise
-				
-			logging.info("%s::: %d remote images moved to the folder ''%s''" % (self.name, len(self.imageDbListMv), self.mvdir))
-		
-			self.eventDayEnd.clear()
-			logging.debug("%s::: Reset eventEndDay" % self.name)
-	
-		else:
-			logging.debug("%s::: eventErr is set" % self.name)	
 					
 	
 	def rest_update(self, stream_value):
@@ -421,6 +421,8 @@ class rpiImageDbClass():
 			except ApiError as e: 
 				logging.debug("putImage():: %s", e.user_message_text)
 				pass 
+				
+#			except RateLimitError as e:
 
 # 			except IOError:
 # 				### Update REST feed

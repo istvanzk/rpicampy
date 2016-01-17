@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Time-lapse with Rasberry Pi controlled camera - VER 2.1 for Python 3.4+
+Time-lapse with Rasberry Pi controlled camera - VER 3.0 for Python 3.4+
 Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -29,11 +29,13 @@ to background schedule three interval jobs:
 	3. rpimgdb:		Manage images in a remote directory (Dropbox SDK, API V2, Python 3.4).
 The configuration parameters are read from the rpiconfig.yaml
 
-TODO: 
-1) Loop over the defined periods per day
-2) Integrate with RasPiConnectServer
-3) Use ThingSpeak TalkBack
-4) Use configurable logging (http://victorlin.me/posts/2012/08/26/good-logging-practice-in-python)
+TODOs: 
+1) Save images directly in the dated folder
+2) Use/enable ThingSpeak TalkBack API
+3) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
+4) Integrate with RasPiConnectServer
+5) Use configurable logging (http://victorlin.me/posts/2012/08/26/good-logging-practice-in-python)
+
 
 """
 

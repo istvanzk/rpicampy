@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 2.1 for Python 3.4+
+    Time-lapse with Rasberry Pi controlled camera - VER 3.0 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -128,17 +128,32 @@ class rpiCamClass(object):
 			if (time.time() - self.eventErrtime) > self.eventErrdelay:
 				self.initClass()	
 			else:	
-				logging.debug("eventErr was set at %s!" % time.ctime(self.eventErrtime))
+				logging.debug("%s::: eventErr was set at %s!" % (self.name, time.ctime(self.eventErrtime)))
 
 		else:			
 		
+			### Create the daily output sub-folder
+			### Set the full image file path
+			self.subdir = os.path.join(self.config['image_dir'], time.strftime('%d%m%y', time.localtime()))
 			try:
-											
-				### Set the image file name
+				os.mkdir(self.subdir)
+				logging.info("%s::: Local daily output folder ''%s'' created." % (self.name, self.subdir))
+			
+			except OSError as e:
+				if e.errno == EEXIST:
+					logging.debug("%s::: Local daily output folder ''%s'' already exist!" % (self.name, self.subdir))
+					pass	
+				else:
+					logging.error("%s::: Local daily output folder ''%s'' could not be created!" % (self.name, self.subdir))
+					raise	
+					
+			finally:
 				self.image_name = time.strftime('%d%m%y-%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
-				self.image_path = os.path.join(self.config['image_dir'], self.image_name) 
-		
-				### Take new snapshot and save image 		
+				self.image_path = os.path.join(self.subdir, self.image_name) 
+	
+	
+			### Take a new snapshot and save the image locally 	
+			try:														
 				if FAKESNAP:
 					logging.debug('Faking snapshot: ' + self.image_name) 
 					self.grab_cam = subprocess.Popen("touch " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 			
@@ -340,11 +355,15 @@ class rpiCamClass(object):
 		### Create output folder
 		try:
 			os.mkdir(self.config['image_dir'])
-			logging.info("%s::: Local output folder ''%s'' created!" % (self.name, self.config['image_dir']))
+			logging.info("%s::: Local output folder ''%s'' created." % (self.name, self.config['image_dir']))
 		except OSError as e:
-			logging.info("%s::: Local output folder ''%s'' already exist!" % (self.name, self.config['image_dir']))
-			pass
-				
+			if e.errno == EEXIST:
+				logging.info("%s::: Local output folder ''%s'' already exist!" % (self.name, self.config['image_dir']))
+				pass
+			else:
+				logging.error("%s::: Local output folder ''%s'' could not be created!" % (self.name, self.config['image_dir']))
+				raise	
+									
 		### Fill in the fifo buffer with images found in the output directory	
 		### Only the image files with the current date are listed!			
 		#imagelist_ref = sorted(glob.glob(self.config['image_dir'] + '/' + time.strftime('%d%m%y', time.localtime()) + '-*.jpg'))		

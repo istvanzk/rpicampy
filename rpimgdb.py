@@ -443,10 +443,10 @@ class rpiImageDbClass():
 			try:
 				self.dbx.files_create_folder('/' + os.path.normpath(path))
 
-				logging.info("mkdirImage():: Remote output folder ''%s'' created!" % path)
+				logging.info("mkdirImage():: Remote output folder %s created." % path)
 	
 			except ApiError as e:
-				logging.debug("mkdirImage():: %s", e) #.user_message_text
+				logging.debug("mkdirImage():: Remote output folder %s was not created! %s" % (path, e)) #.user_message_text
 				pass 
 					
 		else:

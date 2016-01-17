@@ -140,14 +140,14 @@ class rpiCamClass(object):
 			self.locdir = os.path.join(self.config['image_dir'], self.imgSubDir)
 			try:
 				os.mkdir(self.locdir)
-				logging.info("%s::: Local daily output folder ''%s'' created." % (self.name, self.locdir))
+				logging.info("%s::: Local daily output folder %s created." % (self.name, self.locdir))
 			
 			except OSError as e:
 				if e.errno == EEXIST:
-					logging.debug("%s::: Local daily output folder ''%s'' already exist!" % (self.name, self.locdir))
+					logging.debug("%s::: Local daily output folder %s already exist!" % (self.name, self.locdir))
 					pass	
 				else:
-					logging.error("%s::: Local daily output folder ''%s'' could not be created!" % (self.name, self.locdir))
+					logging.error("%s::: Local daily output folder %s could not be created!" % (self.name, self.locdir))
 					raise	
 					
 			finally:
@@ -359,13 +359,14 @@ class rpiCamClass(object):
 		### Create output folder
 		try:
 			os.mkdir(self.config['image_dir'])
-			logging.info("%s::: Local output folder ''%s'' created." % (self.name, self.config['image_dir']))
+			self.imgSubDir = time.strftime('%d%m%y', time.localtime())
+			logging.info("%s::: Local output folder %s created." % (self.name, self.config['image_dir']))
 		except OSError as e:
 			if e.errno == EEXIST:
-				logging.info("%s::: Local output folder ''%s'' already exist!" % (self.name, self.config['image_dir']))
+				logging.info("%s::: Local output folder %s already exist!" % (self.name, self.config['image_dir']))
 				pass
 			else:
-				logging.error("%s::: Local output folder ''%s'' could not be created!" % (self.name, self.config['image_dir']))
+				logging.error("%s::: Local output folder %s could not be created!" % (self.name, self.config['image_dir']))
 				raise	
 									
 		### Fill in the fifo buffer with images found in the output directory	

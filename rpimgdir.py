@@ -28,6 +28,7 @@ import datetime
 import subprocess
 import logging
 import thingspk
+import rpififo
 
 class rpiImageDirClass():
 	"""

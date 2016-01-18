@@ -65,11 +65,11 @@ class rpiImageDbClass():
 		self.eventErr 		= rpi_events.eventErrList[self.name]
 		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]		
-		self.imgSubDir      = rpi_events.imgSubDir
-				
+		
 		self.restapi = restapi 
 		
-		
+		self.imgSubDir = rpififo.imgSubDir
+				
 		### Init class
 		self.initClass()
 		

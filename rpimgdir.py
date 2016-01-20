@@ -47,10 +47,9 @@ class rpiImageDirClass():
 		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]							
 		self.eventDbErr 	= rpi_events.eventErrList['DBJob']
+		self.imgSubDir      = rpi_events.imgSubDir
 			
 		self.restapi = restapi 
-		
-		self.imgSubDir = rpififo.imgSubDir
 		
 		### Init class
 		self.initClass()

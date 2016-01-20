@@ -18,6 +18,7 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  
 Implements the Events class (group of events to be used in the rpi threads).
+Stores also the name of the current (sub)folder where the images are being stored locally.
 """    
 from threading import Event
 from threading import BoundedSemaphore
@@ -49,6 +50,8 @@ class rpiEventsClass():
 		self.eventDayEnd.clear()
 		self.eventEnd.clear()
 		
+		self.imgSubDir = ''
+			
 		self.EventSema = BoundedSemaphore()
 		
 	def acquireSemaphore(self):

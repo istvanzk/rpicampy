@@ -18,15 +18,11 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
     
 Implements the a FIFO buffer for the image file names (full path).
-Stores also the name of the current (sub)folder where the images are being stored locally.     
 """
 
 from threading import BoundedSemaphore
 from collections import deque
 
-# The name of the current (sub)folder where the images are being stored locally.     
-imgSubDir = ''
-		
 
 class rpiFIFOClass(deque):
 	"""

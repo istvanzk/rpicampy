@@ -82,19 +82,19 @@ class rpiCamClass(object):
 		self.eventErr 		= rpi_events.eventErrList[self.name]
 		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]
+		self.imgSubDir      = rpi_events.imgSubDir
 		
 		self.restapi = restapi
 		
 		### Make FIFO buffer (deque)					
 		self.imageFIFO = rpififo.rpiFIFOClass([], self.config['list_size'])
-		self.imgSubDir = rpififo.imgSubDir
 						
 		### Init class
 		self.initClass()
 												
 	def __str__(self):
-		return "%s::: %s, config:%s\nimageFIFO:%s\nFake snap:%s\neventErrdelay:%s" % \
-			(self.name, self.camid, self.config, self.imageFIFO, FAKESNAP, self.eventErrdelay)
+		return "%s::: %s, config:%s\nimageFIFO:%s\nFake snap:%s\neventErrdelay:%s\nImg subdir:%s" % \
+			(self.name, self.camid, self.config, self.imageFIFO, FAKESNAP, self.eventErrdelay, self.imgSubDir)
 		
 	def __del__(self):
 		logging.debug("%s::: Deleted!" % self.name)

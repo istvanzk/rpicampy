@@ -65,11 +65,10 @@ class rpiImageDbClass():
 		self.eventErr 		= rpi_events.eventErrList[self.name]
 		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]		
+		self.imgSubDir      = rpi_events.imgSubDir
 		
 		self.restapi = restapi 
 		
-		self.imgSubDir = rpififo.imgSubDir
-				
 		### Init class
 		self.initClass()
 		
@@ -443,10 +442,10 @@ class rpiImageDbClass():
 			try:
 				self.dbx.files_create_folder('/' + os.path.normpath(path))
 
-				logging.info("mkdirImage():: Remote output folder %s created." % path)
+				logging.info("mkdirImage():: Remote output folder /%s created." % path)
 	
 			except ApiError as e:
-				logging.debug("mkdirImage():: Remote output folder %s was not created! %s" % (path, e)) #.user_message_text
+				logging.debug("mkdirImage():: Remote output folder /%s was not created! %s" % (path, e)) #.user_message_text
 				pass 
 					
 		else:

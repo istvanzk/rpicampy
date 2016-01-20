@@ -150,7 +150,7 @@ class rpiCamClass(object):
 					raise	
 					
 			finally:
-				self.image_name = self.imgSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
+				self.image_name = self.config['image_subdir'] + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
 				self.image_path = os.path.join(self.locdir, self.image_name) 
 				
 	

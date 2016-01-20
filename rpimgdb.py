@@ -116,11 +116,6 @@ class rpiImageDbClass():
 				
 				else:
 					
-					### Init the remote upload sub-folder
-					self.upldir = os.path.normpath(os.path.join(self.config['image_dir'], self.config['image_subdir']))
-					self.mkdirImage(self.upldir)
-					#self.lsImage(self.upldir)
-								
 					### Get the current images in the FIFO
 					### Refresh the last remote image when available
 					self.imageFIFO.acquireSemaphore()
@@ -133,9 +128,13 @@ class rpiImageDbClass():
 							self.numImgUpdDb += 1
 							logging.info("Updated remote %s with %s" % (self.config['image_snap'], self.imageFIFO[-1]) )
 
+
 						### Upload all images in the FIFO which have not been uploaded yet
+						### Init the current remote upload sub-folder
 						for img in self.imageFIFO:
 							if img not in self.imageUpldList:
+								self.upldir = os.path.normpath(os.path.join(self.config['image_dir'], self.config['image_subdir']))
+								self.mkdirImage(self.upldir)
 								self.putImage(img, os.path.join(self.upldir, os.path.basename(img)))
 								logging.info("Uploaded %s" % img )
 

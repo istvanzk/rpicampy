@@ -92,8 +92,8 @@ class rpiCamClass(object):
 		self.initClass()
 												
 	def __str__(self):
-		return "%s::: %s, config:%s\nimageFIFO:%s\nFake snap:%s\neventErrdelay:%s\nImg subdir:%s" % \
-			(self.name, self.camid, self.config, self.imageFIFO, FAKESNAP, self.eventErrdelay, self.imgSubDir)
+		return "%s::: %s, config:%s\nimageFIFO:%s\nFake snap:%s\neventErrdelay:%s" % \
+			(self.name, self.camid, self.config, self.imageFIFO, FAKESNAP, self.eventErrdelay)
 		
 	def __del__(self):
 		logging.debug("%s::: Deleted!" % self.name)

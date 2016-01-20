@@ -23,7 +23,6 @@ Implements the a FIFO buffer for the image file names (full path).
 from threading import BoundedSemaphore
 from collections import deque
 
-
 class rpiFIFOClass(deque):
 	"""
 	Implements the a Deque with BoundedSemaphore.

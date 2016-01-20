@@ -28,7 +28,6 @@ import datetime
 import subprocess
 import logging
 import thingspk
-import rpififo
 
 class rpiImageDirClass():
 	"""
@@ -47,8 +46,7 @@ class rpiImageDirClass():
 		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]							
 		self.eventDbErr 	= rpi_events.eventErrList['DBJob']
-		self.imgSubDir      = rpi_events.imgSubDir
-			
+		
 		self.restapi = restapi 
 		
 		### Init class
@@ -97,8 +95,8 @@ class rpiImageDirClass():
 				else:
 							
 					### List all jpg files in the current local sub-folder
-					self.locdir = os.path.join(self.config['image_dir'], self.imgSubDir)
-					self.imagelist = sorted(glob.glob(self.locdir + '/' + self.imgSubDir + '-*.jpg'))
+					self.locdir = os.path.join(self.config['image_dir'], self.config['image_subdir'])
+					self.imagelist = sorted(glob.glob(self.locdir + '/' + self.config['image_subdir'] + '-*.jpg'))
 					if len(self.imagelist) > 0:
 						logging.debug("imagelist: %s .. %s" % (self.imagelist[0], self.imagelist[-1]))
 					else:
@@ -130,7 +128,7 @@ class rpiImageDirClass():
 						self.rest_update(len(self.imagelist))
 					
 						### Update image list in the current local sub-folder
-						self.imagelist_ref = sorted(glob.glob(self.locdir + '/' + self.imgSubDir + '-*.jpg'))
+						self.imagelist_ref = sorted(glob.glob(self.locdir + '/' + self.config['image_subdir'] + '-*.jpg'))
 						if len(self.imagelist_ref) > 0:
 							logging.debug("imagelist_ref: %s .. %s" % (self.imagelist_ref[0], self.imagelist[-1]))
 						else:

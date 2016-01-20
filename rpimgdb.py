@@ -46,7 +46,6 @@ from dropbox.exceptions import ApiError, AuthError, DropboxException, InternalSe
 from urllib3 import exceptions
 
 import thingspk
-import rpififo
 import json
 
 class rpiImageDbClass():
@@ -65,7 +64,6 @@ class rpiImageDbClass():
 		self.eventErr 		= rpi_events.eventErrList[self.name]
 		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]		
-		self.imgSubDir      = rpi_events.imgSubDir
 		
 		self.restapi = restapi 
 		
@@ -119,7 +117,7 @@ class rpiImageDbClass():
 				else:
 					
 					### Init the remote upload sub-folder
-					self.upldir = os.path.normpath(os.path.join(self.config['image_dir'], self.imgSubDir))
+					self.upldir = os.path.normpath(os.path.join(self.config['image_dir'], self.config['image_subdir']))
 					self.mkdirImage(self.upldir)
 					#self.lsImage(self.upldir)
 								

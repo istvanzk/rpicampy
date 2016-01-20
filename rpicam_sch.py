@@ -93,9 +93,12 @@ try:
 		timerConfig, camImgConfig, dirImgConfig, dbImgConfig = yaml.load_all(stream)
 		
 	dbImgConfig['token_file'] = DBTOKEN_FILE
-	dbImgConfig['image_dir'] = camImgConfig['image_dir']
-	dirImgConfig['image_dir'] = camImgConfig['image_dir']
-	camImgConfig['list_size'] = dirImgConfig['list_size']
+	camImgConfig['image_subdir'] = '/'
+	dbImgConfig['image_dir']     = camImgConfig['image_dir']
+	dbImgConfig['image_subdir']  = camImgConfig['image_subdir']
+	dirImgConfig['image_dir']    = camImgConfig['image_dir']
+	dirImgConfig['image_subdir'] = camImgConfig['image_subdir']
+	camImgConfig['list_size']    = dirImgConfig['list_size']
 	
 	logging.info("Configuration file read")
 	logging.debug("timerConfig: %s" % timerConfig)

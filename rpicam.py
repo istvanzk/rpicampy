@@ -82,7 +82,6 @@ class rpiCamClass(object):
 		self.eventErr 		= rpi_events.eventErrList[self.name]
 		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]
-		self.imgSubDir      = rpi_events.imgSubDir
 		
 		self.restapi = restapi
 		
@@ -136,8 +135,8 @@ class rpiCamClass(object):
 		
 			### Create the daily output sub-folder
 			### Set the full image file path
-			self.imgSubDir = time.strftime('%d%m%y', time.localtime())
-			self.locdir = os.path.join(self.config['image_dir'], self.imgSubDir)
+			self.config['image_subdir'] = time.strftime('%d%m%y', time.localtime())
+			self.locdir = os.path.join(self.config['image_dir'], self.config['image_subdir'])
 			try:
 				os.mkdir(self.locdir)
 				logging.info("%s::: Local daily output folder %s created." % (self.name, self.locdir))

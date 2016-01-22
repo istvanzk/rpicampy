@@ -47,6 +47,8 @@ class rpiImageDirClass():
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]							
 		self.eventDbErr 	= rpi_events.eventErrList['DBJob']
 		
+		self.imgSubDir = rpi_events.img['subdir']
+				
 		self.restapi = restapi 
 		
 		### Init class
@@ -95,8 +97,8 @@ class rpiImageDirClass():
 				else:
 							
 					### List all jpg files in the current local sub-folder
-					self.locdir = os.path.join(self.config['image_dir'], self.config['image_subdir'])
-					self.imagelist = sorted(glob.glob(self.locdir + '/' + self.config['image_subdir'] + '-*.jpg'))
+					self.locdir = os.path.join(self.config['image_dir'], self.imgSubDir)
+					self.imagelist = sorted(glob.glob(self.locdir + '/' + self.imgSubDir + '-*.jpg'))
 					if len(self.imagelist) > 0:
 						logging.debug("imagelist: %s .. %s" % (self.imagelist[0], self.imagelist[-1]))
 					else:
@@ -128,7 +130,7 @@ class rpiImageDirClass():
 						self.rest_update(len(self.imagelist))
 					
 						### Update image list in the current local sub-folder
-						self.imagelist_ref = sorted(glob.glob(self.locdir + '/' + self.config['image_subdir'] + '-*.jpg'))
+						self.imagelist_ref = sorted(glob.glob(self.locdir + '/' + self.imgSubDir + '-*.jpg'))
 						if len(self.imagelist_ref) > 0:
 							logging.debug("imagelist_ref: %s .. %s" % (self.imagelist_ref[0], self.imagelist[-1]))
 						else:
@@ -182,7 +184,7 @@ class rpiImageDirClass():
 		self.eventErrdelay = 120
 
 		### Init reference img file list
-		self.imagelist_ref = sorted(glob.glob(self.config['image_dir'] + '/' + time.strftime('%d%m%y', time.localtime()) + '-*.jpg'))
+		self.imagelist_ref = sorted(glob.glob(self.config['image_dir'] + '/' + self.imgSubDir + '-*.jpg'))
 
 		### Update REST feed
 		self.restapi_fieldid = 'field4'

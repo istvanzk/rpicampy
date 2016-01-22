@@ -85,6 +85,8 @@ class rpiCamClass(object):
 		
 		self.restapi = restapi
 		
+		self.imgSubDir = rpi_events.img['subdir']
+		
 		### Make FIFO buffer (deque)					
 		self.imageFIFO = rpififo.rpiFIFOClass([], self.config['list_size'])
 						
@@ -135,8 +137,9 @@ class rpiCamClass(object):
 		
 			### Create the daily output sub-folder
 			### Set the full image file path
-			self.config['image_subdir'] = time.strftime('%d%m%y', time.localtime())
-			self.locdir = os.path.join(self.config['image_dir'], self.config['image_subdir'])
+			#self.config['image_subdir'] = time.strftime('%d%m%y', time.localtime())
+			self.imgSubDir = time.strftime('%d%m%y', time.localtime())
+			self.locdir = os.path.join(self.config['image_dir'], self.imgSubDir)
 			try:
 				os.mkdir(self.locdir)
 				logging.info("%s::: Local daily output folder %s created." % (self.name, self.locdir))
@@ -150,7 +153,7 @@ class rpiCamClass(object):
 					raise	
 					
 			finally:
-				self.image_name = self.config['image_subdir'] + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
+				self.image_name = self.imgSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
 				self.image_path = os.path.join(self.locdir, self.image_name) 
 				
 	

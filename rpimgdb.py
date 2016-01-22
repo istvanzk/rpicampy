@@ -65,6 +65,8 @@ class rpiImageDbClass():
 		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]		
 		
+		self.imgSubDir = rpi_events.img['subdir']
+		
 		self.restapi = restapi 
 		
 		### Init class
@@ -133,7 +135,7 @@ class rpiImageDbClass():
 						### Init the current remote upload sub-folder
 						for img in self.imageFIFO:
 							if img not in self.imageUpldList:
-								self.upldir = os.path.normpath(os.path.join(self.config['image_dir'], self.config['image_subdir']))
+								self.upldir = os.path.normpath(os.path.join(self.config['image_dir'], self.imgSubDir)) #self.config['image_subdir']
 								self.mkdirImage(self.upldir)
 								self.putImage(img, os.path.join(self.upldir, os.path.basename(img)))
 								logging.info("Uploaded %s" % img )

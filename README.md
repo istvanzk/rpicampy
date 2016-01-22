@@ -18,6 +18,7 @@ Uses APScheduler (Advanced Python Scheduler: http://pythonhosted.org/APScheduler
 3. rpimgdb:		Manage images in a remote directory (Dropbox SDK, API V2, Python 3.4).
 
 The configuration parameters are read from the rpiconfig.yaml
+
 The image file names are:  '%d%m%y-%H%M%S-CAM<X>.jpg', where X is the camera number (ID string).
 The images are saved locally and remotely in a sub-folder. The sub-folder name is the current date '%d%m%y'
 

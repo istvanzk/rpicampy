@@ -84,9 +84,7 @@ class rpiCamClass(object):
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]
 		
 		self.restapi = restapi
-		
-		self.imgSubDir = rpi_events.img['subdir']
-		
+				
 		### Make FIFO buffer (deque)					
 		self.imageFIFO = rpififo.rpiFIFOClass([], self.config['list_size'])
 						

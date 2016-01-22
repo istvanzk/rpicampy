@@ -138,8 +138,8 @@ class rpiCamClass(object):
 			### Create the daily output sub-folder
 			### Set the full image file path
 			#self.config['image_subdir'] = time.strftime('%d%m%y', time.localtime())
-			self.imgSubDir = time.strftime('%d%m%y', time.localtime())
-			self.locdir = os.path.join(self.config['image_dir'], self.imgSubDir)
+			self.imageFIFO.crtSubDir = time.strftime('%d%m%y', time.localtime())
+			self.locdir = os.path.join(self.config['image_dir'], self.imageFIFO.crtSubDir)
 			try:
 				os.mkdir(self.locdir)
 				logging.info("%s::: Local daily output folder %s created." % (self.name, self.locdir))
@@ -153,7 +153,7 @@ class rpiCamClass(object):
 					raise	
 					
 			finally:
-				self.image_name = self.imgSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
+				self.image_name = self.imageFIFO.crtSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
 				self.image_path = os.path.join(self.locdir, self.image_name) 
 				
 	

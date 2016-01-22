@@ -103,7 +103,7 @@ class rpiImageDirClass():
 					if len(self.imagelist) > 0:
 						logging.debug("imagelist: %s .. %s" % (self.imagelist[0], self.imagelist[-1]))
 					else:
-						logging.debug("imagelist: empty")
+						logging.debug("imagelist: empty. No %s found!" % self.image_name)
 					
 					### Run directory/file management only if no errors were detected when 
 					### updating to remote directory
@@ -135,7 +135,7 @@ class rpiImageDirClass():
 						if len(self.imagelist_ref) > 0:
 							logging.debug("imagelist_ref: %s .. %s" % (self.imagelist_ref[0], self.imagelist[-1]))
 						else:
-							logging.debug("imagelist_ref: empty")
+							logging.debug("imagelist_ref: empty. No %s found!" % self.image_name)
 					
 							
 					else:

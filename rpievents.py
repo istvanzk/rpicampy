@@ -51,6 +51,7 @@ class rpiEventsClass():
 		
 		self.EventSema = BoundedSemaphore()
 		
+		self.img = {}
 		self.img['subdir'] = '/'
 
 		

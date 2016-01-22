@@ -27,6 +27,7 @@ class rpiFIFOClass(deque):
 	"""
 	Implements the a Deque with BoundedSemaphore.
 	Used as a FIFO buffer for the image file names (full path).
+	Stores also the name of the current sub-folder.
 	"""
 	def __init__(self, *args):
 		deque.__init__(self, *args)
@@ -41,4 +42,4 @@ class rpiFIFOClass(deque):
 
 	def __del__(self):
 #		self.FIFOSema.release()	
-		self.imgSubDir = ''
+		self.crtSubDir = ''

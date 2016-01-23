@@ -3,7 +3,8 @@ Time-lapse with Rasberry Pi controlled camera.
 
 Version 3.0 for Python 3.4+
 
-Uses APScheduler (Advanced Python Scheduler: http://pythonhosted.org/APScheduler/) to background schedule three interval jobs: 
+Uses APScheduler (Advanced Python Scheduler: http://apscheduler.readthedocs.org/en/latest/) 
+to background schedule three interval jobs: 
 
 1. rpicam:		Run and control a:
 

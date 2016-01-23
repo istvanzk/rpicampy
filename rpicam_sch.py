@@ -44,6 +44,7 @@ TODOs:
 1) Use/enable ThingSpeak TalkBack API
 2) Integrate with RasPiConnectServer
 3) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
+and pyinotify module, http://www.saltycrane.com/blog/2010/04/monitoring-filesystem-python-and-pyinotify/
 4) Use configurable logging (http://victorlin.me/posts/2012/08/26/good-logging-practice-in-python)
 
 """
@@ -133,8 +134,7 @@ if TSPKFEEDUSE and (RESTfeed is not None):
 	RESTfeed.setfield('status','Start')
 	RESTfeed.update()	
 	RESTfeed.setfield('status','')
-		
-			
+						
 def rest_update(stream_value=None, status_str=None):
 	"""
 	ThingSpeak REST API function to upload the feed data. 
@@ -146,6 +146,14 @@ def rest_update(stream_value=None, status_str=None):
 		if status_str is not None: 
 			RESTfeed.setfield('status',status_str)
 		RESTfeed.update()
+
+### ThingSpeak TalkBack 
+if TSPKTBUSE:
+	RESTTalkB = thingspk.ThingSpeakTBClient(TSPKTB_ID)
+else:
+	RESTTalkB = None
+	
+
 
 def job_listener(event):
 	"""
@@ -301,10 +309,17 @@ def main():
 					# Main loop
 					# The eventsRPi.eventEnd is set when all jobs have been removed/finished
 					while not eventsRPi.eventEnd.is_set():
-						time.sleep( camImgConfig['interval_sec'][tper] )
+						#time.sleep( camImgConfig['interval_sec'][tper] )
 						
 						# Do something else while the scheduler is running
-					
+						time.sleep(60)
+						if RESTTalkB is not None:
+							RESTTalkB.talkback.execcmd()
+							if RESTTalkB.talkback.response:
+								logging.info("New TB cmd: %s" % RESTTalkB.talkback.response)
+							else:
+								logging.debug("No new TB cmd.")
+							
 					# TODO:		
 					# Use rest_update(status_str)	
 			

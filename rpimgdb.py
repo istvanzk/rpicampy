@@ -241,16 +241,16 @@ class rpiImageDbClass():
 			if os.path.isfile(self.logfile):
 				with open(self.logfile,'r') as logf:
 					self.imageUpldList = json.load(logf)
-					logging.info("%s::: Json log file ''%s'' found and loaded." % (self.name, self.logfile))
+					logging.info("%s::: Local log file %s found and loaded." % (self.name, self.logfile))
 			else:
 				with open(self.logfile,'w') as logf:
 					json.dump([], logf)
-					logging.info("%s::: Json log file ''%s'' initialized." % (self.name, self.logfile))
+					logging.info("%s::: Local log file %s initialized." % (self.name, self.logfile))
 				
 		except IOError:
 			### Update REST feed
 			self.rest_update(-5)
-			logging.error("%s::: Local json log file ''%s'' was not found or could not be created! Exiting!" % (self.name, self.logfile), exc_info=True)
+			logging.error("%s::: Local log file %s was not found or could not be created! Exiting!" % (self.name, self.logfile), exc_info=True)
 			raise
 			
 		### Init Dropbox API client		
@@ -313,11 +313,12 @@ class rpiImageDbClass():
 			try:
 				with open(self.logfile,'w') as logf:
 					json.dump(self.imageUpldList, logf)
+					logging.info("%s::: Local log file %s updated." % (self.name, self.logfile))
 
 			except IOError:
 				self.eventErr_set("endDayOAM()")
 				self.rest_update(-5)
-				logging.error("%s::: Local log file ''%s'' could not be created! Exiting!" % (self.name, self.logfile), exc_info=True)
+				logging.error("%s::: Local log file %s could not be created! Exiting!" % (self.name, self.logfile), exc_info=True)
 				raise
 
 			self.eventDayEnd.clear()

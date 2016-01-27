@@ -86,6 +86,14 @@ class rpiImageDbClass():
 	# Run (as a Job in APScheduler)
 	#
 	def run(self):
+
+		if not self.config['enabled']:
+			logging.debug("%s::: Disabled." % self.name)
+			return
+			
+		if self.config['initclass']:
+			self.initClass()
+
 			
 		if self.eventEnd.is_set():
 

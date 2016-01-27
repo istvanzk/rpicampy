@@ -114,15 +114,23 @@ class rpiCamClass(object):
 	#		
 	def run(self):
 		
+		if not self.config['enabled']:
+			logging.debug("%s::: Disabled." % self.name)
+			return
+			
+		if self.config['initclass']:
+			self.initClass()
+		
+		
 		if self.eventEnd.is_set():
 
 			### The end
-			logging.info("%s::: eventEnd is set" % self.name)
+			logging.info("%s::: eventEnd is set!" % self.name)
 
 		elif self.eventErr.is_set():	
 		
 			### Error was detected
-			logging.info("%s::: eventErr is set" % self.name)
+			logging.info("%s::: eventErr is set!" % self.name)
 		
 			### Try to reset  and clear the self.eventErr
 			# after 2x self.eventErrdelay of failed access/run attempts
@@ -181,7 +189,7 @@ class rpiCamClass(object):
 						#with picamera.PiCamera() as self.camera:
 						self.camera = picamera.PiCamera()
 						self.camera.resolution = (1024, 768)
-						self.camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2015 Istvan Z. Kovacs'
+						self.camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2016 Istvan Z. Kovacs'
 						#self.camera.hflip = True
 						#self.camera.vflip = True
 						self.camera.rotation = 0

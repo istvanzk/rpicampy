@@ -304,7 +304,7 @@ def tbk_handler():
 				rest_update("%s initclass" % imgDbx.name)
 								
 ### The events
-eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob'])
+eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob', 'TBJob'])
 logging.debug(eventsRPi)
 
 ### Init the job classes	

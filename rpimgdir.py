@@ -195,6 +195,9 @@ class rpiImageDirClass():
 		self.image_name = os.path.join(self.locdir, self.imageFIFO.crtSubDir + '-*.jpg')		
 		self.imagelist_ref = sorted(glob.glob(self.image_name))
 
+		### Clear init flag
+		self.config['initclass'] = False
+		
 		### Update REST feed
 		self.restapi_fieldid = 'field4'
 		self.rest_update(0)

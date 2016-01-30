@@ -298,7 +298,10 @@ class rpiImageDbClass():
 		except InternalServerError as e:	
 			logging.error("%s::: InternalServerError:\n%s" % (self.name, str(e)))
 			raise
-		
+			
+		### Clear init flag		
+		self.config['initclass'] = False
+				
 		### Update REST feed
 		self.restapi_fieldid = 'field3'		
 		self.rest_update(0)

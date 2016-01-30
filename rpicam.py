@@ -386,6 +386,9 @@ class rpiCamClass(object):
 		#	if not img in self.imageFIFO:
 		#		self.imageFIFO.append(img)
 		#self.imageFIFO.releaseSemaphore()
+
+		### Clear init flag			
+		self.config['initclass'] = False
 			
 		### Update REST feed
 		self.restapi_fieldid = 'field2'		

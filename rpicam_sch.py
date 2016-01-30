@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Time-lapse with Rasberry Pi controlled camera - VER 3.0 for Python 3.4+
+Time-lapse with Rasberry Pi controlled camera - VER 3.1 for Python 3.4+
 Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -41,10 +41,10 @@ The REST client implementation is based on the official python Xively API client
 The tool can be launched as an init.d Linux service with the rpicamtest.sh
 
 TODOs: 
-1) Use/enable ThingSpeak TalkBack API
-2) Integrate with RasPiConnectServer
-3) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
+1) Implement Job crash recovery mechanism.
+2) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
 and pyinotify module, http://www.saltycrane.com/blog/2010/04/monitoring-filesystem-python-and-pyinotify/
+3) Integrate with RasPiConnectServer
 4) Use configurable logging (http://victorlin.me/posts/2012/08/26/good-logging-practice-in-python)
 
 """
@@ -237,7 +237,7 @@ def tbk_handler():
 		RESTTalkB.talkback.execcmd()
 		res = RESTTalkB.talkback.response
 		if res:
-			print("\nRes: %s" % RESTTalkB.talkback.response)
+			logging.debug("TB response: %s" % RESTTalkB.talkback.response)
 			cmdrx = res.get('command_string')
 
 			# Timer
@@ -255,7 +255,7 @@ def tbk_handler():
 				logging.debug("%s is resumed." % imgCam.name)
 				rest_update("%s resumed" % imgCam.name)
 
-			if cmdrx==u'cam/02' and amConfig['enabled']:
+			if cmdrx==u'cam/02' and camConfig['enabled']:
 				camConfig['enabled'] = False
 				sched.pause_job(imgCam.name)
 				logging.debug("%s is paused." % imgCam.name)

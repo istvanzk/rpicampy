@@ -23,6 +23,8 @@ according to the API documentation at http://community.thingspeak.com/documentat
 and the TalkBack API documentation at https://thingspeak.com/docs/talkback
 
 The REST client implementation is based on the official python Xively API client (SDK).
+
+The Channel ID and API Key(s) are read from the text file given as argument when the class is instantiated.
 """
 
 import sys
@@ -41,7 +43,7 @@ try:
 except ImportError:
 	import simplejson as json
 
-SDK_VERSION = 0.7
+SDK_VERSION = 0.8
 TINTV_CH_SEC = 300
 TINTV_TB_SEC = 300
 	
@@ -259,8 +261,6 @@ class ThingSpeakTBClient(object):
 	The TalkBack apps are managed via the class:TalkBacksManager instances.
 	Uses class:RESTClient instance.
 
-	:param channel_id: The TalkBack Channel ID
-	:type channel_id: string or integer
 	:param key_file: the ThingSpeak API keys file
 	:type key_file: string
 	:param use_ssl: Use https for all connections instead of http
@@ -271,24 +271,28 @@ class ThingSpeakTBClient(object):
 	:type tconfig: dictionary [None]
 
 	Usage::
-		tspk = thingspk.ThingSpeakTBClient('channelName', 'keys_file.txt')
+		tspk = thingspk.ThingSpeakTBClient('keys_file.txt')
 		tspk.talkback.
 		print tspk.talkback.response	
 
 	"""
 	client_class = RESTClient
 
-	def __init__(self, talkback_id=None, key_file=None, use_ssl=True, text_response=False, tconfig=None ):
-		self.talkback_id = talkback_id or {} 
-		self.key_file = key_file or ''
+	def __init__(self, key_file=None, use_ssl=True, text_response=False, tconfig=None ):
+		self.key_file = key_file or None
 		self.tconfig = tconfig or None
+	
+		if self.key_file is None:
+			logging.error("ThingSpeak TB::: No TalkBack ID and API Key were specified! Exiting!", exc_info=True)	
 		
 		# Read the access key
 		try:
 			with open(self.key_file,'r') as f:
-				tspk_keys = f.read().split('\n',3)
-			
-			self.tbapi_key = tspk_keys[2]
+				tspk_info = f.read().split('\n')
+				tspk_key  = tspk_info[1].split(',',3)
+				
+				self.talkback_id = int(tspk_key[0])
+				self.tbapi_key   = tspk_key[1]
 				
 		except IOError:
 			logging.error("ThingSpeak TB::: Keys file ''%s'' not found! Exiting!" % (self.key_file), exc_info=True)
@@ -413,9 +417,7 @@ class ThingSpeakAPIClient(object):
 	class:ChartsManager instances.
 	Uses class:RESTClient instance.
 
-	:param channel_id: The ThingSpeak Channel ID
-	:type channel_id: string or integer
-	:param key_file: the ThingSpeak API keys file
+	:param key_file: the ThingSpeak API channel IDs and Keys file
 	:type key_file: string
 	:param use_ssl: Use https for all connections instead of http
 	:type use_ssl: bool [False]
@@ -425,33 +427,37 @@ class ThingSpeakAPIClient(object):
 	:type tconfig: dictionary [None]
 
 	Usage::
-		tspk = thingspk.ThingSpeakAPIClient('channelName', 'keys_file.txt')
+		tspk = thingspk.ThingSpeakAPIClient('keys_file.txt')
 		tspk.channel.getuserinfo(username='user0')
 		print tspk.channel.response	
 
 	"""
 	client_class = RESTClient
 
-	def __init__(self, channel_id=None, key_file=None, use_ssl=True, text_response=False, tconfig=None ):
-		self.channel_id = channel_id or None
-		self.key_file = key_file or ''
+	def __init__(self, key_file=None, use_ssl=True, text_response=False, tconfig=None ):
+		self.key_file = key_file or None
 		self.tconfig = tconfig or None
 		
-		# REST client
-		self.client = self.client_class(use_ssl=use_ssl, text_response=text_response)
-		
-		# Read the access keys
+		if self.key_file is None:
+			logging.error("ThingSpeak API::: No Channel ID and API Keys were specified! Exiting!", exc_info=True)	
+			
+		# Read the Channel ID and API Key
 		try:
 			with open(self.key_file,'r') as f:
-				tspk_keys = f.read().split('\n',3)
-			
-			self.write_key = tspk_keys[0]
-			self.read_key  = self.write_key #tspk_keys[1]
+				tspk_info = f.read().split('\n')
+				tspk_key  = tspk_info[0].split(',',3)
+				
+				self.channel_id = int(tspk_key[0])
+				self.write_key  = tspk_key[1]
+				self.read_key   = tspk_key[2]
 				
 		except IOError:
 			logging.error("ThingSpeak API::: Keys file ''%s'' not found! Exiting!" % (self.key_file), exc_info=True)
 			raise
-				
+
+		# REST client
+		self.client = self.client_class(use_ssl=use_ssl, text_response=text_response)
+						
 		# Channel manager
 		self._channel =  None	
 		if self.client is not None and \

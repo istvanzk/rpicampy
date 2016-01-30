@@ -303,7 +303,7 @@ imgDir = rpimgdir.rpiImageDirClass("DIRJob", dirConfig, imgCam.imageFIFO, events
 logging.info(imgDir)
 
 imgDbx = rpimgdb.rpiImageDbClass("DBXJob", dbxConfig, imgCam.imageFIFO, eventsRPi, RESTfeed)
-logging.info(imgDB)
+logging.info(imgDbx)
 
 
 ### The APScheduler

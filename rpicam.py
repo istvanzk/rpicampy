@@ -345,6 +345,7 @@ class rpiCamClass(object):
 		self.eventErrdelay = 120
 
 		### Host/cam ID
+		self.camera = None
 		self.camid = 'CAM1'
 		if subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8').find('pi2') > 0:
 			self.camid = 'CAM2'

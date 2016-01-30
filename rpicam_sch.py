@@ -75,7 +75,7 @@ DBTOKEN_FILE = 'token_key.txt'
 ### ThingSpeak API feed and TalkBack app
 TSPK_FILE   = 'tspk_keys.txt'
 TSPKFEEDUSE = True
-TSPKTBUSE   = False
+TSPKTBUSE   = True
 
 
 ### Set up the logging
@@ -190,7 +190,7 @@ def job_listener(event):
 		eventsRPi.eventErrcountList[e_jobid] += 1
 		
 		logging.error("%s: The job crashed!" % e_jobid)
-		rest_update("%sCrash" % e_jobid)
+		rest_update("%s: Crash" % e_jobid)
 	
 	elif e_code == EVENT_JOB_EXECUTED:
 		#print("%s: The job worked." % e_jobid)
@@ -203,7 +203,9 @@ def job_listener(event):
 			eventsRPi.eventErrcountList[e_jobid] += 1						
 			if eventsRPi.eventErrcountList[e_jobid] > 3:
 				#print("%s: too many errors!" % e_jobid)
-				status_str = "%sErrorMax: %s" % (e_jobid, time.ctime(time.time))
+				status_str = "%s: ErrorMax %s" % (e_jobid, time.ctime(time.time))
+		else:
+			status_str = "%s: Run %d" % (e_jobid, eventsRPi.eventRuncountList[e_jobid])
 		
 	elif (e_code == EVENT_JOB_ADDED) or (e_code == EVENT_JOB_REMOVED):
 		sch_jobs = sched.get_jobs()
@@ -226,7 +228,7 @@ def job_listener(event):
 		logging.warning("Unhandled event.code = %s" % e_code)
 	 
 	### Update REST feed 	
-	rest_update(status_str, eventsRPi.eventRuncountList[e_jobid])
+	rest_update(status_str, eventsRPi.jobRuncount)
 
 
 def tbk_handler():
@@ -239,57 +241,67 @@ def tbk_handler():
 			cmdrx = res.get('command_string')
 
 			# Timer
-			if cmdrx==u'tim/01':
+			if cmdrx==u'tim/00':
 				timerConfig['enabled'] = True
 
-			if cmdrx==u'tim/00':
+			if cmdrx==u'tim/01':
 				timerConfig['enabled'] = False
 
 
 			# Cam
-			if cmdrx==u'cam/01':
+			if cmdrx==u'cam/00' and not camConfig['enabled']:
 				camConfig['enabled'] = True
 				sched.resume_job(imgCam.name)
 				logging.debug("%s is resumed." % imgCam.name)
+				rest_update("%s resumed" % imgCam.name)
 
-			if cmdrx==u'cam/00':
+			if cmdrx==u'cam/02' and amConfig['enabled']:
 				camConfig['enabled'] = False
 				sched.pause_job(imgCam.name)
 				logging.debug("%s is paused." % imgCam.name)
+				rest_update("%s paused" % imgCam.name)
 
-			if cmdrx==u'cam/02':
+			if cmdrx==u'cam/04':
 				camConfig['initclass'] = True
-				logging.debug("%s will be initilized in the next run." % imgCam.name)
+				logging.debug("%s will be initialized in the next run." % imgCam.name)
+				rest_update("%s initclass" % imgCam.name)
 
 			# Dir
-			if cmdrx==u'dir/01':
+			if cmdrx==u'dir/00' and not dirConfig['enabled']:
 				dirConfig['enabled'] = True
 				sched.resume_job(imgDir.name)
 				logging.debug("%s is resumed." % imgDir.name)
+				rest_update("%s resumed" % imgDir.name)
 
-			if cmdrx==u'dir/00':
+			if cmdrx==u'dir/02' and dirConfig['enabled']:
 				dirConfig['enabled'] = False
 				sched.pause_job(imgDir.name)
 				logging.debug("%s is paused." % imgDir.name)
+				rest_update("%s paused" % imgDir.name)
 
-			if cmdrx==u'dir/02':
+			if cmdrx==u'dir/04':
 				dirConfig['initclass'] = True
+				logging.debug("%s will be initialized in the next run." % imgDir.name)
+				rest_update("%s initclass" % imgDir.name)
 
 
 			# Dbx
-			if cmdrx==u'dbx/01':
+			if cmdrx==u'dbx/00' and not dbxConfig['enabled']:
 				dbxConfig['enabled'] = True
 				sched.resume_job(imgDbx.name)
 				logging.debug("%s is resumed." % imgDbx.name)
+				rest_update("%s resumed" % imgDbx.name)
 
-			if cmdrx==u'dbx/00':
+			if cmdrx==u'dbx/02' and dbxConfig['enabled']:
 				dbxConfig['enabled'] = False
 				sched.pause_job(imgDbx.name)
 				logging.debug("%s is paused." % imgDbx.name)
+				rest_update("%s paused" % imgDbx.name)
 
-			if cmdrx==u'dbx/02':
+			if cmdrx==u'dbx/04':
 				dbxConfig['initclass'] = True
-
+				logging.debug("%s will be initialized in the next run." % imgDbx.name)
+				rest_update("%s initclass" % imgDbx.name)
 								
 ### The events
 eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob'])
@@ -429,8 +441,11 @@ def main():
 
 			rest_update('EoD')
 			
-		# End scheduler and exit
-		sched.remove_job("TBJob")
+		# Remove TB job	
+		if RESTTalkB is not None:
+			sched.remove_job("TBJob")
+
+		# End scheduler and exit	
 		sched.shutdown(wait=True)
 		logging.debug("Scheduler stop on: %s" % time.ctime(time.time()))
 

@@ -130,19 +130,10 @@ if TSPKFEEDUSE:
 else:
 	RESTfeed = None
 
-### Init the ThingSpeak REST feed data
-if TSPKFEEDUSE and (RESTfeed is not None):
-	RESTfeed.setfield('field1', 0) 
-	RESTfeed.setfield('field2', 0) 
-	RESTfeed.setfield('field3', 0)
-	RESTfeed.setfield('field4', 0)
-	rest_update('Init')
-						
 def rest_update(status_str=None, stream_value=None):
 	"""
-	ThingSpeak REST API function to upload the feed data. 
+	Local ThingSpeak REST API function to upload the feed data. 
 	"""
-	
 	if RESTfeed is not None:
 		RESTfeed.setfield('status','')	
 		if status_str is not None: 
@@ -150,14 +141,25 @@ def rest_update(status_str=None, stream_value=None):
 		if stream_value is not None:
 			RESTfeed.setfield('field1', stream_value)			
 		RESTfeed.update()
-
-
+		
+### Init the ThingSpeak REST feed data
+if TSPKFEEDUSE and (RESTfeed is not None):
+	RESTfeed.setfield('field1', 0) 
+	RESTfeed.setfield('field2', 0) 
+	RESTfeed.setfield('field3', 0)
+	RESTfeed.setfield('field4', 0)
+	rest_update('Init')
+		
+						
 ### ThingSpeak TalkBack 
 if TSPKTBUSE:
 	RESTTalkB = thingspk.ThingSpeakTBClient(TSPK_FILE)
 	logging.info("ThingSpeak TalkBack ID %d initialized" % RESTTalkB.talkback_id)
 else:
 	RESTTalkB = None
+	
+
+
 	
 ###	
 ### Methods

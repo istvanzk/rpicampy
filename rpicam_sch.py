@@ -292,7 +292,7 @@ def tbk_handler():
 
 								
 ### The events
-eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBJob'])
+eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob'])
 logging.debug(eventsRPi)
 
 ### Init the job classes	

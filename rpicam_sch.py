@@ -80,7 +80,7 @@ TSPKTBUSE   = True
 
 ### Set up the logging
 logging.basicConfig(filename='rpicam.log', filemode='w',
-					level=logging.INFO,
+					level=logging.DEBUG,
                     format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
                     )
 

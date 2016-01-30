@@ -73,11 +73,9 @@ import thingspk
 DBTOKEN_FILE = 'token_key.txt'
 
 ### ThingSpeak API feed and TalkBack app
-TSPK_FILE = 'tspk_keys.txt'
+TSPK_FILE   = 'tspk_keys.txt'
 TSPKFEEDUSE = True
-TSPKCH_ID   = 9981
-TSPKTBUSE  = False
-TSPKTB_ID  = 104
+TSPKTBUSE   = False
 
 
 ### Set up the logging
@@ -111,7 +109,7 @@ finally:
 	camConfig['list_size']  = dirConfig['list_size']
 	
 	# Operation control keys
-	timerConfig['enabled']    = True
+	timerConfig['enabled'] = True
 	camConfig['enabled']   = True
 	camConfig['initclass'] = False
 	dirConfig['enabled']   = True
@@ -127,8 +125,8 @@ finally:
 
 ### ThingSpeak feed
 if TSPKFEEDUSE:
-	RESTfeed = thingspk.ThingSpeakAPIClient(TSPKCH_ID, TSPK_FILE)
-	logging.info("ThingSpeak channel (%d) initialized" % TSPKCH_ID)
+	RESTfeed = thingspk.ThingSpeakAPIClient(TSPK_FILE)
+	logging.info("ThingSpeak Channel ID %d initialized" % RESTfeed.channel_id)
 else:
 	RESTfeed = None
 
@@ -146,16 +144,18 @@ def rest_update(status_str=None, stream_value=None):
 	"""
 	
 	if RESTfeed is not None:
+		RESTfeed.setfield('status','')	
 		if status_str is not None: 
 			RESTfeed.setfield('status',status_str)
 		if stream_value is not None:
 			RESTfeed.setfield('field1', stream_value)			
 		RESTfeed.update()
-		RESTfeed.setfield('status','')
+
 
 ### ThingSpeak TalkBack 
 if TSPKTBUSE:
-	RESTTalkB = thingspk.ThingSpeakTBClient(TSPKTB_ID, TSPK_FILE)
+	RESTTalkB = thingspk.ThingSpeakTBClient(TSPK_FILE)
+	logging.info("ThingSpeak TalkBack ID %d initialized" % RESTTalkB.talkback_id)
 else:
 	RESTTalkB = None
 	
@@ -312,7 +312,8 @@ sched = BackgroundScheduler(alias='BkgScheduler')
 sched.add_listener(job_listener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_JOB_ADDED | EVENT_JOB_REMOVED) 
 
 # Add TalkBack client job; run every 60 seconds
-sched.add_job(tbk_handler, 'interval', id="TBJob", seconds=60, misfire_grace_time=10, name='TB' )
+if RESTTalkB is not None:
+	sched.add_job(tbk_handler, 'interval', id="TBJob", seconds=60, misfire_grace_time=10, name='TB' )
 
 
 

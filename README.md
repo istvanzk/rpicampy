@@ -22,7 +22,7 @@ to background schedule three interval jobs:
 
 The configuration parameters are read from the rpiconfig.yaml file.
 
-The image file names are:  '%d%m%y-%H%M%S-CAMX.jpg', where X is the camera number (ID string).
+The image file names are:  '%d%m%y-%H%M%S-CAMX.jpg', where CAMX is the camera identification (ID string).
 The images are saved locally and remotely in a sub-folder. The sub-folder name is the current date '%d%m%y'.
 
 A simple REST request abstraction layer and a light ThingSpeak API SDK is provided in the thingspeak module.

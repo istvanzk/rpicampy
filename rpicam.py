@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 3.0 for Python 3.4+
+    Time-lapse with Rasberry Pi controlled camera - VER 3.1 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,7 @@
 Implements the rpiCam class, to run and control a:
 	- Raspberry PI camera using the raspistill utility or 
 	- Raspberry PI camera usingthe picamera module, or
-	- a web camera using fswebcam utility.
+	- Web camera using fswebcam utility.
 GPIO ON/OFF control of an IR/VL reflector for night imaging. 	    
 """
 import os
@@ -68,8 +68,10 @@ if RPICAM or RASPISTILL:
 class rpiCamClass(object):
 	"""
 	Implements the rpiCam class, to run and control:
-	- a Raspberry PI camera using the raspistill utility or the picamera module
-	- a web camera using fswebcam utility
+	- Raspberry PI camera using the raspistill utility or 
+	- Raspberry PI camera usingthe picamera module, or
+	- Web camera using fswebcam utility.
+	Use GPIO to ON/OFF control an IR/VL reflector for night imaging.
 	"""
 		
 	def __init__(self, name, dict_config, rpi_events, restapi=None):

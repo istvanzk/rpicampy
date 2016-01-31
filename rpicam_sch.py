@@ -27,6 +27,7 @@ to background schedule three interval jobs:
 					- USB web camera using fswebcam utility 
 	2. rpimgdir:	Manage the set of saved images by rpiCam.  
 	3. rpimgdb:		Manage images in a remote directory (Dropbox SDK, API V2, Python 3.4).
+	4. talkback:	Manage commands received/read from ThingSpeak TalkBack APP
 
 The configuration parameters are read from the rpiconfig.yaml
 

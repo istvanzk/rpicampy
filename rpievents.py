@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-	Time-lapse with Rasberry Pi controlled camera - VER 3.0 for Python 3.4+
+	Time-lapse with Rasberry Pi controlled camera - VER 3.1 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -81,7 +81,7 @@ class rpiEventsClass():
 	def __str__(self):
 		ret_str = "Events: "
 		for id in self.event_ids:
-			ret_str = ret_str + ("%sErr:%d,%d,%d " % (id, self.eventErrList[id].is_set(), self.eventRuncountList[id], self.eventErrcountList[id]))
+			ret_str = ret_str + ("%s:%d,%d,%d " % (id, self.eventErrList[id].is_set(), self.eventRuncountList[id], self.eventErrcountList[id]))
 		
 		ret_str = ret_str + ("DayEnd:%d, End:%d" % (self.eventDayEnd.is_set(), self.eventEnd.is_set()))	
 			

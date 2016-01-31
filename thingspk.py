@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 2.1 for Python 3.4+
+    Time-lapse with Rasberry Pi controlled camera - VER 3.1 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify

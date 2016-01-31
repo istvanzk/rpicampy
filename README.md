@@ -1,7 +1,7 @@
 # rpicampy
 Time-lapse with Rasberry Pi controlled camera.
 
-Version 3.0 for Python 3.4+
+Version 3.1 for Python 3.4+
 
 Uses APScheduler (Advanced Python Scheduler: http://apscheduler.readthedocs.org/en/latest/) 
 to background schedule three interval jobs: 
@@ -18,10 +18,12 @@ to background schedule three interval jobs:
 
 3. rpimgdb:		Manage images in a remote directory (Dropbox SDK, API V2, Python 3.4).
 
-The configuration parameters are read from the rpiconfig.yaml
+4. talkback:	Manage commands received/read from ThingSpeak TalkBack APP
+
+The configuration parameters are read from the rpiconfig.yaml file.
 
 The image file names are:  '%d%m%y-%H%M%S-CAMX.jpg', where X is the camera number (ID string).
-The images are saved locally and remotely in a sub-folder. The sub-folder name is the current date '%d%m%y'
+The images are saved locally and remotely in a sub-folder. The sub-folder name is the current date '%d%m%y'.
 
 A simple REST request abstraction layer and a light ThingSpeak API SDK is provided in the thingspeak module.
 The implementation follows to the API documentation at http://community.thingspeak.com/documentation/api/

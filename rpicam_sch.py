@@ -109,8 +109,9 @@ finally:
 	dirConfig['image_dir']  = camConfig['image_dir']
 	camConfig['list_size']  = dirConfig['list_size']
 	
-	# Operation control keys
-	timerConfig['enabled'] = True
+	# Operation control flags
+	timerConfig['enabled']     = True
+	timerConfig['cmd_enabled'] = False
 	camConfig['enabled']   = True
 	camConfig['initclass'] = False
 	dirConfig['enabled']   = True
@@ -241,69 +242,88 @@ def tbk_handler():
 			logging.debug("TB response: %s" % RESTTalkB.talkback.response)
 			cmdrx = res.get('command_string')
 
+			# Cmd mode
+			if cmdrx==u'cmd/00':
+				timerConfig['cmd_enabled'] = True
+				sched.reschedule_job(job_id="TBJob", trigger='interval', seconds=30)
+				logging.debug("TBJob cmd mode.")
+				rest_update("TBCmd activated")
+
+			elif cmdrx==u'cmd/01':
+				timerConfig['cmd_enabled'] = False
+				sched.reschedule_job(job_id="TBJob", trigger='interval', seconds=293)
+				logging.debug("TBJob standby mode.")
+				rest_update("TBCmd standby")
+
 			# Timer
-			if cmdrx==u'tim/00':
+			elif cmdrx==u'tim/00':
 				timerConfig['enabled'] = True
 
-			if cmdrx==u'tim/01':
+			elif cmdrx==u'tim/01':
 				timerConfig['enabled'] = False
+				logging.debug("Timer disbaled.")
+				rest_update("Timer disbaled")
+
+			
+			# These commands are active only in cmd mode
+			if timerConfig['cmd_enabled']:
+
+				# Cam
+				if cmdrx==u'cam/00' and not camConfig['enabled']:
+					camConfig['enabled'] = True
+					sched.resume_job(imgCam.name)
+					logging.debug("%s is resumed." % imgCam.name)
+					rest_update("%s resumed" % imgCam.name)
+
+				elif cmdrx==u'cam/02' and camConfig['enabled']:
+					camConfig['enabled'] = False
+					sched.pause_job(imgCam.name)
+					logging.debug("%s is paused." % imgCam.name)
+					rest_update("%s paused" % imgCam.name)
+
+				elif cmdrx==u'cam/04':
+					camConfig['initclass'] = True
+					logging.debug("%s will be initialized in the next run." % imgCam.name)
+					rest_update("%s initclass" % imgCam.name)
+
+				# Dir
+				elif cmdrx==u'dir/00' and not dirConfig['enabled']:
+					dirConfig['enabled'] = True
+					sched.resume_job(imgDir.name)
+					logging.debug("%s is resumed." % imgDir.name)
+					rest_update("%s resumed" % imgDir.name)
+
+				elif cmdrx==u'dir/02' and dirConfig['enabled']:
+					dirConfig['enabled'] = False
+					sched.pause_job(imgDir.name)
+					logging.debug("%s is paused." % imgDir.name)
+					rest_update("%s paused" % imgDir.name)
+
+				elif cmdrx==u'dir/04':
+					dirConfig['initclass'] = True
+					logging.debug("%s will be initialized in the next run." % imgDir.name)
+					rest_update("%s initclass" % imgDir.name)
 
 
-			# Cam
-			if cmdrx==u'cam/00' and not camConfig['enabled']:
-				camConfig['enabled'] = True
-				sched.resume_job(imgCam.name)
-				logging.debug("%s is resumed." % imgCam.name)
-				rest_update("%s resumed" % imgCam.name)
+				# Dbx
+				elif cmdrx==u'dbx/00' and not dbxConfig['enabled']:
+					dbxConfig['enabled'] = True
+					sched.resume_job(imgDbx.name)
+					logging.debug("%s is resumed." % imgDbx.name)
+					rest_update("%s resumed" % imgDbx.name)
 
-			if cmdrx==u'cam/02' and camConfig['enabled']:
-				camConfig['enabled'] = False
-				sched.pause_job(imgCam.name)
-				logging.debug("%s is paused." % imgCam.name)
-				rest_update("%s paused" % imgCam.name)
+				elif cmdrx==u'dbx/02' and dbxConfig['enabled']:
+					dbxConfig['enabled'] = False
+					sched.pause_job(imgDbx.name)
+					logging.debug("%s is paused." % imgDbx.name)
+					rest_update("%s paused" % imgDbx.name)
 
-			if cmdrx==u'cam/04':
-				camConfig['initclass'] = True
-				logging.debug("%s will be initialized in the next run." % imgCam.name)
-				rest_update("%s initclass" % imgCam.name)
-
-			# Dir
-			if cmdrx==u'dir/00' and not dirConfig['enabled']:
-				dirConfig['enabled'] = True
-				sched.resume_job(imgDir.name)
-				logging.debug("%s is resumed." % imgDir.name)
-				rest_update("%s resumed" % imgDir.name)
-
-			if cmdrx==u'dir/02' and dirConfig['enabled']:
-				dirConfig['enabled'] = False
-				sched.pause_job(imgDir.name)
-				logging.debug("%s is paused." % imgDir.name)
-				rest_update("%s paused" % imgDir.name)
-
-			if cmdrx==u'dir/04':
-				dirConfig['initclass'] = True
-				logging.debug("%s will be initialized in the next run." % imgDir.name)
-				rest_update("%s initclass" % imgDir.name)
+				elif cmdrx==u'dbx/04':
+					dbxConfig['initclass'] = True
+					logging.debug("%s will be initialized in the next run." % imgDbx.name)
+					rest_update("%s initclass" % imgDbx.name)
 
 
-			# Dbx
-			if cmdrx==u'dbx/00' and not dbxConfig['enabled']:
-				dbxConfig['enabled'] = True
-				sched.resume_job(imgDbx.name)
-				logging.debug("%s is resumed." % imgDbx.name)
-				rest_update("%s resumed" % imgDbx.name)
-
-			if cmdrx==u'dbx/02' and dbxConfig['enabled']:
-				dbxConfig['enabled'] = False
-				sched.pause_job(imgDbx.name)
-				logging.debug("%s is paused." % imgDbx.name)
-				rest_update("%s paused" % imgDbx.name)
-
-			if cmdrx==u'dbx/04':
-				dbxConfig['initclass'] = True
-				logging.debug("%s will be initialized in the next run." % imgDbx.name)
-				rest_update("%s initclass" % imgDbx.name)
-								
 ### The events
 eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob', 'TBJob'])
 logging.debug(eventsRPi)
@@ -328,7 +348,7 @@ sched.add_listener(job_listener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_JO
 
 # Add TalkBack client job; run every 60 seconds
 if RESTTalkB is not None:
-	sched.add_job(tbk_handler, 'interval', id="TBJob", seconds=60, misfire_grace_time=10, name='TB' )
+	sched.add_job(tbk_handler, 'interval', id="TBJob", seconds=293, misfire_grace_time=10, name='TB' )
 
 
 

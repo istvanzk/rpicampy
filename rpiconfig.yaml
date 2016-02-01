@@ -11,6 +11,7 @@
   start_min: [3]
   stop_hour: [23] 
   stop_min: [50] 
+  interval_sec: [150, 30]
 --- 
 #camImgConfig:
   image_dir: './webcam'

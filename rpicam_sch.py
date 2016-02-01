@@ -111,7 +111,7 @@ finally:
 	
 	# Operation control flags
 	timerConfig['enabled']     = True
-	timerConfig['cmd_enabled'] = False
+	timerConfig['cmd_enabled'] = False	
 	camConfig['enabled']   = True
 	camConfig['initclass'] = False
 	dirConfig['enabled']   = True
@@ -195,7 +195,6 @@ def job_listener(event):
 		rest_update("%s: Crash" % e_jobid)
 	
 	elif e_code == EVENT_JOB_EXECUTED:
-		#print("%s: The job worked." % e_jobid)
 
 		eventsRPi.eventRuncountList[e_jobid] += 1
 		eventsRPi.jobRuncount += 1
@@ -204,28 +203,33 @@ def job_listener(event):
 			# Increment error counter
 			eventsRPi.eventErrcountList[e_jobid] += 1						
 			if eventsRPi.eventErrcountList[e_jobid] > 3:
-				#print("%s: too many errors!" % e_jobid)
 				status_str = "%s: ErrorMax %s" % (e_jobid, time.ctime(time.time))
 		else:
 			status_str = "%s: Run %d" % (e_jobid, eventsRPi.eventRuncountList[e_jobid])
 		
-	elif (e_code == EVENT_JOB_ADDED) or (e_code == EVENT_JOB_REMOVED):
+	elif e_code == EVENT_JOB_ADDED: 
 		sch_jobs = sched.get_jobs()
 		if len(sch_jobs):
 			for jb in sch_jobs:
 				if not (jb.id == e_jobid):
 					if not jb.pending:
 						logging.debug("%s (%s): %s" % (jb.id, jb.name, jb.next_run_time))
+						status_str = "%s: Add (%d)" % (jb.name, len(sch_jobs))
 					else:
 						logging.debug("%s (%s): waiting to be added" % (jb.id, jb.name))
+						status_str = "%s: Pen (%d)" % (jb.name, len(sch_jobs))
+						
+	elif e_code == EVENT_JOB_REMOVED:	
+		sch_jobs = sched.get_jobs()			
+		if ((RESTTalkB is not None) and (len(sch_jobs) == 1)) or \
+			((RESTTalkB is None) and (len(sch_jobs) == 0)):
+			logging.info("All rpi jobs have been removed!")
+			eventsRPi.eventEnd.set()
+			status_str = "NoRPIJobs"
 			
-			status_str = "Jobs: %d" % len(sch_jobs) 
-				
 		else:
-			if not eventsRPi.eventEnd.is_set():
-				logging.info("All jobs have been removed!")
-				eventsRPi.eventEnd.set()
-				status_str = "NoJobs"
+			status_str = "%s: Rem (%d)" % (e_jobid, len(sch_jobs))
+			
 	else:
 		logging.warning("Unhandled event.code = %s" % e_code)
 	 
@@ -243,23 +247,23 @@ def tbk_handler():
 			cmdrx = res.get('command_string')
 
 			# Cmd mode
-			if cmdrx==u'cmd/00':
+			if cmdrx==u'cmd/00' and not timerConfig['cmd_enabled']:
 				timerConfig['cmd_enabled'] = True
-				sched.reschedule_job(job_id="TBJob", trigger='interval', seconds=30)
+				sched.reschedule_job(job_id="TBJob", trigger='interval', seconds=timerConfig['interval_sec'][1])
 				logging.debug("TBJob cmd mode.")
 				rest_update("TBCmd activated")
 
-			elif cmdrx==u'cmd/01':
+			elif cmdrx==u'cmd/01' and timerConfig['cmd_enabled']:
 				timerConfig['cmd_enabled'] = False
-				sched.reschedule_job(job_id="TBJob", trigger='interval', seconds=293)
+				sched.reschedule_job(job_id="TBJob", trigger='interval', seconds=timerConfig['interval_sec'][0])
 				logging.debug("TBJob standby mode.")
 				rest_update("TBCmd standby")
 
 			# Timer
-			elif cmdrx==u'tim/00':
+			elif cmdrx==u'tim/00' and not timerConfig['enabled']:
 				timerConfig['enabled'] = True
 
-			elif cmdrx==u'tim/01':
+			elif cmdrx==u'tim/01' and timerConfig['enabled']:
 				timerConfig['enabled'] = False
 				logging.debug("Timer disbaled.")
 				rest_update("Timer disbaled")
@@ -346,11 +350,6 @@ sched = BackgroundScheduler(alias='BkgScheduler')
 # Add job execution event handler
 sched.add_listener(job_listener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_JOB_ADDED | EVENT_JOB_REMOVED) 
 
-# Add TalkBack client job; run every 60 seconds
-if RESTTalkB is not None:
-	sched.add_job(tbk_handler, 'interval', id="TBJob", seconds=293, misfire_grace_time=10, name='TB' )
-
-
 
 ### Main loop		
 def main():
@@ -379,6 +378,10 @@ def main():
 		print("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
 				
 		rest_update('Start')
+	
+		# Add TalkBack client job; run every preset (long) interval
+		if RESTTalkB is not None:
+			sched.add_job(tbk_handler, 'interval', id="TBJob", seconds=timerConfig['interval_sec'][0], misfire_grace_time=10, name='TB' )
 				
 		# Enable all day periods
 		bValidDayPer = []
@@ -443,15 +446,7 @@ def main():
 					time.sleep( 60 )
 				
 					rest_update('eventEnd')
-				
-			# Perform the end-of-day maintenance
-#			sched.remove_job(imgCam.name)
-			imgCam.endDayOAM()
-#			sched.remove_job(imgDir.name)
-			imgDir.endDayOAM()
-#			sched.remove_job(imgDbx.name)
-			imgDB.endDayOAM()
-			
+
 			# Next day 
 			tnow = datetime.now()
 			tcrt = datetime(tnow.year, tnow.month, tnow.day, 0, 0, 0, 0) + timedelta(days=1)
@@ -459,7 +454,12 @@ def main():
 			# Enable all day periods
 			for tper in range(len(timerConfig['start_hour'])):
 				bValidDayPer[tper] = True
-
+				
+			# Perform the end-of-day maintenance
+			imgCam.endDayOAM()
+			imgDir.endDayOAM()
+			imgDbx.endDayOAM()
+			
 			rest_update('EoD')
 			
 		# Remove TB job	

@@ -29,8 +29,8 @@ import six
 import time
 import datetime
 import posixpath
-from http.client import BadStatusLine
-from ssl import SSLError
+#from http.client import BadStatusLine
+#from ssl import SSLError
 from queue import Queue
 import logging
 
@@ -43,7 +43,7 @@ from dropbox import Dropbox
 from dropbox.files import WriteMode, SearchMode, FileMetadata, FolderMetadata
 from dropbox.exceptions import ApiError, AuthError, DropboxException, InternalServerError
 
-from urllib3 import exceptions
+from requests import exceptions
 
 import thingspk
 import json
@@ -159,36 +159,35 @@ class rpiImageDbClass():
 				
 																			
 			### Handle exceptions, mostly HTTP/SSL related!
-			except BadStatusLine as e:
-				self.eventErr_set('run()')
-				logging.debug("BadStatusLine:\n%s" % str(e))
-				pass
-
-			except exceptions.SSLError as e:
-				self.eventErr_set('run()')
-				logging.debug("SSLError:\n%s" % str(e))
-				pass
-		
-			except exceptions.TimeoutError as e:
-				### Catching this error will catch both ReadTimeoutErrors and ConnectTimeoutErrors.
+			except exceptions.Timeout as e:
+				# Catching this error will catch both ReadTimeout and ConnectTimeout.
 				self.eventErr_set('run()')
 				logging.debug("Connect/ReadTimeoutError:\n%s" % str(e))
 				pass
-					
-			except exceptions.MaxRetryError as e:
-				self.eventErr_set('run()')
-				logging.debug("MaxRetryError:\n%s" % str(e))
-				pass
-				
+									
 			except exceptions.ConnectionError as e:
+				# A Connection error occurred.
 				self.eventErr_set('run()')
 				logging.debug("ConnectionError:\n%s" % str(e))
 				pass
-			
-			except exceptions.ProtocolError as e:
+
+			except exceptions.HTTPError as e:
+				# An HTTP error occurred.
 				self.eventErr_set('run()')
-				logging.debug("ProtocolError:\n%s" % str(e))
+				logging.debug("HTTPError:\n%s" % str(e))
 				pass
+
+			except exceptions.RequestException as e:
+				# There was an ambiguous exception that occurred while handling your request.
+				self.eventErr_set('run()')
+				logging.debug("RequestException:\n%s" % str(e))
+				pass
+						
+# 			except BadStatusLine as e:
+# 				self.eventErr_set('run()')
+# 				logging.debug("BadStatusLine:\n%s" % str(e))
+# 				pass
+
 			
 			except RuntimeError as e:
 				self.eventErr_set('run()')

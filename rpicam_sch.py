@@ -81,7 +81,7 @@ TSPKTBUSE   = True
 
 ### Set up the logging
 logging.basicConfig(filename='rpicam.log', filemode='w',
-					level=logging.DEBUG,
+					level=logging.INFO,
                     format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
                     )
 
@@ -98,28 +98,23 @@ try:
 	with open('rpiconfig.yaml', 'r') as stream:
 		timerConfig, camConfig, dirConfig, dbxConfig = yaml.load_all(stream)
 			
-except yaml.YAMLError as e:
-	logging.error("Error in configuration file:" % e)
-	os._exit()
-	
-finally:		
 	# Add config keys
 	dbxConfig['token_file'] = DBTOKEN_FILE
 	dbxConfig['image_dir']  = camConfig['image_dir']
 	dirConfig['image_dir']  = camConfig['image_dir']
 	camConfig['list_size']  = dirConfig['list_size']
-	
+
 	# Operation control flags
-	timerConfig['enabled']     = True
-	timerConfig['cmd_enabled'] = False	
-	camConfig['enabled']   = True
-	camConfig['initclass'] = False
-	dirConfig['enabled']   = True
-	dirConfig['initclass'] = False
-	dbxConfig['enabled']   = True
-	dbxConfig['initclass'] = False
+	timerConfig['enabled'] = True
+	timerConfig['cmd_run'] = False	
+
+	logging.info("Configuration file read.")
+				
+except yaml.YAMLError as e:
+	logging.error("Error in configuration file:" % e)
+	os._exit()
 	
-	logging.info("Configuration file read")
+finally:			
 	logging.debug("timerConfig: %s" % timerConfig)
 	logging.debug("camConfig: %s" % camConfig)
 	logging.debug("dirConfig: %s" % dirConfig)
@@ -233,11 +228,61 @@ def job_listener(event):
 	else:
 		logging.warning("Unhandled event.code = %s" % e_code)
 	 
-	### Update REST feed 	
-	rest_update(status_str, eventsRPi.jobRuncount)
+	# Update REST status feed 	
+	rest_update(status_str)
 
 
+def proc_cmdrx(cmdval, dictConfig):
+	"""
+	Process a TalkBack command value.
+	Set the numerical value for the current state.
+	"""
+
+	# Process the command
+	if cmdval==3 and not dictConfig['run']:
+		dictConfig['run']   = True
+		dictConfig['stop']  = False
+		dictConfig['pause'] = False
+		dictConfig['init']  = False
+		sched.resume_job(dictConfig['jobid'])
+		logging.debug("%s is running." % dictConfig['jobid'])
+		rest_update("%s run" % dictConfig['jobid'])
+
+	elif cmdval==0 and not dictConfig['stop']:
+		dictConfig['run']   = False
+		dictConfig['stop']  = True					
+		dictConfig['pause'] = False
+		dictConfig['init']  = False
+		sched.remove_job(dictConfig['jobid'])
+		logging.debug("%s is stoped." % dictConfig['jobid'])
+		rest_update("%s stop" % dictConfig['jobid'])
+
+	elif cmdval==1 and not dictConfig['pause']:
+		dictConfig['run']   = False
+		dictConfig['stop']  = False					
+		dictConfig['pause'] = True
+		dictConfig['init']  = False					
+		sched.pause_job(dictConfig['jobid'])
+		logging.debug("%s is paused." % dictConfig['jobid'])
+		rest_update("%s pause" % dictConfig['jobid'])
+
+	elif cmdval==2 and not dictConfig['init']:
+		dictConfig['run']   = False
+		dictConfig['stop']  = False					
+		dictConfig['pause'] = False
+		dictConfig['init']  = True
+		logging.debug("%s will be initialized in the next run." % dictConfig['jobid'])
+		rest_update("%s init" % dictConfig['jobid'])
+
+	# Set the numerical value for the current state
+	dictConfig['stateval'] = cmdval
+	
+	
 def tbk_handler():
+	"""
+	TalkBack command handler (scheduled Job).
+	"""
+
 	if RESTTalkB is not None:
 
 		RESTTalkB.talkback.execcmd()
@@ -246,86 +291,54 @@ def tbk_handler():
 			logging.debug("TB response: %s" % RESTTalkB.talkback.response)
 			cmdrx = res.get('command_string')
 
+			# Get cmd string and value
+			cmdstr = cmdrx.split('/',1)[0]
+			cmdval = int(cmdrx.split('/',1)[1])
+
 			# Cmd mode
-			if cmdrx==u'cmd/00' and not timerConfig['cmd_enabled']:
-				timerConfig['cmd_enabled'] = True
+			if cmdrx==u'cmd/01' and not timerConfig['cmd_run']:
+				timerConfig['cmd_run'] = True
 				sched.reschedule_job(job_id="TBJob", trigger='interval', seconds=timerConfig['interval_sec'][1])
 				logging.debug("TBJob cmd mode.")
 				rest_update("TBCmd activated")
 
-			elif cmdrx==u'cmd/01' and timerConfig['cmd_enabled']:
-				timerConfig['cmd_enabled'] = False
+			elif cmdrx==u'cmd/00' and timerConfig['cmd_run']:
+				timerConfig['cmd_run'] = False
 				sched.reschedule_job(job_id="TBJob", trigger='interval', seconds=timerConfig['interval_sec'][0])
 				logging.debug("TBJob standby mode.")
 				rest_update("TBCmd standby")
 
 			# Timer
-			elif cmdrx==u'tim/00' and not timerConfig['enabled']:
+			elif cmdrx==u'tim/01' and not timerConfig['enabled']:
 				timerConfig['enabled'] = True
 
-			elif cmdrx==u'tim/01' and timerConfig['enabled']:
+			elif cmdrx==u'tim/00' and timerConfig['enabled']:
 				timerConfig['enabled'] = False
-				logging.debug("Timer disbaled.")
-				rest_update("Timer disbaled")
+				logging.debug("Timer disabled.")
+				rest_update("Timer disabled")
 
 			
 			# These commands are active only in cmd mode
-			if timerConfig['cmd_enabled']:
-
+			if timerConfig['cmd_run']:
+				
 				# Cam
-				if cmdrx==u'cam/00' and not camConfig['enabled']:
-					camConfig['enabled'] = True
-					sched.resume_job(imgCam.name)
-					logging.debug("%s is resumed." % imgCam.name)
-					rest_update("%s resumed" % imgCam.name)
-
-				elif cmdrx==u'cam/02' and camConfig['enabled']:
-					camConfig['enabled'] = False
-					sched.pause_job(imgCam.name)
-					logging.debug("%s is paused." % imgCam.name)
-					rest_update("%s paused" % imgCam.name)
-
-				elif cmdrx==u'cam/04':
-					camConfig['initclass'] = True
-					logging.debug("%s will be initialized in the next run." % imgCam.name)
-					rest_update("%s initclass" % imgCam.name)
+				if cmdstr == u'cam':
+					proc_cmdrx(cmdval, imgCam.config)
 
 				# Dir
-				elif cmdrx==u'dir/00' and not dirConfig['enabled']:
-					dirConfig['enabled'] = True
-					sched.resume_job(imgDir.name)
-					logging.debug("%s is resumed." % imgDir.name)
-					rest_update("%s resumed" % imgDir.name)
-
-				elif cmdrx==u'dir/02' and dirConfig['enabled']:
-					dirConfig['enabled'] = False
-					sched.pause_job(imgDir.name)
-					logging.debug("%s is paused." % imgDir.name)
-					rest_update("%s paused" % imgDir.name)
-
-				elif cmdrx==u'dir/04':
-					dirConfig['initclass'] = True
-					logging.debug("%s will be initialized in the next run." % imgDir.name)
-					rest_update("%s initclass" % imgDir.name)
-
+				elif cmdstr == u'dir':
+					proc_cmdrx(cmdval, imgDir.config)
 
 				# Dbx
-				elif cmdrx==u'dbx/00' and not dbxConfig['enabled']:
-					dbxConfig['enabled'] = True
-					sched.resume_job(imgDbx.name)
-					logging.debug("%s is resumed." % imgDbx.name)
-					rest_update("%s resumed" % imgDbx.name)
+				elif cmdstr == u'dbx':
+					proc_cmdrx(cmdval, imgDbx.config)
 
-				elif cmdrx==u'dbx/02' and dbxConfig['enabled']:
-					dbxConfig['enabled'] = False
-					sched.pause_job(imgDbx.name)
-					logging.debug("%s is paused." % imgDbx.name)
-					rest_update("%s paused" % imgDbx.name)
 
-				elif cmdrx==u'dbx/04':
-					dbxConfig['initclass'] = True
-					logging.debug("%s will be initialized in the next run." % imgDbx.name)
-					rest_update("%s initclass" % imgDbx.name)
+		# Post the combined state value for all jobs
+		state_val = 4*(imgCam.config['stateval'] + 16*imgDir.config['stateval'] + 16*16*imgDbx.config['stateval'])
+
+		# Update REST feed 
+		rest_update(stream_value=state_val)			
 
 
 ### The events

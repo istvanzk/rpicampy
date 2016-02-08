@@ -48,6 +48,14 @@ class rpiImageDirClass():
 		self.eventDbErr 	= rpi_events.eventErrList['DBXJob']
 		
 		self.restapi = restapi 
+	
+		### Init configs
+		self.config['jobid'] = self.name
+		self.config['run']   = True
+		self.config['stop']  = False
+		self.config['pause'] = False
+		self.config['init']  = False
+		self.config['stateval'] = 3
 		
 		### Init class
 		self.initClass()
@@ -66,21 +74,12 @@ class rpiImageDirClass():
 	# Run (as a Job in APScheduler)
 	#			
 	def run(self):
-
-		if not self.config['enabled']:
-			logging.debug("%s::: Disabled." % self.name)
-			return
-			
-		if self.config['initclass']:
-			self.initClass()
-
-	
+				
 		if self.eventEnd.is_set():
-
-			### The end
 			logging.info("%s::: eventEnd is set" % self.name)
-		
-		elif self.eventErr.is_set():	
+			return		
+				
+		if self.eventErr.is_set():	
 		
 			### Error was detected
 			logging.info("%s::: eventErr is set" % self.name)
@@ -91,75 +90,88 @@ class rpiImageDirClass():
 				self.initClass()	
 			else:	
 				logging.debug("eventErr was set at %s!" % time.ctime(self.eventErrtime))
+			
+			return
 
-		else:			
+		if not self.config['stop']:
+			logging.debug("%s::: Stoped." % self.name)
+			return
+
+		if not self.config['pause']:
+			logging.debug("%s::: Paused." % self.name)
+			return												
+			
+		if self.config['init']:
+			self.initClass()
+			return
+
 		
-			try:
-				### End-of-day OAM
-				# 1) ...
-				if self.eventDayEnd.is_set():
-					self.endDayOAM()
-				
+		try:
+			### End-of-day OAM
+			# 1) ...
+			if self.eventDayEnd.is_set():
+				self.endDayOAM()
+			
+			else:
+						
+				### List all jpg files in the current local sub-folder
+				self.locdir = os.path.join(self.config['image_dir'], self.imageFIFO.crtSubDir)
+				self.image_name = os.path.join(self.locdir, self.imageFIFO.crtSubDir + '-*.jpg')
+				self.imagelist = sorted(glob.glob(self.image_name))
+				if len(self.imagelist) > 0:
+					logging.debug("imagelist: %s .. %s" % (self.imagelist[0], self.imagelist[-1]))
 				else:
-							
-					### List all jpg files in the current local sub-folder
-					self.locdir = os.path.join(self.config['image_dir'], self.imageFIFO.crtSubDir)
-					self.image_name = os.path.join(self.locdir, self.imageFIFO.crtSubDir + '-*.jpg')
-					self.imagelist = sorted(glob.glob(self.image_name))
-					if len(self.imagelist) > 0:
-						logging.debug("imagelist: %s .. %s" % (self.imagelist[0], self.imagelist[-1]))
-					else:
-						logging.debug("imagelist: empty. No %s found!" % self.image_name)
-					
-					### Run directory/file management only if no errors were detected when 
-					### updating to remote directory
-					if not self.eventDbErr.is_set():
-						### Process the new list only if it is changed and has at least max length
-						if ( not (self.imagelist_ref == self.imagelist) ) and \
-							len(self.imagelist) > self.config['list_size']:
+					logging.debug("imagelist: empty. No %s found!" % self.image_name)
 				
-							### Remove all the images not in the imageFIFO
-							self.imageFIFO.acquireSemaphore()
+				### Run directory/file management only if no errors were detected when 
+				### updating to remote directory
+				if not self.eventDbErr.is_set():
+					### Process the new list only if it is changed and has at least max length
+					if ( not (self.imagelist_ref == self.imagelist) ) and \
+						len(self.imagelist) > self.config['list_size']:
+			
+						### Remove all the images not in the imageFIFO
+						self.imageFIFO.acquireSemaphore()
+				
+						for img in self.imagelist:
+							if not img in self.imageFIFO:					
+								logging.info("Remove image: %s" % img)				
+								self.rmimg = subprocess.Popen("rm " + img, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
+								self.output, self.errors = self.rmimg.communicate()
 					
-							for img in self.imagelist:
-								if not img in self.imageFIFO:					
-									logging.info("Remove image: %s" % img)				
-									self.rmimg = subprocess.Popen("rm " + img, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
-									self.output, self.errors = self.rmimg.communicate()
+								### Check return/errors
+				
+						self.imageFIFO.releaseSemaphore()
+					
+						#raise Exception('Test exception')	
 						
-									### Check return/errors
-					
-							self.imageFIFO.releaseSemaphore()
-						
-							#raise Exception('Test exception')	
-							
-						### Update REST feed
-						self.rest_update(len(self.imagelist))
-					
-						### Update image list in the current local sub-folder
-						self.imagelist_ref = sorted(glob.glob(self.image_name))
-						if len(self.imagelist_ref) > 0:
-							logging.debug("imagelist_ref: %s .. %s" % (self.imagelist_ref[0], self.imagelist[-1]))
-						else:
-							logging.debug("imagelist_ref: empty. No %s found!" % self.image_name)
-					
-							
+					### Update REST feed
+					self.rest_update(len(self.imagelist))
+				
+					### Update image list in the current local sub-folder
+					self.imagelist_ref = sorted(glob.glob(self.image_name))
+					if len(self.imagelist_ref) > 0:
+						logging.debug("imagelist_ref: %s .. %s" % (self.imagelist_ref[0], self.imagelist[-1]))
 					else:
-						logging.info("eventDbErr is set!")							
-
-
-			### Handle exceptions
-			except RuntimeError as e:
-				self.eventErr_set('run()')
-				self.rest_update(-3)
-				logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
-				raise
+						logging.debug("imagelist_ref: empty. No %s found!" % self.image_name)
+				
 						
-			except:
-				self.eventErr_set('run()')
-				self.rest_update(-4)
-				logging.error("Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)
-				pass										
+				else:
+					logging.info("eventDbErr is set!")							
+
+
+		### Handle exceptions
+		except RuntimeError as e:
+			self.eventErr_set('run()')
+			self.rest_update(-3)
+			logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
+			raise
+					
+		except:
+			self.eventErr_set('run()')
+			self.rest_update(-4)
+			logging.error("Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)
+			pass										
 						
 									
 

@@ -78,7 +78,7 @@ class rpiCamClass(object):
 	
 		self.name 	= name
 		self.config = dict_config
-
+		
 		self.eventDayEnd 	= rpi_events.eventDayEnd				
 		self.eventEnd 		= rpi_events.eventEnd
 		self.eventErr 		= rpi_events.eventErrList[self.name]
@@ -86,6 +86,14 @@ class rpiCamClass(object):
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]
 		
 		self.restapi = restapi
+
+		### Init configs
+		self.config['jobid'] = self.name
+		self.config['run']   = True
+		self.config['stop']  = False
+		self.config['pause'] = False
+		self.config['init']  = False
+		self.config['stateval'] = 3
 				
 		### Make FIFO buffer (deque)					
 		self.imageFIFO = rpififo.rpiFIFOClass([], self.config['list_size'])
@@ -115,21 +123,12 @@ class rpiCamClass(object):
 	# Run (as a Job in APScheduler)
 	#		
 	def run(self):
-		
-		if not self.config['enabled']:
-			logging.debug("%s::: Disabled." % self.name)
+	
+		if self.eventEnd.is_set():
+			logging.info("%s::: eventEnd is set!" % self.name)
 			return
 			
-		if self.config['initclass']:
-			self.initClass()
-		
-		
-		if self.eventEnd.is_set():
-
-			### The end
-			logging.info("%s::: eventEnd is set!" % self.name)
-
-		elif self.eventErr.is_set():	
+		if self.eventErr.is_set():	
 		
 			### Error was detected
 			logging.info("%s::: eventErr is set!" % self.name)
@@ -141,183 +140,198 @@ class rpiCamClass(object):
 			else:	
 				logging.debug("%s::: eventErr was set at %s!" % (self.name, time.ctime(self.eventErrtime)))
 
-		else:			
 		
-			### Create the daily output sub-folder
-			### Set the full image file path
-			#self.config['image_subdir'] = time.strftime('%d%m%y', time.localtime())
-			self.imageFIFO.crtSubDir = time.strftime('%d%m%y', time.localtime())
-			self.locdir = os.path.join(self.config['image_dir'], self.imageFIFO.crtSubDir)
-			try:
-				os.mkdir(self.locdir)
-				logging.info("%s::: Local daily output folder %s created." % (self.name, self.locdir))
+
+		if not self.config['stop']:
+			logging.debug("%s::: Stoped." % self.name)
+			return
+
+		if not self.config['pause']:
+			logging.debug("%s::: Paused." % self.name)
+			return
 			
-			except OSError as e:
-				if e.errno == EEXIST:
-					logging.debug("%s::: Local daily output folder %s already exist!" % (self.name, self.locdir))
-					pass	
-				else:
-					logging.error("%s::: Local daily output folder %s could not be created!" % (self.name, self.locdir))
-					raise	
+		if self.config['init']:
+			self.initClass()
+			return
 					
-			finally:
-				self.image_name = self.imageFIFO.crtSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
-				self.image_path = os.path.join(self.locdir, self.image_name) 
+		
+		### Create the daily output sub-folder
+		### Set the full image file path
+		#self.config['image_subdir'] = time.strftime('%d%m%y', time.localtime())
+		self.imageFIFO.crtSubDir = time.strftime('%d%m%y', time.localtime())
+		self.locdir = os.path.join(self.config['image_dir'], self.imageFIFO.crtSubDir)
+		try:
+			os.mkdir(self.locdir)
+			logging.info("%s::: Local daily output folder %s created." % (self.name, self.locdir))
+		
+		except OSError as e:
+			if e.errno == EEXIST:
+				logging.debug("%s::: Local daily output folder %s already exist!" % (self.name, self.locdir))
+				pass	
+			else:
+				logging.error("%s::: Local daily output folder %s could not be created!" % (self.name, self.locdir))
+				self.eventErr_set('run()')
+				self.rest_update(-3)				
+				raise	
 				
-	
-	
-			### Take a new snapshot and save the image locally 	
-			try:														
-				if FAKESNAP:
-					logging.debug('Faking snapshot: ' + self.image_name) 
-					self.grab_cam = subprocess.Popen("touch " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 			
+		finally:
+			self.image_name = self.imageFIFO.crtSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
+			self.image_path = os.path.join(self.locdir, self.image_name) 
+			
+
+
+		### Take a new snapshot and save the image locally 	
+		try:														
+			if FAKESNAP:
+				logging.debug('Faking snapshot: ' + self.image_name) 
+				self.grab_cam = subprocess.Popen("touch " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 			
+				
+				### Check return/errors				
+				self.output, self.errors = self.grab_cam.communicate()
+				
+			else:	
+				if RASPISTILL:
+					# Use raspistill -n -vf -hf -awb auto -q 95
+					self.grab_cam = subprocess.Popen("raspistill -n -vf -hf -q 95 -co 30 -w 640 -h 480 -o " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
 					
 					### Check return/errors				
+					#self.grab_cam.wait()
 					self.output, self.errors = self.grab_cam.communicate()
 					
-				else:	
-					if RASPISTILL:
-						# Use raspistill -n -vf -hf -awb auto -q 95
-						self.grab_cam = subprocess.Popen("raspistill -n -vf -hf -q 95 -co 30 -w 640 -h 480 -o " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
-						
-						### Check return/errors				
-						#self.grab_cam.wait()
-						self.output, self.errors = self.grab_cam.communicate()
-						
-					elif RPICAM:
-						### Init the camera
-						self.TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 16)
-		
-						#with picamera.PiCamera() as self.camera:
-						self.camera = picamera.PiCamera()
-						self.camera.resolution = (1024, 768)
-						self.camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2016 Istvan Z. Kovacs'
-						#self.camera.hflip = True
-						#self.camera.vflip = True
-						self.camera.rotation = 0
-						if self.camid == 'CAM1':
-							self.camera.rotation = 90
-
-						### Set camera exposure according to the 'dark' time threshold
-						self.setPICamExp()
-
-						### Create the in-memory stream
-						stream = io.BytesIO()
-																		
-						### Camera warm-up time and capture
-						#self.camera.capture( self.image_path, format='jpeg' )
-						self.camera.capture(stream, format='jpeg')
-							
-						### Read stream to a PIL image 
-						stream.seek(0)
-						image = Image.open(stream)
-													
-						### When in 'dark' time
-						### Calculate brightness and adjust shutter speed
-						sN = ': '
-						if self.bDarkExp:
-							sN = 'n' + sN
+				elif RPICAM:
+					### Init the camera
+					self.TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 16)
 	
-							if self.camid == 'CAM1':
-							
-								### Calculate brightness
-								#self.grayscaleAverage(image)
-								self.averagePerceived(image)
-							
-								### Recapture image with new shutter speed if needed
-								if self.imgbr < 118 or \
-									self.imgbr > 138:
-								
-									logging.info('IMGbr: %d' % self.imgbr)							
-																
-									ss = self.camera.shutter_speed
+					#with picamera.PiCamera() as self.camera:
+					self.camera = picamera.PiCamera()
+					self.camera.resolution = (1024, 768)
+					self.camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2016 Istvan Z. Kovacs'
+					#self.camera.hflip = True
+					#self.camera.vflip = True
+					self.camera.rotation = 0
+					if self.camid == 'CAM1':
+						self.camera.rotation = 90
 
-									logging.info('CAMss: %d' % ss)							
+					### Set camera exposure according to the 'dark' time threshold
+					self.setPICamExp()
 
-									self.camera.shutter_speed = int(ss*(2 - float(self.imgbr)/128))
-
-									logging.info('CAMss: %d' % self.camera.shutter_speed)							
+					### Create the in-memory stream
+					stream = io.BytesIO()
 																	
-									time.sleep(2)
-									self.camera.capture(stream, format='jpeg')
+					### Camera warm-up time and capture
+					#self.camera.capture( self.image_path, format='jpeg' )
+					self.camera.capture(stream, format='jpeg')
+						
+					### Read stream to a PIL image 
+					stream.seek(0)
+					image = Image.open(stream)
+												
+					### When in 'dark' time
+					### Calculate brightness and adjust shutter speed
+					sN = ': '
+					if self.bDarkExp:
+						sN = 'n' + sN
+
+						if self.camid == 'CAM1':
+						
+							### Calculate brightness
+							#self.grayscaleAverage(image)
+							self.averagePerceived(image)
+						
+							### Recapture image with new shutter speed if needed
+							if self.imgbr < 118 or \
+								self.imgbr > 138:
+							
+								logging.info('IMGbr: %d' % self.imgbr)							
+															
+								ss = self.camera.shutter_speed
+
+								logging.info('CAMss: %d' % ss)							
+
+								self.camera.shutter_speed = int(ss*(2 - float(self.imgbr)/128))
+
+								logging.info('CAMss: %d' % self.camera.shutter_speed)							
+																
+								time.sleep(2)
+								self.camera.capture(stream, format='jpeg')
+							
+								stream.seek(0)
+								image = Image.open(stream)
 								
-									stream.seek(0)
-									image = Image.open(stream)
+						#elif self.camid == 'CAM2':
+							# Do nothing ?
 									
-							#elif self.camid == 'CAM2':
-								# Do nothing ?
+						#else:
+							# Do nothing ?
+							
+					
+					### Add overlay text to the final image
+					draw = ImageDraw.Draw(image,'RGBA')	
+					draw.rectangle([0,image.size[1]-20,image.size[0],image.size[1]], fill=(150,200,150,100))
+					draw.text((2,image.size[1]-18), self.camid + sN + time.strftime('%b %d %Y, %H:%M', time.localtime()), fill=(0,0,0,0), font=self.TXTfont)
+					#n_width, n_height = TXTfont.getsize('#XX')
+					#draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=TXTfont)	
+					del draw 
+					
+					### Save image and close
+					image.save( self.image_path, format='jpeg', quality=95 )
+					#image.close() 
+					
+					### Close BytesIO stream
+					stream.close()
+					
+					### Set output indicators
+					self.output = self.image_path
+					self.errors = ''
+					
+				else:
+					# Use fswebcam -d /dev/video0 -s brightness=50% -s gain=32
+					self.grab_cam = subprocess.Popen("fswebcam -d /dev/video0 -q -r 640x480 --jpeg=95 " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
+					
+					### Check return/errors
+					self.output, self.errors = self.grab_cam.communicate()
 										
-							#else:
-								# Do nothing ?
-								
-						
-						### Add overlay text to the final image
-						draw = ImageDraw.Draw(image,'RGBA')	
-						draw.rectangle([0,image.size[1]-20,image.size[0],image.size[1]], fill=(150,200,150,100))
-						draw.text((2,image.size[1]-18), self.camid + sN + time.strftime('%b %d %Y, %H:%M', time.localtime()), fill=(0,0,0,0), font=self.TXTfont)
-						#n_width, n_height = TXTfont.getsize('#XX')
-						#draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=TXTfont)	
-						del draw 
-						
-						### Save image and close
-						image.save( self.image_path, format='jpeg', quality=95 )
-						#image.close() 
-						
-						### Close BytesIO stream
-						stream.close()
-						
-						### Set output indicators
-						self.output = self.image_path
-						self.errors = ''
-						
-					else:
-						# Use fswebcam -d /dev/video0 -s brightness=50% -s gain=32
-						self.grab_cam = subprocess.Popen("fswebcam -d /dev/video0 -q -r 640x480 --jpeg=95 " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
-						
-						### Check return/errors
-						self.output, self.errors = self.grab_cam.communicate()
-											
+				
+			self.imageFIFO.acquireSemaphore()
+												
+			if len(self.errors):	
+				logging.error('Snapshot not available! Error: %s' % self.errors )
+				
+			else:
+				### Add image to deque (FIFO)
+				self.imageFIFO.append(self.image_path)
 					
-				self.imageFIFO.acquireSemaphore()
-													
-				if len(self.errors):	
-					logging.error('Snapshot not available! Error: %s' % self.errors )
+				logging.info('Snapshot: ' + self.image_name) 
 					
-				else:
-					### Add image to deque (FIFO)
-					self.imageFIFO.append(self.image_path)
-						
-					logging.info('Snapshot: ' + self.image_name) 
-						
-				self.crtlenFIFO = len(self.imageFIFO)
-				if self.crtlenFIFO > 0:
-					logging.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
-				else:
-					logging.debug("imageFIFO[]: empty")
-				
-				self.imageFIFO.releaseSemaphore()
-				
-				### Update REST feed
-				self.rest_update(self.crtlenFIFO)
-				
-				
-			except RuntimeError as e:
-				self.eventErr_set('run()')
-				self.rest_update(-3)
-				logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
-				raise
-						
-			except:
-				self.eventErr_set('run()')
-				self.rest_update(-4)
-				logging.error("Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)
-				raise
-													
-			finally:
+			self.crtlenFIFO = len(self.imageFIFO)
+			if self.crtlenFIFO > 0:
+				logging.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
+			else:
+				logging.debug("imageFIFO[]: empty")
 			
-				### Close the picamera
-				if RPICAM:
-					self.camera.close()
+			self.imageFIFO.releaseSemaphore()
+			
+			### Update REST feed
+			self.rest_update(self.crtlenFIFO)
+			
+			
+		except RuntimeError as e:
+			self.eventErr_set('run()')
+			self.rest_update(-3)
+			logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
+			raise
+					
+		except:
+			self.eventErr_set('run()')
+			self.rest_update(-4)
+			logging.error("Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)
+			raise
+												
+		finally:
+		
+			### Close the picamera
+			if RPICAM:
+				self.camera.close()
 												
 	
 	### Helpers
@@ -378,6 +392,8 @@ class rpiCamClass(object):
 				pass
 			else:
 				logging.error("%s::: Local output folder %s could not be created!" % (self.name, self.config['image_dir']))
+				self.eventErr_set('initClass()')
+				self.rest_update(-3)			
 				raise	
 									
 		### Fill in the fifo buffer with images found in the output directory	

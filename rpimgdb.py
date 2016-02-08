@@ -66,7 +66,15 @@ class rpiImageDbClass():
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]		
 				
 		self.restapi = restapi 
-		
+	
+		### Init configs
+		self.config['jobid'] = self.name
+		self.config['run']   = True
+		self.config['stop']  = False
+		self.config['pause'] = False
+		self.config['init']  = False
+		self.config['stateval'] = 3
+	
 		### Init class
 		self.initClass()
 		
@@ -87,20 +95,11 @@ class rpiImageDbClass():
 	#
 	def run(self):
 
-		if not self.config['enabled']:
-			logging.debug("%s::: Disabled." % self.name)
-			return
-			
-		if self.config['initclass']:
-			self.initClass()
-
-			
 		if self.eventEnd.is_set():
-
-			### The end
 			logging.info("%s::: eventEnd is set" % self.name)
-		
-		elif self.eventErr.is_set():	
+			return
+
+		if self.eventErr.is_set():	
 		
 			### Error was detected
 			logging.info("%s::: eventErr is set" % self.name)
@@ -112,94 +111,108 @@ class rpiImageDbClass():
 			else:	
 				logging.debug("eventErr was set at %s!" % time.ctime(self.eventErrtime))
 
-		else:			
+			return
+
+
+		if not self.config['stop']:
+			logging.debug("%s::: Stoped." % self.name)
+			return
+
+		if not self.config['pause']:
+			logging.debug("%s::: Paused." % self.name)
+			return												
+			
+		if self.config['init']:
+			self.initClass()
+			return
+
 		
-			try:					
-				### End-of-day OAM:
-				# 1) List all files found in the remote upload sub-folder
-				# 2) Dumps the list of all uploaded image files to the log file
-				# 3) Init Dropbox API client
-				if self.eventDayEnd.is_set():
-					self.endDayOAM()
+		try:					
+			### End-of-day OAM:
+			# 1) List all files found in the remote upload sub-folder
+			# 2) Dumps the list of all uploaded image files to the log file
+			# 3) Init Dropbox API client
+			if self.eventDayEnd.is_set():
+				self.endDayOAM()
+			
+			else:
 				
+				### Get the current images in the FIFO
+				### Refresh the last remote image when available
+				self.imageFIFO.acquireSemaphore()
+				if len(self.imageFIFO): 
+	
+					### Update remote cam image with the current (last) image						
+					if not (self.imageFIFO[-1] == self.crt_image_snap):
+						self.putImage(self.imageFIFO[-1], self.config['image_snap'], True)
+						self.crt_image_snap = self.imageFIFO[-1]
+						self.numImgUpdDb += 1
+						logging.info("Updated remote %s with %s" % (self.config['image_snap'], self.imageFIFO[-1]) )
+
+
+					### Upload all images in the FIFO which have not been uploaded yet
+					### Init the current remote upload sub-folder
+					for img in self.imageFIFO:
+						if img not in self.imageUpldList:
+							self.upldir = os.path.normpath(os.path.join(self.config['image_dir'], self.imageFIFO.crtSubDir))
+							self.mkdirImage(self.upldir)
+							self.putImage(img, os.path.join(self.upldir, os.path.basename(img)))
+							logging.info("Uploaded %s" % img )
+
+					### Update REST feed
+					self.rest_update(self.numImgUpdDb)
+																				
 				else:
+					### Update REST feed
+					self.rest_update(0)
+			
+					logging.info('Nothing to upload')							
+
+				self.imageFIFO.releaseSemaphore()
+			
+																		
+		### Handle exceptions, mostly HTTP/SSL related!
+		except exceptions.Timeout as e:
+			# Catching this error will catch both ReadTimeout and ConnectTimeout.
+			self.eventErr_set('run()')
+			logging.debug("Connect/ReadTimeoutError:\n%s" % str(e))
+			pass
+								
+		except exceptions.ConnectionError as e:
+			# A Connection error occurred.
+			self.eventErr_set('run()')
+			logging.debug("ConnectionError:\n%s" % str(e))
+			pass
+
+		except exceptions.HTTPError as e:
+			# An HTTP error occurred.
+			self.eventErr_set('run()')
+			logging.debug("HTTPError:\n%s" % str(e))
+			pass
+
+		except exceptions.RequestException as e:
+			# There was an ambiguous exception that occurred while handling your request.
+			self.eventErr_set('run()')
+			logging.debug("RequestException:\n%s" % str(e))
+			pass
 					
-					### Get the current images in the FIFO
-					### Refresh the last remote image when available
-					self.imageFIFO.acquireSemaphore()
-					if len(self.imageFIFO): 
-		
-						### Update remote cam image with the current (last) image						
-						if not (self.imageFIFO[-1] == self.crt_image_snap):
-							self.putImage(self.imageFIFO[-1], self.config['image_snap'], True)
-							self.crt_image_snap = self.imageFIFO[-1]
-							self.numImgUpdDb += 1
-							logging.info("Updated remote %s with %s" % (self.config['image_snap'], self.imageFIFO[-1]) )
-
-
-						### Upload all images in the FIFO which have not been uploaded yet
-						### Init the current remote upload sub-folder
-						for img in self.imageFIFO:
-							if img not in self.imageUpldList:
-								self.upldir = os.path.normpath(os.path.join(self.config['image_dir'], self.imageFIFO.crtSubDir))
-								self.mkdirImage(self.upldir)
-								self.putImage(img, os.path.join(self.upldir, os.path.basename(img)))
-								logging.info("Uploaded %s" % img )
-
-						### Update REST feed
-						self.rest_update(self.numImgUpdDb)
-																					
-					else:
-						### Update REST feed
-						self.rest_update(0)
-				
-						logging.info('Nothing to upload')							
-
-					self.imageFIFO.releaseSemaphore()
-				
-																			
-			### Handle exceptions, mostly HTTP/SSL related!
-			except exceptions.Timeout as e:
-				# Catching this error will catch both ReadTimeout and ConnectTimeout.
-				self.eventErr_set('run()')
-				logging.debug("Connect/ReadTimeoutError:\n%s" % str(e))
-				pass
-									
-			except exceptions.ConnectionError as e:
-				# A Connection error occurred.
-				self.eventErr_set('run()')
-				logging.debug("ConnectionError:\n%s" % str(e))
-				pass
-
-			except exceptions.HTTPError as e:
-				# An HTTP error occurred.
-				self.eventErr_set('run()')
-				logging.debug("HTTPError:\n%s" % str(e))
-				pass
-
-			except exceptions.RequestException as e:
-				# There was an ambiguous exception that occurred while handling your request.
-				self.eventErr_set('run()')
-				logging.debug("RequestException:\n%s" % str(e))
-				pass
-						
 # 			except BadStatusLine as e:
 # 				self.eventErr_set('run()')
 # 				logging.debug("BadStatusLine:\n%s" % str(e))
 # 				pass
 
-			
-			except RuntimeError as e:
-				self.eventErr_set('run()')
-				self.rest_update(-3)
-				logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
-				raise
-						
-			except:
-				self.eventErr_set('run()')
-				self.rest_update(-4)
-				logging.error("Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)
-				raise
+		
+		except RuntimeError as e:
+			self.eventErr_set('run()')
+			self.rest_update(-3)
+			logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
+			raise
+					
+		except:
+			self.eventErr_set('run()')
+			self.rest_update(-4)
+			logging.error("Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)
+			raise
 					
 					
 

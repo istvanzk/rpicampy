@@ -107,6 +107,7 @@ try:
 	# Operation control flags
 	timerConfig['enabled'] = True
 	timerConfig['cmd_run'] = False	
+	timerConfig['stateval']= 0
 
 	logging.info("Configuration file read.")
 				
@@ -136,7 +137,8 @@ def rest_update(status_str=None, stream_value=None):
 		if status_str is not None: 
 			RESTfeed.setfield('status',status_str)
 		if stream_value is not None:
-			RESTfeed.setfield('field1', stream_value)			
+			RESTfeed.setfield('field1', stream_value)	
+					
 		RESTfeed.update()
 		
 ### Init the ThingSpeak REST feed data
@@ -184,7 +186,7 @@ def job_listener(event):
 		eventsRPi.eventErrtimeList[e_jobid]  = 0 
 		eventsRPi.eventErrdelayList[e_jobid] = 0 
 		# Increment error counter
-		eventsRPi.eventErrcountList[e_jobid] += 1
+		#eventsRPi.eventErrcountList[e_jobid] += 1
 		
 		logging.error("%s: The job crashed!" % e_jobid)
 		rest_update("%s: Crash" % e_jobid)
@@ -194,12 +196,7 @@ def job_listener(event):
 		eventsRPi.eventRuncountList[e_jobid] += 1
 		eventsRPi.jobRuncount += 1
 		
-		if eventsRPi.eventErrList[e_jobid].is_set():
-			# Increment error counter
-			eventsRPi.eventErrcountList[e_jobid] += 1						
-			if eventsRPi.eventErrcountList[e_jobid] > 3:
-				status_str = "%s: ErrorMax %s" % (e_jobid, time.ctime(time.time))
-		else:
+		if not eventsRPi.eventErrList[e_jobid].is_set():
 			status_str = "%s: Run %d" % (e_jobid, eventsRPi.eventRuncountList[e_jobid])
 		
 	elif e_code == EVENT_JOB_ADDED: 
@@ -275,9 +272,28 @@ def proc_cmdrx(cmdval, dictConfig):
 		rest_update("%s init" % dictConfig['jobid'])
 
 	# Set the numerical value for the current state
-	dictConfig['stateval'] = cmdval
+	dictConfig['stateval'] = 4*cmdval
 	
 	
+	
+def set_stateval(dictConfig):
+	"""
+	Set the numerical value for the current error flags
+	"""
+
+	errval = 0		
+	if dictConfig.eventErr.is_set():
+		errval = 1
+
+	if dictConfig.eventErrcount > 3
+		errval = 2
+
+#	if dictConfig.eventCrash.is_set()
+#		errval = 3
+	
+	dictConfig['stateval'] += errval
+		
+		
 def tbk_handler():
 	"""
 	TalkBack command handler (scheduled Job).
@@ -299,23 +315,25 @@ def tbk_handler():
 			if cmdrx==u'cmd/01' and not timerConfig['cmd_run']:
 				timerConfig['cmd_run'] = True
 				sched.reschedule_job(job_id="TBJob", trigger='interval', seconds=timerConfig['interval_sec'][1])
-				logging.debug("TBJob cmd mode.")
+				logging.debug("TBCmd fast mode enabled.")
 				rest_update("TBCmd activated")
 
 			elif cmdrx==u'cmd/00' and timerConfig['cmd_run']:
 				timerConfig['cmd_run'] = False
 				sched.reschedule_job(job_id="TBJob", trigger='interval', seconds=timerConfig['interval_sec'][0])
-				logging.debug("TBJob standby mode.")
+				logging.debug("TBCmd fast mode disabled.")
 				rest_update("TBCmd standby")
 
 			# Timer
-			elif cmdrx==u'tim/01' and not timerConfig['enabled']:
+			elif cmdrx==u'sch/01' and not timerConfig['enabled']:
 				timerConfig['enabled'] = True
+				logging.debug("JobSch enabled.")
+				rest_update("JobSch enabled")
 
-			elif cmdrx==u'tim/00' and timerConfig['enabled']:
+			elif cmdrx==u'sch/00' and timerConfig['enabled']:
 				timerConfig['enabled'] = False
-				logging.debug("Timer disabled.")
-				rest_update("Timer disabled")
+				logging.debug("JobSch disabled.")
+				rest_update("JobSch disabled")
 
 			
 			# These commands are active only in cmd mode
@@ -323,21 +341,28 @@ def tbk_handler():
 				
 				# Cam
 				if cmdstr == u'cam':
-					proc_cmdrx(cmdval, imgCam.config)
+					proc_cmdrx(cmdval, camConfig)
 
 				# Dir
 				elif cmdstr == u'dir':
-					proc_cmdrx(cmdval, imgDir.config)
+					proc_cmdrx(cmdval, dirConfig)
 
 				# Dbx
 				elif cmdstr == u'dbx':
-					proc_cmdrx(cmdval, imgDbx.config)
+					proc_cmdrx(cmdval, dbxConfig)
 
 
-		# Post the combined state value for all jobs
-		state_val = 4*(imgCam.config['stateval'] + 16*imgDir.config['stateval'] + 16*16*imgDbx.config['stateval'])
+	# Set the error and cmd state values
+	set_stateval(camConfig)
+	set_stateval(dirConfig)
+	set_stateval(dbxConfig)
+	
+	# The combined state value for all jobs
+	state_val = camConfig['stateval'] + 16*dirConfig['stateval'] + 16*16*dbxConfig['stateval']
 
-		# Update REST feed 
+	# Update REST feed with a new state value only
+	if timerConfig['stateval'] != state_val:
+		timerConfig['stateval'] = state_val
 		rest_update(stream_value=state_val)			
 
 
@@ -364,10 +389,10 @@ sched = BackgroundScheduler(alias='BkgScheduler')
 sched.add_listener(job_listener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_JOB_ADDED | EVENT_JOB_REMOVED) 
 
 
-### Main loop		
+### Main 		
 def main():
 	"""
-	Runs the Scheduler with the Jobs on every day in the set time period.
+	Runs the Scheduler with the Jobs on every day in the set time periods.
 	"""
 	
 	# Time period start/stop
@@ -381,115 +406,128 @@ def main():
 		logging.info("Scheduler was not started! Bye!")
 		print("Scheduler was not started! Bye!")
 		
+		MainRun = False
+		
+	# Start background scheduler
 	else:
 
-		# Start background scheduler
 		logging.debug("Scheduler started on: %s" % (time.ctime(time.time())))
 		sched.start()
 
 		logging.info("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
 		print("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
-				
+
 		rest_update('Start')
-	
+
 		# Add TalkBack client job; run every preset (long) interval
 		if RESTTalkB is not None:
 			sched.add_job(tbk_handler, 'interval', id="TBJob", seconds=timerConfig['interval_sec'][0], misfire_grace_time=10, name='TB' )
-				
-		# Enable all day periods
-		bValidDayPer = []
-		for tper in range(len(timerConfig['start_hour'])):
-			bValidDayPer.append(True)
-						
-		# Check the validity of the periods on the first day (tnow)			
-		if tnow >= tstart_all:
-			for tper in range(len(timerConfig['start_hour'])):
-				if (60*tnow.hour + tnow.minute) >= (60*timerConfig['stop_hour'][tper] + timerConfig['stop_min'][tper]): 
-					bValidDayPer[tper] = False	
-					logging.info("The daily period %02d:%02d - %02d:%02d was skipped." % (timerConfig['start_hour'][tper], timerConfig['start_min'][tper], timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper]))
-				
-		# Every day in the given time period
-		tcrt = datetime.now()
-		while timerConfig['enabled'] and tcrt < tstop_all:
-					
-			rest_update('BoD')
-					
-			# Loop over the defined day periods	
-			for tper in range(len(timerConfig['start_hour'])):
-				
-				# Run only the valid day periods
-				if not bValidDayPer[tper]:
-					continue # next period/day
-										
-				# The current day period start/stop; the jobs will be run only between tstart_per and tstop_per 
-				tstart_per = datetime(tcrt.year, tcrt.month, tcrt.day, timerConfig['start_hour'][tper], timerConfig['start_min'][tper], 0, 0)
-				tstop_per  = datetime(tcrt.year, tcrt.month, tcrt.day, timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper], 59, 0)
-							
-				# Schedule the jobs to be run in the configured time period. All are paused until the scheduler is started			
-				eventsRPi.clearEvents()			
-				try:					
-					# The jobs will be run only between tstart_per and tstop_per 
-					sched.add_job(imgCam.run, 'interval', id=imgCam.name, seconds=camConfig['interval_sec'][tper], start_date=tstart_per, end_date=tstop_per, misfire_grace_time=10, name='CAM' )
-					sched.add_job(imgDir.run, 'interval', id=imgDir.name, seconds=dirConfig['dircheck_sec'][tper], start_date=tstart_per+timedelta(minutes=+1), end_date=tstop_per, misfire_grace_time=10, name='DIR' )
-					sched.add_job(imgDbx.run, 'interval', id=imgDbx.name, seconds=dbxConfig['dbcheck_sec'][tper], start_date=tstart_per+timedelta(minutes=+2), end_date=tstop_per, misfire_grace_time=10, name='DBX' )
-				
-					# Main loop
-					# The eventsRPi.eventEnd is set when all jobs have been removed/finished
-					while not eventsRPi.eventEnd.is_set():
-						#time.sleep( camConfig['interval_sec'][tper] )
-						
-						# Do something else while the scheduler is running
-						time.sleep(10)
-			
-			
-				except RuntimeError as e:
-					self.eventEnd.set()
-					logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
-					raise
 
-				except (KeyboardInterrupt, SystemExit):
-					pass
-			
-				except:
-					self.eventEnd.set()
-					logging.error("Exception: %s! Exiting!" %  str(sys.exc_info()), exc_info=True)
-					raise
-		
-				finally:			
-					time.sleep( 60 )
+		# Main loop
+		MainRun = True
+		while MainRun:
+
+			while not timerConfig['enabled']: 
+				# Wait until timer is enabled		
+				time.sleep( timerConfig['interval_sec'][1] )
+				rest_update('Waiting')				
+				continue 
 				
-					rest_update('eventEnd')
-
-			# Next day 
-			tnow = datetime.now()
-			tcrt = datetime(tnow.year, tnow.month, tnow.day, 0, 0, 0, 0) + timedelta(days=1)
-
 			# Enable all day periods
+			bValidDayPer = []
 			for tper in range(len(timerConfig['start_hour'])):
-				bValidDayPer[tper] = True
+				bValidDayPer.append(True)
+						
+			# Check the validity of the periods on the first day (tnow)	
+			tcrt = datetime.now()		
+			if tcrt >= tstart_all:
+				for tper in range(len(timerConfig['start_hour'])):
+					if (60*tcrt.hour + tcrt.minute) >= (60*timerConfig['stop_hour'][tper] + timerConfig['stop_min'][tper]): 
+						bValidDayPer[tper] = False	
+						logging.info("The daily period %02d:%02d - %02d:%02d was skipped." % (timerConfig['start_hour'][tper], timerConfig['start_min'][tper], timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper]))
 				
-			# Perform the end-of-day maintenance
-			imgCam.endDayOAM()
-			imgDir.endDayOAM()
-			imgDbx.endDayOAM()
-			
-			rest_update('EoD')
-			
-		# Remove TB job	
-		if RESTTalkB is not None:
-			sched.remove_job("TBJob")
+			# The scheduling period: every day in the given time periods
+			while tcrt < tstop_all:
 
-		# End scheduler and exit	
+				rest_update('BoD')
+
+				# Loop over the defined day periods	
+				for tper in range(len(timerConfig['start_hour'])):
+
+					# Run only the valid day periods
+					if not bValidDayPer[tper]:
+						continue # next period/day
+
+					# The current day period start/stop; the jobs will be run only between tstart_per and tstop_per 
+					tstart_per = datetime(tcrt.year, tcrt.month, tcrt.day, timerConfig['start_hour'][tper], timerConfig['start_min'][tper], 0, 0)
+					tstop_per  = datetime(tcrt.year, tcrt.month, tcrt.day, timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper], 59, 0)
+
+					# Schedule the jobs to be run in the configured time period. All are paused until the scheduler is started			
+					eventsRPi.clearEvents()
+					try:
+						# The jobs will be run only between tstart_per and tstop_per 
+						sched.add_job(imgCam.run, 'interval', id=imgCam.name, seconds=camConfig['interval_sec'][tper], start_date=tstart_per, end_date=tstop_per, misfire_grace_time=10, name='CAM' )
+						sched.add_job(imgDir.run, 'interval', id=imgDir.name, seconds=dirConfig['dircheck_sec'][tper], start_date=tstart_per+timedelta(minutes=+1), end_date=tstop_per, misfire_grace_time=10, name='DIR' )
+						sched.add_job(imgDbx.run, 'interval', id=imgDbx.name, seconds=dbxConfig['dbcheck_sec'][tper], start_date=tstart_per+timedelta(minutes=+2), end_date=tstop_per, misfire_grace_time=10, name='DBX' )
+
+						# The eventsRPi.eventEnd is set when all jobs have been removed/finished
+						while timerConfig['enabled'] and not eventsRPi.eventEnd.is_set():
+							#time.sleep( camConfig['interval_sec'][tper] )
+
+							# Do something else while the scheduler is running
+							time.sleep(10)
+
+						if timerConfig['enabled']:
+							rest_update('eventEnd')
+
+						else:
+							break # break/end the for tper loop
+
+
+					except RuntimeError as e:
+						self.eventEnd.set()
+						logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
+						raise
+
+					except (KeyboardInterrupt, SystemExit):
+						pass
+
+					except:
+						self.eventEnd.set()
+						logging.error("Exception: %s! Exiting!" %  str(sys.exc_info()), exc_info=True)
+						raise
+
+					finally:
+						time.sleep( 60 )
+
+				# Go to next day only if timer is still enabled
+				if timerConfig['enabled']:			
+					# Next day 
+					tnow = datetime.now()
+					tcrt = datetime(tnow.year, tnow.month, tnow.day, 0, 0, 0, 0) + timedelta(days=1)
+
+					# Enable all day periods
+					for tper in range(len(timerConfig['start_hour'])):
+						bValidDayPer[tper] = True
+
+					# Perform the end-of-day maintenance
+					imgCam.endDayOAM()
+					imgDir.endDayOAM()
+					imgDbx.endDayOAM()
+					rest_update('EoD')
+
+			# Normal end of the scheduling period (exit) or enter wait loop
+			if timerConfig['enabled']:
+				MainRun = False
+			else:
+				logging.info("Scheduler was forced stopped. Entering waiting loop.")
+
+		# End scheduler	
+		timerConfig['enabled'] = False			
 		sched.shutdown(wait=True)
 		logging.debug("Scheduler stop on: %s" % time.ctime(time.time()))
 
-		if not timerConfig['enabled']:
-			logging.info("Scheduler was stopped by external command.")
-			rest_update('ExtStop')
-		else:
-			rest_update('Stop')
-				
-
+		rest_update('Stop')
 
 if __name__ == "__main__":
 	main() 

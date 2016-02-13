@@ -82,6 +82,7 @@ class rpiCamClass(object):
 		self.eventDayEnd 	= rpi_events.eventDayEnd				
 		self.eventEnd 		= rpi_events.eventEnd
 		self.eventErr 		= rpi_events.eventErrList[self.name]
+		self.eventErrcount 	= rpi_events.eventErrcountList[self.name]
 		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]
 		
@@ -114,8 +115,9 @@ class rpiCamClass(object):
 			
 		### Clean up GPIO on exit	
 		if RPICAM or RASPISTILL:		
-			GPIO.cleanup()
-		
+			//GPIO.cleanup()
+			switchIR(False)
+			
 		### Update REST feed
 		self.rest_update(-1)
 
@@ -136,6 +138,7 @@ class rpiCamClass(object):
 			### Try to reset  and clear the self.eventErr
 			# after 2x self.eventErrdelay of failed access/run attempts
 			if (time.time() - self.eventErrtime) > self.eventErrdelay:
+				self.eventErrcount += 1
 				self.initClass()	
 			else:	
 				logging.debug("%s::: eventErr was set at %s!" % (self.name, time.ctime(self.eventErrtime)))

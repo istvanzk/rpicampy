@@ -43,6 +43,7 @@ class rpiImageDirClass():
 		self.eventDayEnd 	= rpi_events.eventDayEnd		
 		self.eventEnd 		= rpi_events.eventEnd
 		self.eventErr 		= rpi_events.eventErrList[self.name]
+		self.eventErrcount 	= rpi_events.eventErrcountList[self.name]		
 		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]							
 		self.eventDbErr 	= rpi_events.eventErrList['DBXJob']
@@ -87,6 +88,7 @@ class rpiImageDirClass():
 			### Try to reset  and clear the self.eventErr
 			# after 2x self.eventErrdelay of failed access/run attempts
 			if (time.time() - self.eventErrtime) > self.eventErrdelay:
+				self.eventErrcount += 1
 				self.initClass()	
 			else:	
 				logging.debug("eventErr was set at %s!" % time.ctime(self.eventErrtime))

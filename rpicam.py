@@ -94,7 +94,8 @@ class rpiCamClass(object):
 		self.config['stop']  = False
 		self.config['pause'] = False
 		self.config['init']  = False
-		self.config['stateval'] = 3
+		self.config['cmdval'] = 3
+		self.config['errval'] = 0
 				
 		### Make FIFO buffer (deque)					
 		self.imageFIFO = rpififo.rpiFIFOClass([], self.config['list_size'])
@@ -139,6 +140,9 @@ class rpiCamClass(object):
 			# after 2x self.eventErrdelay of failed access/run attempts
 			if (time.time() - self.eventErrtime) > self.eventErrdelay:
 				self.eventErrcount += 1
+				if self.eventErrcount > 3:
+					self.config['errval'] = 3
+					
 				self.initClass()	
 			else:	
 				logging.debug("%s::: eventErr was set at %s!" % (self.name, time.ctime(self.eventErrtime)))
@@ -341,6 +345,7 @@ class rpiCamClass(object):
 	def eventErr_set(self,str_func):
 		self.eventErr.set()
 		self.eventErrtime = time.time()
+		self.config['errval'] |= 1
 		self.rest_update(-2)
 		logging.debug("%s::: Set eventErr in %s at %s!" % (self.name, str_func, time.ctime(self.eventErrtime)))
 	
@@ -348,6 +353,9 @@ class rpiCamClass(object):
 		if self.eventErr.is_set():
 			self.eventErr.clear()
 			self.eventErrtime = 0
+			self.eventErrdelay = 120		
+			err = self.config['errval']
+			self.config['errval'] ^= 1
 			self.rest_update(0)
 			logging.debug("%s::: Clear eventErr in %s!" % (self.name, str_func))
 
@@ -358,10 +366,11 @@ class rpiCamClass(object):
 
 		logging.info("%s::: Intialize class" % self.name) 
 				
+		### REST feed
+		self.restapi_fieldid = 'field2'		
+				
 		### Init error event
-		self.eventErr.clear()
-		self.eventErrtime  = 0
-		self.eventErrdelay = 120
+		self.eventErr_clear("initClass()")
 
 		### Host/cam ID
 		self.camera = None
@@ -409,12 +418,8 @@ class rpiCamClass(object):
 		#self.imageFIFO.releaseSemaphore()
 
 		### Clear init flag			
-		self.config['initclass'] = False
+		self.config['init'] = False
 			
-		### Update REST feed
-		self.restapi_fieldid = 'field2'		
-		self.rest_update(0)
-
 	def endDayOAM(self):
 		"""
 		End-of-Day OAM

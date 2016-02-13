@@ -272,37 +272,15 @@ def proc_cmdrx(cmdval, dictConfig):
 		rest_update("%s init" % dictConfig['jobid'])
 
 	# Set the numerical value for the current state
-	dictConfig['stateval'] = 4*cmdval
+	dictConfig['cmdval'] = cmdval
 	
 	
 	
-def set_errval(imgClass):
-	"""
-	Set the numerical value for the current error flags
-	"""
-	
-	errval = 0		
-	if imgClass.eventErr.is_set():
-		errval = 1
-
-	if imgClass.eventErrcount > 3:
-		errval = 2
-
-#	if imgClass.eventCrash.is_set()
-#		errval = 3
-	
-	imgClass.config['stateval'] += errval
-		
-
 def post_stateval():
 
-	# Set the error and cmd state values
-	set_errval(imgCam)
-	set_errval(imgDir)
-	set_errval(imgDbx)
-	
-	# The combined state value for all jobs
-	state_val = imgCam.config['stateval'] + 16*imgDir.config['stateval'] + 16*16*imgDbx.config['stateval']
+	# The combined state (cmd and err) values for all jobs
+	state_val = imgCam.config['errval'] + 16*imgDir.config['errval'] + 16*16*imgDbx.config['errval']
+	state_val = state_val + 4*(imgCam.config['cmdval'] + 16*imgDir.config['cmdval'] + 16*16*imgDbx.config['cmdval'])
 
 	# Update REST feed with a new state value only
 	if timerConfig['stateval'] != state_val:

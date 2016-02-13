@@ -56,7 +56,8 @@ class rpiImageDirClass():
 		self.config['stop']  = False
 		self.config['pause'] = False
 		self.config['init']  = False
-		self.config['stateval'] = 3
+		self.config['cmdval'] = 3
+		self.config['errval'] = 0
 		
 		### Init class
 		self.initClass()
@@ -88,7 +89,9 @@ class rpiImageDirClass():
 			### Try to reset  and clear the self.eventErr
 			# after 2x self.eventErrdelay of failed access/run attempts
 			if (time.time() - self.eventErrtime) > self.eventErrdelay:
-				self.eventErrcount += 1
+				if self.eventErrcount > 3:
+					self.config['errval'] = 3
+
 				self.initClass()	
 			else:	
 				logging.debug("eventErr was set at %s!" % time.ctime(self.eventErrtime))
@@ -181,6 +184,8 @@ class rpiImageDirClass():
 	def eventErr_set(self,str_func):
 		self.eventErr.set()
 		self.eventErrtime = time.time()
+		self.eventErrdelay = 120
+		self.config['errval'] |= 1				
 		self.rest_update(-2)
 		logging.debug("%s::: Set eventErr in %s at %s!" % (self.name, str_func, time.ctime(self.eventErrtime)))
 
@@ -189,6 +194,7 @@ class rpiImageDirClass():
 		if self.eventErr.is_set():
 			self.eventErr.clear()
 			self.eventErrtime = 0
+			self.config['errval'] ^= 1					
 			self.rest_update(0)
 			logging.debug("%s::: Clear eventErr in %s!" % (self.name, str_func))
 
@@ -199,10 +205,11 @@ class rpiImageDirClass():
 
 		logging.info("%s::: Intialize class" % self.name)  
 
+		### The REST feed
+		self.restapi_fieldid = 'field4'
+
 		### Init error event
-		self.eventErr.clear()
-		self.eventErrtime  = 0
-		self.eventErrdelay = 120
+		self.eventErr_clear("initClass()")
 
 		### Init reference img file list
 		self.locdir = os.path.join(self.config['image_dir'], self.imageFIFO.crtSubDir)
@@ -210,12 +217,8 @@ class rpiImageDirClass():
 		self.imagelist_ref = sorted(glob.glob(self.image_name))
 
 		### Clear init flag
-		self.config['initclass'] = False
+		self.config['init'] = False
 		
-		### Update REST feed
-		self.restapi_fieldid = 'field4'
-		self.rest_update(0)
-
 	def endDayOAM(self):
 		"""
 		End-of-Day 0AM

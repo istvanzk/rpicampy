@@ -276,7 +276,7 @@ def proc_cmdrx(cmdval, dictConfig):
 	
 	
 	
-def set_stateval(dictConfig):
+def set_errval(dictConfig):
 	"""
 	Set the numerical value for the current error flags
 	"""
@@ -293,6 +293,22 @@ def set_stateval(dictConfig):
 	
 	dictConfig['stateval'] += errval
 		
+
+def post_stateval():
+
+	# Set the error and cmd state values
+	set_errval(imgCam.config)
+	set_errval(imgDir.config)
+	set_errval(imgDbx.config)
+	
+	# The combined state value for all jobs
+	state_val = imgCam.config['stateval'] + 16*imgDir.config['stateval'] + 16*16*imgDbx.config['stateval']
+
+	# Update REST feed with a new state value only
+	if timerConfig['stateval'] != state_val:
+		timerConfig['stateval'] = state_val
+		rest_update(stream_value=state_val)			
+
 		
 def tbk_handler():
 	"""
@@ -341,31 +357,21 @@ def tbk_handler():
 				
 				# Cam
 				if cmdstr == u'cam':
-					proc_cmdrx(cmdval, camConfig)
+					proc_cmdrx(cmdval, imgCam.config)
 
 				# Dir
 				elif cmdstr == u'dir':
-					proc_cmdrx(cmdval, dirConfig)
+					proc_cmdrx(cmdval, imgDir.config)
 
 				# Dbx
 				elif cmdstr == u'dbx':
-					proc_cmdrx(cmdval, dbxConfig)
+					proc_cmdrx(cmdval, imgDbx.config)
 
 
-	# Set the error and cmd state values
-	set_stateval(camConfig)
-	set_stateval(dirConfig)
-	set_stateval(dbxConfig)
+	# Update REST feed with a new state value only 
+	post_stateval()
 	
-	# The combined state value for all jobs
-	state_val = camConfig['stateval'] + 16*dirConfig['stateval'] + 16*16*dbxConfig['stateval']
-
-	# Update REST feed with a new state value only
-	if timerConfig['stateval'] != state_val:
-		timerConfig['stateval'] = state_val
-		rest_update(stream_value=state_val)			
-
-
+	
 ### The events
 eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob', 'TBJob'])
 logging.debug(eventsRPi)
@@ -418,6 +424,9 @@ def main():
 		print("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
 
 		rest_update('Start')
+
+		# Update REST feed with state value 
+		post_stateval()
 
 		# Add TalkBack client job; run every preset (long) interval
 		if RESTTalkB is not None:

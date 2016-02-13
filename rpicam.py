@@ -115,7 +115,7 @@ class rpiCamClass(object):
 			
 		### Clean up GPIO on exit	
 		if RPICAM or RASPISTILL:		
-			//GPIO.cleanup()
+			#GPIO.cleanup()
 			switchIR(False)
 			
 		### Update REST feed

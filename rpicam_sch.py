@@ -285,7 +285,7 @@ def set_stateval(dictConfig):
 	if dictConfig.eventErr.is_set():
 		errval = 1
 
-	if dictConfig.eventErrcount > 3
+	if dictConfig.eventErrcount > 3:
 		errval = 2
 
 #	if dictConfig.eventCrash.is_set()

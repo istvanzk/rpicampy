@@ -68,15 +68,6 @@ class rpiImageDbClass():
 				
 		self.restapi = restapi 
 	
-		### Init configs
-		self.config['jobid'] = self.name
-		self.config['run']   = True
-		self.config['stop']  = False
-		self.config['pause'] = False
-		self.config['init']  = False
-		self.config['cmdval'] = 3
-		self.config['errval'] = 0
-	
 		### Init class
 		self.initClass()
 		
@@ -119,11 +110,11 @@ class rpiImageDbClass():
 			return
 
 
-		if not self.config['stop']:
+		if self.config['stop']:
 			logging.debug("%s::: Stoped." % self.name)
 			return
 
-		if not self.config['pause']:
+		if self.config['pause']:
 			logging.debug("%s::: Paused." % self.name)
 			return												
 			
@@ -320,10 +311,15 @@ class rpiImageDbClass():
 			logging.error("%s::: InternalServerError:\n%s" % (self.name, str(e)))
 			raise
 			
-		### Clear init flag		
-		self.config['init'] = False
-						
-
+		### Init configs
+		self.config['jobid'] = self.name
+		self.config['run']   = True
+		self.config['stop']  = False
+		self.config['pause'] = False
+		self.config['init']  = False
+		self.config['cmdval'] = 3
+		self.config['errval'] = 0
+	
 	def endDayOAM(self):
 		"""
 		End-of-Day Operation and Maintenance sequence.

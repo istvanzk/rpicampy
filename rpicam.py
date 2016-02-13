@@ -87,15 +87,6 @@ class rpiCamClass(object):
 		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]
 		
 		self.restapi = restapi
-
-		### Init configs
-		self.config['jobid'] = self.name
-		self.config['run']   = True
-		self.config['stop']  = False
-		self.config['pause'] = False
-		self.config['init']  = False
-		self.config['cmdval'] = 3
-		self.config['errval'] = 0
 				
 		### Make FIFO buffer (deque)					
 		self.imageFIFO = rpififo.rpiFIFOClass([], self.config['list_size'])
@@ -149,11 +140,11 @@ class rpiCamClass(object):
 
 		
 
-		if not self.config['stop']:
+		if self.config['stop']:
 			logging.debug("%s::: Stoped." % self.name)
 			return
 
-		if not self.config['pause']:
+		if self.config['pause']:
 			logging.debug("%s::: Paused." % self.name)
 			return
 			
@@ -417,8 +408,14 @@ class rpiCamClass(object):
 		#		self.imageFIFO.append(img)
 		#self.imageFIFO.releaseSemaphore()
 
-		### Clear init flag			
-		self.config['init'] = False
+		### Init configs
+		self.config['jobid'] = self.name
+		self.config['run']   = True
+		self.config['stop']  = False
+		self.config['pause'] = False
+		self.config['init']  = False
+		self.config['cmdval'] = 3
+		self.config['errval'] = 0
 			
 	def endDayOAM(self):
 		"""

@@ -49,16 +49,7 @@ class rpiImageDirClass():
 		self.eventDbErr 	= rpi_events.eventErrList['DBXJob']
 		
 		self.restapi = restapi 
-	
-		### Init configs
-		self.config['jobid'] = self.name
-		self.config['run']   = True
-		self.config['stop']  = False
-		self.config['pause'] = False
-		self.config['init']  = False
-		self.config['cmdval'] = 3
-		self.config['errval'] = 0
-		
+			
 		### Init class
 		self.initClass()
 						
@@ -98,11 +89,11 @@ class rpiImageDirClass():
 			
 			return
 
-		if not self.config['stop']:
+		if self.config['stop']:
 			logging.debug("%s::: Stoped." % self.name)
 			return
 
-		if not self.config['pause']:
+		if self.config['pause']:
 			logging.debug("%s::: Paused." % self.name)
 			return												
 			
@@ -216,8 +207,14 @@ class rpiImageDirClass():
 		self.image_name = os.path.join(self.locdir, self.imageFIFO.crtSubDir + '-*.jpg')		
 		self.imagelist_ref = sorted(glob.glob(self.image_name))
 
-		### Clear init flag
-		self.config['init'] = False
+		### Init configs
+		self.config['jobid'] = self.name
+		self.config['run']   = True
+		self.config['stop']  = False
+		self.config['pause'] = False
+		self.config['init']  = False
+		self.config['cmdval'] = 3
+		self.config['errval'] = 0
 		
 	def endDayOAM(self):
 		"""

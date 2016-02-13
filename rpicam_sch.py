@@ -401,7 +401,7 @@ def main():
 		logging.info("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
 		print("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
 
-		rest_update('Start')
+		#rest_update('Start')
 
 		# Update REST feed with state value 
 		post_stateval()
@@ -436,7 +436,7 @@ def main():
 			# The scheduling period: every day in the given time periods
 			while tcrt < tstop_all:
 
-				rest_update('BoD')
+				#rest_update('BoD')
 
 				# Loop over the defined day periods	
 				for tper in range(len(timerConfig['start_hour'])):
@@ -515,7 +515,7 @@ def main():
 			if timerConfig['enabled']:
 				MainRun = False
 			else:
-				logging.info("Job schedules were ended. Entering waiting loop.")
+				logging.info("Job schedules were ended. Enter waiting loop.")
 
 		# End scheduler	
 		timerConfig['enabled'] = False			

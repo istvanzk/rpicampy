@@ -276,30 +276,30 @@ def proc_cmdrx(cmdval, dictConfig):
 	
 	
 	
-def set_errval(dictConfig):
+def set_errval(imgClass):
 	"""
 	Set the numerical value for the current error flags
 	"""
-
+	
 	errval = 0		
-	if dictConfig.eventErr.is_set():
+	if imgClass.eventErrList.is_set():
 		errval = 1
 
-	if dictConfig.eventErrcount > 3:
+	if imgClass.eventErrcount > 3:
 		errval = 2
 
-#	if dictConfig.eventCrash.is_set()
+#	if imgClass.eventCrash.is_set()
 #		errval = 3
 	
-	dictConfig['stateval'] += errval
+	imgClass.config['stateval'] += errval
 		
 
 def post_stateval():
 
 	# Set the error and cmd state values
-	set_errval(imgCam.config)
-	set_errval(imgDir.config)
-	set_errval(imgDbx.config)
+	set_errval(imgCam)
+	set_errval(imgDir)
+	set_errval(imgDbx)
 	
 	# The combined state value for all jobs
 	state_val = imgCam.config['stateval'] + 16*imgDir.config['stateval'] + 16*16*imgDbx.config['stateval']

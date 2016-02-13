@@ -468,7 +468,12 @@ def main():
 							rest_update('eventEnd')
 
 						else:
-							break # break/end the for tper loop
+							# Remove the jobs
+							sched.remove_job("CAMJob")
+							sched.remove_job("DIRJob")
+							sched.remove_job("DBXJob")		
+												
+							break # end the for tper loop
 
 
 					except RuntimeError as e:
@@ -502,12 +507,15 @@ def main():
 					imgDir.endDayOAM()
 					imgDbx.endDayOAM()
 					rest_update('EoD')
-
+				
+				else:	
+					break # end the while tcrt loop
+					
 			# Normal end of the scheduling period (exit) or enter wait loop
 			if timerConfig['enabled']:
 				MainRun = False
 			else:
-				logging.info("Scheduler was forced stopped. Entering waiting loop.")
+				logging.info("Job schedules were ended. Entering waiting loop.")
 
 		# End scheduler	
 		timerConfig['enabled'] = False			

@@ -282,7 +282,7 @@ def set_errval(imgClass):
 	"""
 	
 	errval = 0		
-	if imgClass.eventErrList.is_set():
+	if imgClass.eventErr.is_set():
 		errval = 1
 
 	if imgClass.eventErrcount > 3:

@@ -95,8 +95,11 @@ class rpiCamClass(rpiBaseClass):
 		
 		### Close the picamera
 		if RPICAM:
-			self._camera.close()
-			
+			try:
+				self._camera.close()
+			except:
+				pass
+						
 		### Clean up GPIO on exit	
 		if RPICAM or RASPISTILL:		
 			#GPIO.cleanup()

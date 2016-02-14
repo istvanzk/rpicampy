@@ -17,7 +17,7 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
     
-Implements the rpiBase class to provide a base class with common functionalities for all rpi classes. 	    
+Implements the rpiBase class to provide the base with common functionalities for all rpi classes. 	    
 """
 import time
 import logging
@@ -67,7 +67,7 @@ class rpiBaseClass(object):
 		logging.debug("%s::: Deleted!" % self.name)
 			
 		### Update REST feed value
-		self._restupdate(-1)
+		self.restUpdate(-1)
 
 
 	#
@@ -234,26 +234,40 @@ class rpiBaseClass(object):
 				self._seteventerr('run()', e.errval)
 				pass		
 			else:
-				logging.error("%s" % e.errmsg)
+				logging.error("%s\nExiting!" % e.errmsg, , exc_info=True)
 				self._seteventerr('run()', 4)
 				raise
 				
 		except RuntimeError as e:
 			self._seteventerr('run()',4)
-			logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
+			logging.error("RuntimeError: %s\nExiting!" % str(e), exc_info=True)
 			raise
 					
 		except:
 			self._seteventerr('run()',4)
-			logging.error("Unhandled Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)
+			logging.error("Unhandled Exception: %s\nExiting!" % str(sys.exc_info()), exc_info=True)
 			raise
 												
 		finally:
 			self._setstate()		
+
+
+	def restUpdate(self, stream_value):
+		"""
+		REST API warpper method to update feed/status a value.
+		The actual REST call is not performed here! 			
+		"""
+		if self._restapi is not None:
+			self._restapi.setfield(self._restapi_fieldid, stream_value)
+			if stream_value < -1:
+				self._restapi.setfield('status', "%sError: %s" % (self.name, time.ctime(self._eventErrtime)))
+									
+
 				
 	#
 	# Private
 	#												
+
 	def _initclass(self):
 		""""
 		(re)Initialize the class.
@@ -386,16 +400,6 @@ class rpiBaseClass(object):
 		self._stateVal = self._state['errval'] + 4*self._state['cmdval']
 		
 		
-	def _restupdate(self, stream_value):
-		"""
-		REST API warpper method to update feed/status a value.
-		The actual REST call is not performed here! 			
-		"""
-		if self._restapi is not None:
-			self._restapi.setfield(self._restapi_fieldid, stream_value)
-			if stream_value < -1:
-				self._restapi.setfield('status', "%sError: %s" % (self.name, time.ctime(self._eventErrtime)))
-									
 	def _seteventerr(self,str_func,err_val=2):
 		"""
 		Set eventErr, the error value (2,3 or 4) and store timestamp.
@@ -403,7 +407,7 @@ class rpiBaseClass(object):
 		self._eventErr.set()
 		self._eventErrtime = time.time()		
 		self._state['errval'] |= (err_val-1)
-		self._restupdate(err_val)
+		self.restUpdate(err_val)
 		logging.debug("%s::: Set eventErr in %s at %s!" % (self.name, str_func, time.ctime(self._eventErrtime)))
 	
 	def _cleareventerr(self,str_func):
@@ -416,5 +420,5 @@ class rpiBaseClass(object):
 			self._eventErrdelay = 3*self._config['interval_sec']		
 			self._state['errval'] = 0
 			self._setstate()		
-			self._restupdate(0)
+			self.restUpdate(0)
 			logging.debug("%s::: Clear eventErr in %s!" % (self.name, str_func))

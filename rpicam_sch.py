@@ -342,7 +342,7 @@ logging.info(imgCam)
 imgDir = rpimgdir.rpiImageDirClass(imgCam.imageFIFO, "DIRJob", dirConfig, eventsRPi, RESTfeed, 'field3')
 logging.info(imgDir)
 
-imgDbx = rpimgdb.rpiImageDbClass(imgCam.imageFIFO, "DBXJob", dbxConfig, eventsRPi, RESTfeed, 'field4')
+imgDbx = rpimgdb.rpiImageDbxClass(imgCam.imageFIFO, "DBXJob", dbxConfig, eventsRPi, RESTfeed, 'field4')
 logging.info(imgDbx)
 
 

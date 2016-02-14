@@ -19,15 +19,9 @@
     
 Implements the rpiBase class to provide a base class with common functionalities for all rpi classes. 	    
 """
-import os
-from errno import EEXIST
-import glob
 import time
-import datetime
-import subprocess
 import logging
 import thingspk
-import rpififo
 
 
 class rpiBaseClassError(Exception):

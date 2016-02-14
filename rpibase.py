@@ -55,7 +55,8 @@ class rpiBaseClass(object):
 						
 		self._restapi         = restapi
 		self._restapi_fieldid = restfield		
-				
+		
+		self._state			 = {}		
 		self._state['run']   = False
 		self._state['stop']  = False
 		self._state['pause'] = False

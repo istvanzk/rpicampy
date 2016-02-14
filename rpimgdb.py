@@ -271,7 +271,7 @@ class rpiImageDbxClass(rpiBaseClass):
 				logging.debug("_lsImage():: imageDbList[]: empty")
 		
 		except ApiError as e: 
-			raise rpiBaseClassError("%s::: _lsImage(): %s", e.user_message_text, 3)
+			raise rpiBaseClassError("%s::: _lsImage(): %s" % e.user_message_text, 3)
 				
 	
 	def _putImage(self, from_path, to_path, overwrite=False):
@@ -299,7 +299,7 @@ class rpiImageDbxClass(rpiBaseClass):
 			raise rpiBaseClassError("%s::: _putImage(): Local img file %s could not be opened." % (self.name, from_path), 3)
 		
 		except ApiError as e: 
-			raise rpiBaseClassError("%s::: _putImage(): %s", e.user_message_text, 3)
+			raise rpiBaseClassError("%s::: _putImage(): %s" % e.user_message_text, 3)
 			
 
 	def _mkdirImage(self, path):
@@ -315,7 +315,7 @@ class rpiImageDbxClass(rpiBaseClass):
 			logging.info("_mkdirImage():: Remote output folder /%s created." % path)
 
 		except ApiError as e:
-			raise rpiBaseClassError("%s::: _mkdirImage(): Remote output folder /%s was not created! %s", (path, e.user_message_text), 3)
+			raise rpiBaseClassError("%s::: _mkdirImage(): Remote output folder /%s was not created! %s" % (path, e.user_message_text), 3)
 		
         
         
@@ -332,7 +332,7 @@ class rpiImageDbxClass(rpiBaseClass):
 			logging.debug("_mvImage():: Moved file from %s to %s" % (from_path, to_path))
 									
 		except ApiError as e: 
-			raise rpiBaseClassError("%s::: _mvImage(): %s", e.user_message_text, 3)
+			raise rpiBaseClassError("%s::: _mvImage(): %s" % e.user_message_text, 3)
 		
 	
 # 	def _getImage(self, from_file, to_path):
@@ -347,7 +347,7 @@ class rpiImageDbxClass(rpiBaseClass):
 # 			logging.debug("_getImage():: Downloaded file from remote %s to %s. Metadata: %s" % (from_file, to_path, metadata) )
 # 		
 # 		except ApiError as e: 
-# 			raise rpiBaseClassError("%s::: _getImage(): %s", e.user_message_text, 3)
+# 			raise rpiBaseClassError("%s::: _getImage(): %s" % e.user_message_text, 3)
 
 	
 # 	def _searchImage(self, string):
@@ -358,7 +358,7 @@ class rpiImageDbxClass(rpiBaseClass):
 # 			results = self._dbx.files_search( '', string, start=0, max_results=100, mode=SearchMode('filename', None) )
 # 			
 # 		except ApiError as e: #rest.ErrorResponse as e:
-# 			raise rpiBaseClassError("%s::: _searchImage(): %s", e.user_message_text, 3)
+# 			raise rpiBaseClassError("%s::: _searchImage(): %s" % e.user_message_text, 3)
 
 	        
 # 	def _rmImage(self, path):

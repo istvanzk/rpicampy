@@ -315,7 +315,7 @@ class rpiImageDbxClass(rpiBaseClass):
 			logging.info("_mkdirImage():: Remote output folder /%s created." % path)
 
 		except ApiError as e:
-			raise rpiBaseClassError("%s::: _mkdirImage(): Remote output folder /%s was not created! %s" % (path, e.user_message_text), 3)
+			raise rpiBaseClassError("%s::: _mkdirImage(): Remote output folder /%s was not created! %s" % (self.name, path, e.user_message_text), 3)
 		
         
         

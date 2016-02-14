@@ -236,7 +236,7 @@ class rpiBaseClass(object):
 				self._seteventerr('run()', e.errval)
 				pass		
 			else:
-				logging.error("%s\nExiting!" % e.errmsg, , exc_info=True)
+				logging.error("%s\nExiting!" % e.errmsg, exc_info=True)
 				self._seteventerr('run()', 4)
 				raise
 				

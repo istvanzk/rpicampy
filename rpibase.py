@@ -51,17 +51,19 @@ class rpiBaseClass(object):
 		self._eventErrcount = rpi_events.eventErrcountList[self.name]
 		self._eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self._eventErrdelay	= rpi_events.eventErrdelayList[self.name]
-		self._stateVal 		= rpi_events.stateValList[self.name]
+		self.stateVal 		= rpi_events.stateValList[self.name]
 						
 		self._restapi         = restapi
 		self._restapi_fieldid = restfield		
+				
+		self._state = []
 				
 		### Init class
 		self._initclass()
 												
 	def __str__(self):
 		return "%s::: config: %s\neventErrcount: %d, eventErrtime: %s, eventErrdelay: %s, stateVal: %d" % \
-			(self.name, self._config, self._eventErrcount, time.ctime(self._eventErrtime), self._eventErrdelay, self._stateVal)
+			(self.name, self._config, self._eventErrcount, time.ctime(self._eventErrtime), self._eventErrdelay, self.stateVal)
 		
 	def __del__(self):
 		logging.debug("%s::: Deleted!" % self.name)
@@ -399,7 +401,7 @@ class rpiBaseClass(object):
 		"""
 		Set the combined/encoded state value corresponding to the cmd and err states.
 		"""
-		self._stateVal = self._state['errval'] + 4*self._state['cmdval']
+		self.stateVal = self._state['errval'] + 4*self._state['cmdval']
 		
 		
 	def _seteventerr(self,str_func,err_val=2):

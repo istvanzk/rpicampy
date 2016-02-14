@@ -93,17 +93,17 @@ class rpiCamClass(rpiBaseClass):
 		
 	def __del__(self):
 		
-		### Close the picamera
-		if RPICAM:
-			try:
+		try:
+			### Close the picamera
+			if RPICAM:
 				self._camera.close()
-			except:
-				pass
 						
-		### Clean up GPIO on exit	
-		if RPICAM or RASPISTILL:		
-			#GPIO.cleanup()
-			self._switchIR(False)
+			### Clean up GPIO on exit	
+			if RPICAM or RASPISTILL:		
+				#GPIO.cleanup()
+				self._switchIR(False)
+		except:
+			pass
 
 		### Clean base class
 		super(rpiCamClass,self).__del__(self)

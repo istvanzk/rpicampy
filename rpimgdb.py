@@ -36,10 +36,10 @@ from dropbox.exceptions import ApiError, AuthError, DropboxException, InternalSe
 from requests import exceptions
 import json
 
-if six.PY3:
-    from io import StringIO
-else:
-    from StringIO import StringIO
+# if six.PY3:
+#     from io import StringIO
+# else:
+#     from StringIO import StringIO
 
 from rpibase import rpiBaseClass, rpiBaseClassError
 

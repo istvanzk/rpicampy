@@ -57,12 +57,13 @@ class rpiImageDbxClass(rpiBaseClass):
 		super(rpiImageDbxClass,self).__init__(*args, **kwargs)
 								                    			                    				
 	def __str__(self):
-		msg = super(rpiImageDbxClass,self).__str__(self)		
+		msg = super(rpiImageDbxClass,self).__str__()		
 		return "%s::: dbinfo: %s\nimageUpldList: %s\n%s" % \
 				(self.name, self.dbinfo, self.imageUpldList, msg)
 	
-#	def __del__(self):
-#		logging.debug("%s::: Deleted!" % self.name)
+	def __del__(self):
+		### Clean base class
+		super(rpiImageDbxClass,self).__del__()
 
 
 			

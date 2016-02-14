@@ -87,7 +87,7 @@ class rpiCamClass(rpiBaseClass):
 		super(rpiCamClass,self).__init__(name, dict_config, rpi_events, restapi, restfield)
 												
 	def __str__(self):
-		msg = super(rpiCamClass,self).__str__(self)
+		msg = super(rpiCamClass,self).__str__()
 		return "%s::: %s\nimageFIFO: %s\nFake: %s, RaspiStill: %s, RPiCam: %s\n%s" % \
 			(self.name, self.camid, self.imageFIFO, FAKESNAP, RASPISTILL, RPICAM, msg)
 		
@@ -106,7 +106,7 @@ class rpiCamClass(rpiBaseClass):
 			pass
 
 		### Clean base class
-		super(rpiCamClass,self).__del__(self)
+		super(rpiCamClass,self).__del__()
 			
 
 	#

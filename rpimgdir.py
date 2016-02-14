@@ -46,11 +46,14 @@ class rpiImageDirClass(rpiBaseClass):
 		### Init base class
 		super(rpiImageDirClass,self).__init__(*args, **kwargs)
 						
-#	def __str__(self):
-#		msg = super(rpiImageDirClass,self).__str__(self)	
+	def __str__(self):
+		msg = super(rpiImageDirClass,self).__str__()	
+		return "%s:::locdir: %s\nimage_names: %s\nnlen(imagelist_ref): %d\n%s" % \
+				(self.name, self._locdir, self._image_names, len(self._imagelist_ref), msg)
 
-#	def __del__(self):
-#		logging.debug("%s::: Deleted!" % self.name)
+	def __del__(self):
+		### Clean base class
+		super(rpiImageDirClass,self).__del__()
 
 
 	#

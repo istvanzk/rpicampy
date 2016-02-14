@@ -21,8 +21,8 @@
 ---
 #dirImgConfig:
   list_size: 10
-  dircheck_sec:  [303.3]
+  interval_sec:  [303.3]
 ---
 #dbImgConfig:
   image_snap: 'cam.jpg'
-  dbcheck_sec: [305.3]
+  interval_sec: [305.3]

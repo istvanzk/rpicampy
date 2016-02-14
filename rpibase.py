@@ -56,7 +56,7 @@ class rpiBaseClass(object):
 		self._restapi         = restapi
 		self._restapi_fieldid = restfield		
 				
-		self._state = []
+		self._state = {}
 				
 		### Init class
 		self._initclass()

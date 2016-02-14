@@ -191,18 +191,21 @@ class rpiImageDbxClass(rpiBaseClass):
 	
 			### Create remote root folder (relative to app root) if it does not exist yet
 			self._mkdirImage(os.path.normpath(self._config['image_dir']))
+
+		except rpiBaseClassError as e:
+			raise rpiBaseClassError("%s" % e.errmsg, e.errval)
 					
 		except IOError:
 			raise rpiBaseClassError("%s::: initClass(): Token file ''%s'' could not be read." % (self.name, self._token_file), 4)
 		
 		except AuthError as e:
-			raise rpiBaseClassError("%s::: AuthError:\n%s" % (self.name, str(e)), 4)
+			raise rpiBaseClassError("%s::: initClass(): AuthError:\n%s" % (self.name, str(e)), 4)
 				
 		except DropboxException as e: 
-			raise rpiBaseClassError("%s::: DropboxException:\n%s" % (self.name, str(e)), 4)
+			raise rpiBaseClassError("%s::: initClass(): DropboxException:\n%s" % (self.name, str(e)), 4)
 		
 		except InternalServerError as e:	
-			raise rpiBaseClassError("%s::: InternalServerError:\n%s" % (self.name, str(e)), 4)
+			raise rpiBaseClassError("%s::: initClass(): InternalServerError:\n%s" % (self.name, str(e)), 4)
 			
 	
 	def endDayOAM(self):

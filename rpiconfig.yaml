@@ -3,20 +3,20 @@
 #timerConfig:
   start_year: 2016
   stop_year: 2016
-  start_month: 1
-  stop_month: 1
+  start_month: 2
+  stop_month: 2
   start_day: 1
-  stop_day: 31
+  stop_day: 29
   start_hour: [0]
-  start_min: [3]
+  start_min: [1]
   stop_hour: [23] 
-  stop_min: [50] 
+  stop_min: [55] 
   interval_sec: [150, 30]
 --- 
 #camImgConfig:
   image_dir: './webcam'
-  dark_hours: [16, 8] 
-  dark_mins: [0, 15]
+  dark_hours: [17, 8] 
+  dark_mins: [0, 0]
   interval_sec: [300]
 ---
 #dirImgConfig:

@@ -193,7 +193,7 @@ class rpiImageDbxClass(rpiBaseClass):
 			self._mkdirImage(os.path.normpath(self._config['image_dir']))
 
 		except rpiBaseClassError as e:
-			raise rpiBaseClassError("%s" % e.errmsg, e.errval)
+			raise rpiBaseClassError(e.errmsg, e.errval)
 					
 		except IOError:
 			raise rpiBaseClassError("%s::: initClass(): Token file ''%s'' could not be read." % (self.name, self._token_file), 4)

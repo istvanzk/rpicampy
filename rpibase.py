@@ -308,7 +308,7 @@ class rpiBaseClass(object):
 		self._state['errval'] = 0		
 
 		### Enable Run mode
-		self.cmdRun()
+		self.setRun()
 		
 		
 	def _enddayoam(self):

@@ -52,7 +52,7 @@ class rpiBaseClass(object):
 		self._eventErrtime 	= rpi_events.eventErrtimeList[self.name]
 		self._eventErrdelay	= rpi_events.eventErrdelayList[self.name]
 		self._stateVal 		= rpi_events.stateValList[self.name]
-		
+						
 		self._restapi         = restapi
 		self._restapi_fieldid = restfield		
 				
@@ -192,6 +192,25 @@ class rpiBaseClass(object):
 		"""
 		
 		###	Run the internal functionalities	
+		
+		if self._state['stop']:
+			return
+
+		if self._state['pause']:
+			return
+		
+		if self._eventEnd.is_set():
+			self._endoam()
+			return
+
+		if self._eventDayEnd.is_set():
+			self._enddayoam()
+			return
+
+
+		if self._state['init']:
+			self._initclass()
+							
 		if self._eventErr.is_set():	
 	
 			### Error was detected
@@ -201,29 +220,12 @@ class rpiBaseClass(object):
 			# after self._eventErrdelay time of failed access/run attempts
 			if (time.time() - self._eventErrtime) > self._eventErrdelay:
 				self._initclass()	
+				
 			else:	
 				self._eventErrcount += 1
 				logging.debug("%s::: eventErr was set at %s!" % (self.name, time.ctime(self._eventErrtime)))
-
-		if self._eventDayEnd.is_set():
-			self._enddayoam()
-			return
+				return
 	
-		if self._eventEnd.is_set():
-			self._endoam()
-			return
-
-		if self._state['stop']:
-			return
-
-		if self._state['pause']:
-			return
-		
-		if self._state['init']:
-			self._initclass()
-			return
-
-
 		try:
 			### Run the user defined method						
 			self.jobRun()
@@ -254,13 +256,13 @@ class rpiBaseClass(object):
 
 	def restUpdate(self, stream_value):
 		"""
-		REST API warpper method to update feed/status a value.
+		REST API wrapper method to update feed/status value.
 		The actual REST call is not performed here! 			
 		"""
 		if self._restapi is not None:
 			self._restapi.setfield(self._restapi_fieldid, stream_value)
-			if stream_value < -1:
-				self._restapi.setfield('status', "%sError: %s" % (self.name, time.ctime(self._eventErrtime)))
+			if stream_value < 0:
+				self._restapi.setfield('status', "%sError %d at %s" % (self.name, stream_value, time.ctime(self._eventErrtime)))
 									
 
 				
@@ -407,7 +409,8 @@ class rpiBaseClass(object):
 		self._eventErr.set()
 		self._eventErrtime = time.time()		
 		self._state['errval'] |= (err_val-1)
-		self.restUpdate(err_val)
+		self._setstate()
+		self.restUpdate(-1*err_val+1)
 		logging.debug("%s::: Set eventErr in %s at %s!" % (self.name, str_func, time.ctime(self._eventErrtime)))
 	
 	def _cleareventerr(self,str_func):

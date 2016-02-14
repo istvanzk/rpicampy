@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 3.1 for Python 3.4+
+    Time-lapse with Rasberry Pi controlled camera - VER 4.0 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -27,219 +27,105 @@ import time
 import datetime
 import subprocess
 import logging
-import thingspk
 
-class rpiImageDirClass():
+from rpibase import rpiBaseClass, rpiBaseClassError
+
+class rpiImageDirClass(rpiBaseClass):
 	"""
 	Implements the rpiImageDir class to manage the set of saved images by rpiCam
 	"""
 
-	def __init__(self, name, dict_config, deque_img, rpi_events, restapi=None):
+	def __init__(self, deque_img, *args, **kwargs):
+	
+		### Get FIFO buffer (deque)							
+		self._imageFIFO = deque_img
 		
-		self.name = name
-		self.config = dict_config
-		self.imageFIFO = deque_img
+		### Get the Dbx error event	
+		self._eventDbErr 	= args[2].eventErrList["DBXJob"] 
 		
-		self.eventDayEnd 	= rpi_events.eventDayEnd		
-		self.eventEnd 		= rpi_events.eventEnd
-		self.eventErr 		= rpi_events.eventErrList[self.name]
-		self.eventErrcount 	= rpi_events.eventErrcountList[self.name]		
-		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
-		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]							
-		self.eventDbErr 	= rpi_events.eventErrList['DBXJob']
-		
-		self.restapi = restapi 
-			
-		### Init class
-		self.initClass()
+		### Init base class
+		super(rpiImageDirClass,self).__init__(*args, **kwargs)
 						
-	def __str__(self):
-		return "%s::: config:%s\nimagelist_ref:%s\neventErrdelay:%s" % \
-			(self.name, self.config, self.imagelist_ref, self.eventErrdelay)
+#	def __str__(self):
+#		msg = super(rpiImageDirClass,self).__str__(self)	
 
 #	def __del__(self):
 #		logging.debug("%s::: Deleted!" % self.name)
 
-		### Update REST feed
-#		self.rest_update(-1)
 
 	#
-	# Run (as a Job in APScheduler)
-	#			
-	def run(self):
-				
-		if self.eventEnd.is_set():
-			logging.info("%s::: eventEnd is set" % self.name)
-			return		
-				
-		if self.eventErr.is_set():	
-		
-			### Error was detected
-			logging.info("%s::: eventErr is set" % self.name)
-
-			### Try to reset  and clear the self.eventErr
-			# after 2x self.eventErrdelay of failed access/run attempts
-			if (time.time() - self.eventErrtime) > self.eventErrdelay:
-				if self.eventErrcount > 3:
-					self.config['errval'] = 3
-
-				self.initClass()	
-			else:	
-				logging.debug("eventErr was set at %s!" % time.ctime(self.eventErrtime))
-			
-			return
-
-		if self.config['stop']:
-			logging.debug("%s::: Stoped." % self.name)
-			return
-
-		if self.config['pause']:
-			logging.debug("%s::: Paused." % self.name)
-			return												
-			
-		if self.config['init']:
-			self.initClass()
-			return
-
-		
-		try:
-			### End-of-day OAM
-			# 1) ...
-			if self.eventDayEnd.is_set():
-				self.endDayOAM()
-			
-			else:
-						
-				### List all jpg files in the current local sub-folder
-				self.locdir = os.path.join(self.config['image_dir'], self.imageFIFO.crtSubDir)
-				self.image_name = os.path.join(self.locdir, self.imageFIFO.crtSubDir + '-*.jpg')
-				self.imagelist = sorted(glob.glob(self.image_name))
-				if len(self.imagelist) > 0:
-					logging.debug("imagelist: %s .. %s" % (self.imagelist[0], self.imagelist[-1]))
-				else:
-					logging.debug("imagelist: empty. No %s found!" % self.image_name)
-				
-				### Run directory/file management only if no errors were detected when 
-				### updating to remote directory
-				if not self.eventDbErr.is_set():
-					### Process the new list only if it is changed and has at least max length
-					if ( not (self.imagelist_ref == self.imagelist) ) and \
-						len(self.imagelist) > self.config['list_size']:
-			
-						### Remove all the images not in the imageFIFO
-						self.imageFIFO.acquireSemaphore()
-				
-						for img in self.imagelist:
-							if not img in self.imageFIFO:					
-								logging.info("Remove image: %s" % img)				
-								self.rmimg = subprocess.Popen("rm " + img, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
-								self.output, self.errors = self.rmimg.communicate()
-					
-								### Check return/errors
-				
-						self.imageFIFO.releaseSemaphore()
-					
-						#raise Exception('Test exception')	
-						
-					### Update REST feed
-					self.rest_update(len(self.imagelist))
-				
-					### Update image list in the current local sub-folder
-					self.imagelist_ref = sorted(glob.glob(self.image_name))
-					if len(self.imagelist_ref) > 0:
-						logging.debug("imagelist_ref: %s .. %s" % (self.imagelist_ref[0], self.imagelist[-1]))
-					else:
-						logging.debug("imagelist_ref: empty. No %s found!" % self.image_name)
-				
-						
-				else:
-					logging.info("eventDbErr is set!")							
-
-
-		### Handle exceptions
-		except RuntimeError as e:
-			self.eventErr_set('run()')
-			self.rest_update(-3)
-			logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
-			raise
-					
-		except:
-			self.eventErr_set('run()')
-			self.rest_update(-4)
-			logging.error("Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)
-			pass										
-						
-									
-
-	### Helpers
-	def eventErr_set(self,str_func):
-		self.eventErr.set()
-		self.eventErrtime = time.time()
-		self.eventErrdelay = 120
-		self.config['errval'] |= 1				
-		self.rest_update(-2)
-		logging.debug("%s::: Set eventErr in %s at %s!" % (self.name, str_func, time.ctime(self.eventErrtime)))
-
+	# Main interface methods
+	#		
 	
-	def eventErr_clear(self,str_func):
-		if self.eventErr.is_set():
-			self.eventErr.clear()
-			self.eventErrtime = 0
-			self.config['errval'] ^= 1					
-			self.rest_update(0)
-			logging.debug("%s::: Clear eventErr in %s!" % (self.name, str_func))
+	def jobRun(self):
+				
+								
+		### List all jpg files in the current local sub-folder
+		self._locdir = os.path.join(self._config['image_dir'], self._imageFIFO.crtSubDir)
+		self._image_names = os.path.join(self._locdir, self._imageFIFO.crtSubDir + '-*.jpg')
+		self.imagelist = sorted(glob.glob(self._image_names))
+		if len(self.imagelist) > 0:
+			logging.debug("imagelist: %s .. %s" % (self.imagelist[0], self.imagelist[-1]))
+		else:
+			logging.debug("imagelist: empty. No %s found!" % self._image_names)
+		
+		### Run directory/file management only if no errors were detected when 
+		### updating to remote directory
+		if not self._eventDbErr.is_set():
+			### Process the new list only if it is changed and has at least max length
+			if ( not (self._imagelist_ref == self.imagelist) ) and \
+				len(self.imagelist) > self._config['list_size']:
+	
+				### Remove all the images not in the imageFIFO
+				self._imageFIFO.acquireSemaphore()
+		
+				for img in self.imagelist:
+					if not img in self._imageFIFO:					
+						logging.info("Remove image: %s" % img)				
+						self._rmimg = subprocess.Popen("rm " + img, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
+						self._diroutput, self._direrrors = self._rmimg.communicate()
+			
+						### Check return/errors
+						if len(self._direrrors):	
+							raise rpiBaseClassError("%s::: jobRun(): File could not be deleted! %s\n%s" % (self.name, self._camoutput, self._camerrors ), 3)
+		
+				self._imageFIFO.releaseSemaphore()
+			
+				#raise Exception('Test exception')	
+				
+			### Update REST feed
+			self.restUpdate(len(self.imagelist))
+		
+			### Update image list in the current local sub-folder
+			self._imagelist_ref = sorted(glob.glob(self._image_names))
+			if len(self._imagelist_ref) > 0:
+				logging.debug("imagelist_ref: %s .. %s" % (self._imagelist_ref[0], self.imagelist[-1]))
+			else:
+				logging.debug("imagelist_ref: empty. No %s found!" % self._image_names)
+		
+				
+		else:
+			logging.info("eventDbErr is set!")							
+
+
 
 	def initClass(self):
 		""""
 		(re)Initialize the class
 		"""
 
-		logging.info("%s::: Intialize class" % self.name)  
-
-		### The REST feed
-		self.restapi_fieldid = 'field4'
-
-		### Init error event
-		self.eventErr_clear("initClass()")
-
 		### Init reference img file list
-		self.locdir = os.path.join(self.config['image_dir'], self.imageFIFO.crtSubDir)
-		self.image_name = os.path.join(self.locdir, self.imageFIFO.crtSubDir + '-*.jpg')		
-		self.imagelist_ref = sorted(glob.glob(self.image_name))
+		self._locdir = os.path.join(self._config['image_dir'], self._imageFIFO.crtSubDir)
+		self._image_names = os.path.join(self._locdir, self._imageFIFO.crtSubDir + '-*.jpg')		
+		self._imagelist_ref = sorted(glob.glob(self._image_names))
 
-		### Init configs
-		self.config['jobid'] = self.name
-		self.config['run']   = True
-		self.config['stop']  = False
-		self.config['pause'] = False
-		self.config['init']  = False
-		self.config['cmdval'] = 3
-		self.config['errval'] = 0
 		
-	def endDayOAM(self):
-		"""
-		End-of-Day 0AM
-		"""	
+#	def endDayOAM(self):
+#		"""
+#		End-of-Day 0AM
+#		"""	
 		
-		logging.info("%s::: EoD maintenance sequence run" % self.name) 
-
-		### Init class	
-		self.initClass()																				
-
-		if not self.eventErr.is_set():	
-		
-			self.eventDayEnd.clear()
-			logging.debug("%s::: Reset eventEndDay" % self.name)
-
-		else:
-			logging.debug("%s::: eventErr is set" % self.name)
-	
-			
-	def rest_update(self, stream_value):
-		"""
-		REST API function to upload a value. 			
-		"""
-		if self.restapi is not None:
-			self.restapi.setfield(self.restapi_fieldid, stream_value)
-			if stream_value < 0:
-				self.restapi.setfield('status', "%sError: %s" % (self.name, time.ctime(self.eventErrtime)))
+#	def endOAM(self):
+#		"""
+#		End OAM procedure.
+#		"""	

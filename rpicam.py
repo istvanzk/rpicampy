@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 3.1 for Python 3.4+
+    Time-lapse with Rasberry Pi controlled camera - VER 4.0 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -30,8 +30,9 @@ import time
 import datetime
 import subprocess
 import logging
-import thingspk
+
 import rpififo
+from rpibase import rpiBaseClass, rpiBaseClassError
 
 # OpenCV
 #import numpy as np
@@ -45,6 +46,7 @@ import math
 #import unittest
 
 # Camera input to use
+# If not RPICAM and not RPISTILL then use a web camera with fswebcam utility
 FAKESNAP   = False
 RASPISTILL = False
 RPICAM     = True
@@ -63,9 +65,8 @@ if RPICAM:
 if RPICAM or RASPISTILL:	
 	import RPi.GPIO as GPIO
 
-# if not RPICAM and not RPISTILL then use a web camera and fswebcam 
 
-class rpiCamClass(object):
+class rpiCamClass(rpiBaseClass):
 	"""
 	Implements the rpiCam class, to run and control:
 	- Raspberry PI camera using the raspistill utility or 
@@ -74,297 +75,210 @@ class rpiCamClass(object):
 	Use GPIO to ON/OFF control an IR/VL reflector for night imaging.
 	"""
 		
-	def __init__(self, name, dict_config, rpi_events, restapi=None):
+	def __init__(self, name, dict_config, rpi_events, restapi=None, restfield=None):
+			
+		### Create FIFO buffer (deque)					
+		self.imageFIFO = rpififo.rpiFIFOClass([], dict_config['list_size'])
 	
-		self.name 	= name
-		self.config = dict_config
-		
-		self.eventDayEnd 	= rpi_events.eventDayEnd				
-		self.eventEnd 		= rpi_events.eventEnd
-		self.eventErr 		= rpi_events.eventErrList[self.name]
-		self.eventErrcount 	= rpi_events.eventErrcountList[self.name]
-		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
-		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]
-		
-		self.restapi = restapi
-				
-		### Make FIFO buffer (deque)					
-		self.imageFIFO = rpififo.rpiFIFOClass([], self.config['list_size'])
+		### Get the Dbx error event	
+		self._eventDbErr 	= rpi_events.eventErrList["DBXJob"] 
 						
-		### Init class
-		self.initClass()
+		### Init base class
+		super(rpiCamClass,self).__init__(name, dict_config, rpi_events, restapi, restfield)
 												
 	def __str__(self):
-		return "%s::: %s, config:%s\nimageFIFO:%s\nFake snap:%s\neventErrdelay:%s" % \
-			(self.name, self.camid, self.config, self.imageFIFO, FAKESNAP, self.eventErrdelay)
+		msg = super(rpiCamClass,self).__str__(self)
+		return "%s::: %s\nimageFIFO: %s\nFake: %s, RaspiStill: %s, RPiCam: %s\n%s" % \
+			(self.name, self.camid, self.imageFIFO, FAKESNAP, RASPISTILL, RPICAM, msg)
 		
 	def __del__(self):
-		logging.debug("%s::: Deleted!" % self.name)
-
+		
 		### Close the picamera
 		if RPICAM:
-			self.camera.close()
+			self._camera.close()
 			
 		### Clean up GPIO on exit	
 		if RPICAM or RASPISTILL:		
 			#GPIO.cleanup()
-			switchIR(False)
+			self._switchIR(False)
+
+		### Clean base class
+		super(rpiCamClass,self).__del__(self)
 			
-		### Update REST feed
-		self.rest_update(-1)
 
 	#
-	# Run (as a Job in APScheduler)
+	# Main interface methods
 	#		
-	def run(self):
 	
-		if self.eventEnd.is_set():
-			logging.info("%s::: eventEnd is set!" % self.name)
-			return
-			
-		if self.eventErr.is_set():	
-		
-			### Error was detected
-			logging.info("%s::: eventErr is set!" % self.name)
-		
-			### Try to reset  and clear the self.eventErr
-			# after 2x self.eventErrdelay of failed access/run attempts
-			if (time.time() - self.eventErrtime) > self.eventErrdelay:
-				self.eventErrcount += 1
-				if self.eventErrcount > 3:
-					self.config['errval'] = 3
-					
-				self.initClass()	
-			else:	
-				logging.debug("%s::: eventErr was set at %s!" % (self.name, time.ctime(self.eventErrtime)))
-
-		
-
-		if self.config['stop']:
-			logging.debug("%s::: Stoped." % self.name)
-			return
-
-		if self.config['pause']:
-			logging.debug("%s::: Paused." % self.name)
-			return
-			
-		if self.config['init']:
-			self.initClass()
-			return
-					
-		
+	def jobRun(self):
+	
 		### Create the daily output sub-folder
 		### Set the full image file path
-		#self.config['image_subdir'] = time.strftime('%d%m%y', time.localtime())
+		#self._config['image_subdir'] = time.strftime('%d%m%y', time.localtime())
 		self.imageFIFO.crtSubDir = time.strftime('%d%m%y', time.localtime())
-		self.locdir = os.path.join(self.config['image_dir'], self.imageFIFO.crtSubDir)
+		self._locdir = os.path.join(self._config['image_dir'], self.imageFIFO.crtSubDir)
 		try:
-			os.mkdir(self.locdir)
-			logging.info("%s::: Local daily output folder %s created." % (self.name, self.locdir))
+			os.mkdir(self._locdir)
+			logging.info("%s::: Local daily output folder %s created." % (self.name, self._locdir))
 		
 		except OSError as e:
 			if e.errno == EEXIST:
-				logging.debug("%s::: Local daily output folder %s already exist!" % (self.name, self.locdir))
+				logging.debug("%s::: Local daily output folder %s already exist!" % (self.name, self._locdir))
 				pass	
 			else:
-				logging.error("%s::: Local daily output folder %s could not be created!" % (self.name, self.locdir))
-				self.eventErr_set('run()')
-				self.rest_update(-3)				
-				raise	
+				raise rpiBaseClassError("%s::: jobRun(): Local daily output folder %s could not be created" % (self.name, self._locdir) , 4)	
 				
 		finally:
 			self.image_name = self.imageFIFO.crtSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
-			self.image_path = os.path.join(self.locdir, self.image_name) 
+			self.image_path = os.path.join(self._locdir, self.image_name) 
 			
 
 
 		### Take a new snapshot and save the image locally 	
-		try:														
-			if FAKESNAP:
-				logging.debug('Faking snapshot: ' + self.image_name) 
-				self.grab_cam = subprocess.Popen("touch " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 			
+		if FAKESNAP:
+			logging.debug('Faking snapshot: ' + self.image_name) 
+			self._grab_cam = subprocess.Popen("touch " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 			
+			
+			### Check return/errors				
+			self._camoutput, self._camerrors = self._grab_cam.communicate()
+			
+		else:	
+			if RASPISTILL:
+				# Use raspistill -n -vf -hf -awb auto -q 95
+				self._grab_cam = subprocess.Popen("raspistill -n -vf -hf -q 95 -co 30 -w 640 -h 480 -o " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
 				
 				### Check return/errors				
-				self.output, self.errors = self.grab_cam.communicate()
+				#self.grab_cam.wait()
+				self._camoutput, self._camerrors = self._grab_cam.communicate()
 				
-			else:	
-				if RASPISTILL:
-					# Use raspistill -n -vf -hf -awb auto -q 95
-					self.grab_cam = subprocess.Popen("raspistill -n -vf -hf -q 95 -co 30 -w 640 -h 480 -o " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
-					
-					### Check return/errors				
-					#self.grab_cam.wait()
-					self.output, self.errors = self.grab_cam.communicate()
-					
-				elif RPICAM:
-					### Init the camera
-					self.TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 16)
-	
-					#with picamera.PiCamera() as self.camera:
-					self.camera = picamera.PiCamera()
-					self.camera.resolution = (1024, 768)
-					self.camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2016 Istvan Z. Kovacs'
-					#self.camera.hflip = True
-					#self.camera.vflip = True
-					self.camera.rotation = 0
-					if self.camid == 'CAM1':
-						self.camera.rotation = 90
+			elif RPICAM:
+				### Init the camera
+				self._TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 16)
 
-					### Set camera exposure according to the 'dark' time threshold
-					self.setPICamExp()
+				#with picamera.PiCamera() as self._camera:
+				self._camera = picamera.PiCamera()
+				self._camera.resolution = (1024, 768)
+				self._camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2016 Istvan Z. Kovacs'
+				#self._camera.hflip = True
+				#self._camera.vflip = True
+				self._camera.rotation = 0
+				if self.camid == 'CAM1':
+					self._camera.rotation = 90
 
-					### Create the in-memory stream
-					stream = io.BytesIO()
-																	
-					### Camera warm-up time and capture
-					#self.camera.capture( self.image_path, format='jpeg' )
-					self.camera.capture(stream, format='jpeg')
-						
-					### Read stream to a PIL image 
-					stream.seek(0)
-					image = Image.open(stream)
-												
-					### When in 'dark' time
-					### Calculate brightness and adjust shutter speed
-					sN = ': '
-					if self.bDarkExp:
-						sN = 'n' + sN
+				### Set camera exposure according to the 'dark' time threshold
+				self._setPICamExp()
 
-						if self.camid == 'CAM1':
-						
-							### Calculate brightness
-							#self.grayscaleAverage(image)
-							self.averagePerceived(image)
-						
-							### Recapture image with new shutter speed if needed
-							if self.imgbr < 118 or \
-								self.imgbr > 138:
-							
-								logging.info('IMGbr: %d' % self.imgbr)							
-															
-								ss = self.camera.shutter_speed
-
-								logging.info('CAMss: %d' % ss)							
-
-								self.camera.shutter_speed = int(ss*(2 - float(self.imgbr)/128))
-
-								logging.info('CAMss: %d' % self.camera.shutter_speed)							
+				### Create the in-memory stream
+				stream = io.BytesIO()
 																
-								time.sleep(2)
-								self.camera.capture(stream, format='jpeg')
-							
-								stream.seek(0)
-								image = Image.open(stream)
-								
-						#elif self.camid == 'CAM2':
-							# Do nothing ?
-									
-						#else:
-							# Do nothing ?
-							
+				### Camera warm-up time and capture
+				#self._camera.capture( self.image_path, format='jpeg' )
+				self._camera.capture(stream, format='jpeg')
 					
-					### Add overlay text to the final image
-					draw = ImageDraw.Draw(image,'RGBA')	
-					draw.rectangle([0,image.size[1]-20,image.size[0],image.size[1]], fill=(150,200,150,100))
-					draw.text((2,image.size[1]-18), self.camid + sN + time.strftime('%b %d %Y, %H:%M', time.localtime()), fill=(0,0,0,0), font=self.TXTfont)
-					#n_width, n_height = TXTfont.getsize('#XX')
-					#draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=TXTfont)	
-					del draw 
-					
-					### Save image and close
-					image.save( self.image_path, format='jpeg', quality=95 )
-					#image.close() 
-					
-					### Close BytesIO stream
-					stream.close()
-					
-					### Set output indicators
-					self.output = self.image_path
-					self.errors = ''
-					
-				else:
-					# Use fswebcam -d /dev/video0 -s brightness=50% -s gain=32
-					self.grab_cam = subprocess.Popen("fswebcam -d /dev/video0 -q -r 640x480 --jpeg=95 " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
-					
-					### Check return/errors
-					self.output, self.errors = self.grab_cam.communicate()
-										
-				
-			self.imageFIFO.acquireSemaphore()
-												
-			if len(self.errors):	
-				logging.error('Snapshot not available! Error: %s' % self.errors )
-				
-			else:
-				### Add image to deque (FIFO)
-				self.imageFIFO.append(self.image_path)
-					
-				logging.info('Snapshot: ' + self.image_name) 
-					
-			self.crtlenFIFO = len(self.imageFIFO)
-			if self.crtlenFIFO > 0:
-				logging.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
-			else:
-				logging.debug("imageFIFO[]: empty")
-			
-			self.imageFIFO.releaseSemaphore()
-			
-			### Update REST feed
-			self.rest_update(self.crtlenFIFO)
-			
-			
-		except RuntimeError as e:
-			self.eventErr_set('run()')
-			self.rest_update(-3)
-			logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
-			raise
-					
-		except:
-			self.eventErr_set('run()')
-			self.rest_update(-4)
-			logging.error("Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)
-			raise
-												
-		finally:
-		
-			### Close the picamera
-			if RPICAM:
-				self.camera.close()
-												
-	
-	### Helpers
-	def eventErr_set(self,str_func):
-		self.eventErr.set()
-		self.eventErrtime = time.time()
-		self.config['errval'] |= 1
-		self.rest_update(-2)
-		logging.debug("%s::: Set eventErr in %s at %s!" % (self.name, str_func, time.ctime(self.eventErrtime)))
-	
-	def eventErr_clear(self,str_func):
-		if self.eventErr.is_set():
-			self.eventErr.clear()
-			self.eventErrtime = 0
-			self.eventErrdelay = 120		
-			err = self.config['errval']
-			self.config['errval'] ^= 1
-			self.rest_update(0)
-			logging.debug("%s::: Clear eventErr in %s!" % (self.name, str_func))
+				### Read stream to a PIL image 
+				stream.seek(0)
+				image = Image.open(stream)
+											
+				### When in 'dark' time
+				### Calculate brightness and adjust shutter speed
+				sN = ': '
+				if self.bDarkExp:
+					sN = 'n' + sN
 
+					if self.camid == 'CAM1':
+					
+						### Calculate brightness
+						#self._grayscaleAverage(image)
+						self._averagePerceived(image)
+					
+						### Recapture image with new shutter speed if needed
+						if self.imgbr < 118 or \
+							self.imgbr > 138:
+						
+							logging.info('IMGbr: %d' % self.imgbr)							
+														
+							ss = self._camera.shutter_speed
+
+							logging.info('CAMss: %d' % ss)							
+
+							self._camera.shutter_speed = int(ss*(2 - float(self.imgbr)/128))
+
+							logging.info('CAMss: %d' % self._camera.shutter_speed)							
+															
+							time.sleep(2)
+							self._camera.capture(stream, format='jpeg')
+						
+							stream.seek(0)
+							image = Image.open(stream)
+							
+					#elif self.camid == 'CAM2':
+						# Do nothing ?
+								
+					#else:
+						# Do nothing ?
+						
+				
+				### Add overlay text to the final image
+				draw = ImageDraw.Draw(image,'RGBA')	
+				draw.rectangle([0,image.size[1]-20,image.size[0],image.size[1]], fill=(150,200,150,100))
+				draw.text((2,image.size[1]-18), self.camid + sN + time.strftime('%b %d %Y, %H:%M', time.localtime()), fill=(0,0,0,0), font=self.TXTfont)
+				#n_width, n_height = TXTfont.getsize('#XX')
+				#draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=TXTfont)	
+				del draw 
+				
+				### Save image and close
+				image.save( self.image_path, format='jpeg', quality=95 )
+				#image.close() 
+				
+				### Close BytesIO stream
+				stream.close()
+				
+				### Set output indicators
+				self._camoutput = self.image_path
+				self._camerrors = ''
+				
+			else:
+				# Use fswebcam -d /dev/video0 -s brightness=50% -s gain=32
+				self._grab_cam = subprocess.Popen("fswebcam -d /dev/video0 -q -r 640x480 --jpeg=95 " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
+				
+				### Check return/errors
+				self._camoutput, self._camerrors = self._grab_cam.communicate()
+									
+			
+		self.imageFIFO.acquireSemaphore()
+											
+		if len(self._camerrors):	
+			raise rpiBaseClassError("%s::: jobRun(): Snapshot not available! %s\n%s" % (self.name, self._camoutput, self._camerrors ), 3)
+			
+		else:
+			### Add image to deque (FIFO)
+			self.imageFIFO.append(self.image_path)
+				
+			logging.info('Snapshot: ' + self.image_name) 
+				
+		self.crtlenFIFO = len(self.imageFIFO)
+		if self.crtlenFIFO > 0:
+			logging.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
+		else:
+			logging.debug("imageFIFO[]: empty")
+		
+		self.imageFIFO.releaseSemaphore()
+		
+		### Update REST feed
+		self.restUpdate(self.crtlenFIFO)
+			
+		### Close the picamera
+		if RPICAM:
+			self._camera.close()
+												
+	
 	def initClass(self):
 		""""
-		(re)Initialize the class
+		(re)Initialize the class.
 		"""
 
-		logging.info("%s::: Intialize class" % self.name) 
-				
-		### REST feed
-		self.restapi_fieldid = 'field2'		
-				
-		### Init error event
-		self.eventErr_clear("initClass()")
-
 		### Host/cam ID
-		self.camera = None
+		self._camera = None
 		self.camid = 'CAM1'
 		if subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8').find('pi2') > 0:
 			self.camid = 'CAM2'
@@ -386,104 +300,78 @@ class rpiCamClass(object):
 										
 		### Create output folder
 		try:
-			os.mkdir(self.config['image_dir'])
+			os.mkdir(self._config['image_dir'])
 			self.imgSubDir = time.strftime('%d%m%y', time.localtime())
-			logging.info("%s::: Local output folder %s created." % (self.name, self.config['image_dir']))
+			logging.info("%s::: Local output folder %s created." % (self.name, self._config['image_dir']))
 		except OSError as e:
 			if e.errno == EEXIST:
-				logging.info("%s::: Local output folder %s already exist!" % (self.name, self.config['image_dir']))
+				logging.info("%s::: Local output folder %s already exist!" % (self.name, self._config['image_dir']))
 				pass
 			else:
-				logging.error("%s::: Local output folder %s could not be created!" % (self.name, self.config['image_dir']))
-				self.eventErr_set('initClass()')
-				self.rest_update(-3)			
-				raise	
+				raise rpiBaseClassError("%s::: initClass(): Local output folder %s could not be created" % (self.name, self._config['image_dir']) , 4)	
 									
 		### Fill in the fifo buffer with images found in the output directory	
 		### Only the image files with the current date are listed!			
-		#imagelist_ref = sorted(glob.glob(self.config['image_dir'] + '/' + time.strftime('%d%m%y', time.localtime()) + '-*.jpg'))		
+		#imagelist_ref = sorted(glob.glob(self._config['image_dir'] + '/' + time.strftime('%d%m%y', time.localtime()) + '-*.jpg'))		
 		#self.imageFIFO.acquireSemaphore()
 		#for img in imagelist_ref:
 		#	if not img in self.imageFIFO:
 		#		self.imageFIFO.append(img)
 		#self.imageFIFO.releaseSemaphore()
-
-		### Init configs
-		self.config['jobid'] = self.name
-		self.config['run']   = True
-		self.config['stop']  = False
-		self.config['pause'] = False
-		self.config['init']  = False
-		self.config['cmdval'] = 3
-		self.config['errval'] = 0
-			
-	def endDayOAM(self):
-		"""
-		End-of-Day OAM
-		"""	
 		
-		logging.info("%s::: EoD maintenance sequence run" % self.name) 
+								
+#	def endDayOAM(self):
+#		"""
+#		End-of-Day OAM procedure.
+#		"""	
 
-		### Init class	
-		self.initClass()																				
-
-		if not self.eventErr.is_set():	
+#	def endOAM(self):
+#		"""
+#		End OAM procedure.
+#		"""	
 		
-			self.eventDayEnd.clear()
-			logging.debug("%s::: Reset eventEndDay" % self.name)
 
-		else:
-			logging.debug("%s::: eventErr is set" % self.name)	
+	# Camera control
 	
-	def rest_update(self, stream_value):
-		"""
-		REST API function to upload a value. 			
-		"""
-		if self.restapi is not None:
-			self.restapi.setfield(self.restapi_fieldid, stream_value)
-			if stream_value < 0:
-				self.restapi.setfield('status', "%sError: %s" % (self.name, time.ctime(self.eventErrtime)))
-									
-
-	def setPICamExp(self):
+	def _setCamExp(self):
 		'''
-		Set camera exposure according to the 'dark' time threshold.
+		Set amera exposure according to the 'dark' time threshold.
 		Used only when RPICAM or RASPISTILL = True.
 		'''
 		
 		if RPICAM:
 			# Set the current 'dark' time threshold
-			self.tlocal = time.localtime()
-			self.tdark_start = time.mktime((self.tlocal.tm_year, self.tlocal.tm_mon, self.tlocal.tm_mday, 
-						self.config['dark_hours'][0], self.config['dark_mins'][0], 0,
-						self.tlocal.tm_wday, self.tlocal.tm_yday, self.tlocal.tm_isdst ))	
-			self.tdark_stop = time.mktime((self.tlocal.tm_year, self.tlocal.tm_mon, self.tlocal.tm_mday, 
-						self.config['dark_hours'][1], self.config['dark_mins'][1], 0,
-						self.tlocal.tm_wday, self.tlocal.tm_yday, self.tlocal.tm_isdst ))	
+			self._tlocal = time.localtime()
+			self._tdark_start = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday, 
+						self._config['dark_hours'][0], self._config['dark_mins'][0], 0,
+						self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))	
+			self._tdark_stop = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday, 
+						self._config['dark_hours'][1], self._config['dark_mins'][1], 0,
+						self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))	
 
 			# Set the "dark" exposure parameters when needed
-			if (time.time() >= self.tdark_start) or (time.time() <= self.tdark_stop):
+			if (time.time() >= self._tdark_start) or (time.time() <= self._tdark_stop):
 			
 				if self.camid == 'CAM1': 
-					self.camera.awb_mode = 'auto'
-					self.camera.iso = 800
-					self.camera.contrast = 30
-					self.camera.brightness = 70
-					self.camera.framerate = Fraction(1, 2)
-					self.camera.exposure_mode = 'off'
-					#self.camera.meter_mode = 'spot'					
-					self.camera.shutter_speed = 5000000
+					self._camera.awb_mode = 'auto'
+					self._camera.iso = 800
+					self._camera.contrast = 30
+					self._camera.brightness = 70
+					self._camera.framerate = Fraction(1, 2)
+					self._camera.exposure_mode = 'off'
+					#self._camera.meter_mode = 'spot'					
+					self._camera.shutter_speed = 5000000
 					time.sleep(5)
 				
 				elif self.camid == 'CAM2':
 				 	# Switch ON IR
-					self.switchIR(True)
+					self._switchIR(True)
 	
-					self.camera.awb_mode = 'auto'
-					self.camera.iso = 0
-					self.camera.contrast = 50
-					self.camera.brightness = 70
-					self.camera.exposure_mode = 'auto'
+					self._camera.awb_mode = 'auto'
+					self._camera.iso = 0
+					self._camera.contrast = 50
+					self._camera.brightness = 70
+					self._camera.exposure_mode = 'auto'
 					time.sleep(2)
 				 					 	
 				#else:
@@ -494,22 +382,22 @@ class rpiCamClass(object):
 			else:
 
 				if self.camid == 'CAM1': 			
-					self.camera.awb_mode = 'auto'
-					self.camera.iso = 0
-					self.camera.contrast = 30
-					self.camera.brightness = 50
-					self.camera.exposure_mode = 'auto'
+					self._camera.awb_mode = 'auto'
+					self._camera.iso = 0
+					self._camera.contrast = 30
+					self._camera.brightness = 50
+					self._camera.exposure_mode = 'auto'
 					time.sleep(2)
 
 				elif self.camid == 'CAM2':
 				 	# Switch OFF IR
-					self.switchIR(False)
+					self._switchIR(False)
 
-					self.camera.awb_mode = 'auto'
-					self.camera.iso = 0
-					self.camera.contrast = 30
-					self.camera.brightness = 50
-					self.camera.exposure_mode = 'auto'
+					self._camera.awb_mode = 'auto'
+					self._camera.iso = 0
+					self._camera.contrast = 30
+					self._camera.brightness = 50
+					self._camera.exposure_mode = 'auto'
 					time.sleep(2)
 
 				#else:
@@ -520,6 +408,14 @@ class rpiCamClass(object):
 		#elif RASPISTILL:
 			# TODO!
 			
+	def _switchIR(self, bONOFF):
+		'''
+		Switch ON/OFF the IR lights
+		'''
+		if bONOFF:
+			GPIO.output(self.IRport,1)
+		else:
+			GPIO.output(self.IRport,0)
 						
 	### The following 4 functions are based on:
 	# https://github.com/andrevenancio/brightnessaverage
@@ -527,7 +423,7 @@ class rpiCamClass(object):
 	# The calculated brightness value can be used to adjust the camera shutter speed:
 	# ss = ss*(2 - self.imgbr/128)
 	
-	def grayscaleAverage(self, image):
+	def _grayscaleAverage(self, image):
 		'''
 		Convert image to greyscale, return average pixel brightness.
 		'''	
@@ -547,14 +443,14 @@ class rpiCamClass(object):
 		self.imgbr = stat.mean[0]
 		
 		
-	def grayscaleRMS(self, image):
+	def _grayscaleRMS(self, image):
 		'''
 		Convert image to greyscale, return RMS pixel brightness.
 		'''
 		stat = ImageStat.Stat(image.convert('L'))
 		self.imgbr = stat.rms[0]
 
-	def averagePerceived(self, image):
+	def _averagePerceived(self, image):
 		'''
 		Average pixels, then transform to "perceived brightness".
 		'''
@@ -574,7 +470,7 @@ class rpiCamClass(object):
 		r,g,b = stat.mean
 		self.imgbr = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
 
-	def rmsPerceivedBrightness(self, image):
+	def _rmsPerceivedBrightness(self, image):
 		'''
 		RMS of pixels, then transform to "perceived brightness".
 		'''
@@ -582,15 +478,6 @@ class rpiCamClass(object):
 		r,g,b = stat.rms
 		self.imgbr = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
 
-
-	def switchIR(self, bONOFF):
-		'''
-		Switch ON/OFF the IR lights
-		'''
-		if bONOFF:
-			GPIO.output(self.IRport,1)
-		else:
-			GPIO.output(self.IRport,0)
 					
 #	def cvcamimg(self, output_file='test.jpg'):
 		### Open camera and get an image

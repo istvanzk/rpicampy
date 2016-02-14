@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 3.1 for Python 3.4+
+    Time-lapse with Rasberry Pi controlled camera - VER 4.0 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,7 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
     
-Implements the rpiImageDb class to manage images in a remote directory (dropbox).    
+Implements the rpiImageDbx class to manage images in a remote directory (dropbox).    
 Use Dropbox SDK, API V2, Python 3.4
 https://www.dropbox.com/developers/documentation/python
 https://github.com/dropbox/dropbox-sdk-python
@@ -25,172 +25,106 @@ https://github.com/dropbox/dropbox-sdk-python
 
 import os
 import sys
-import six
 import time
 import datetime
 import posixpath
-#from http.client import BadStatusLine
-#from ssl import SSLError
-from queue import Queue
 import logging
+
+from dropbox import Dropbox
+from dropbox.files import WriteMode, SearchMode, FileMetadata, FolderMetadata
+from dropbox.exceptions import ApiError, AuthError, DropboxException, InternalServerError
+from requests import exceptions
+import json
 
 if six.PY3:
     from io import StringIO
 else:
     from StringIO import StringIO
 
-from dropbox import Dropbox
-from dropbox.files import WriteMode, SearchMode, FileMetadata, FolderMetadata
-from dropbox.exceptions import ApiError, AuthError, DropboxException, InternalServerError
+from rpibase import rpiBaseClass, rpiBaseClassError
 
-from requests import exceptions
-
-import thingspk
-import json
-
-class rpiImageDbClass():
+class rpiImageDbxClass(rpiBaseClass):
 	"""
 	Implements the rpiImageDb class to manage images in a remote directory (dropbox).
 	"""
 				
-	def __init__(self, name, dict_config, deque_img, rpi_events, restapi=None):
+	def __init__(self, deque_img, *args, **kwargs):
 	
-		self.name = name
-		self.config = dict_config
-		self.imageFIFO = deque_img
-
-		self.eventDayEnd 	= rpi_events.eventDayEnd
-		self.eventEnd 		= rpi_events.eventEnd	
-		self.eventErr 		= rpi_events.eventErrList[self.name]
-		self.eventErrcount 	= rpi_events.eventErrcountList[self.name]		
-		self.eventErrtime 	= rpi_events.eventErrtimeList[self.name]
-		self.eventErrdelay	= rpi_events.eventErrdelayList[self.name]		
-				
-		self.restapi = restapi 
-	
-		### Init class
-		self.initClass()
+		### Get FIFO buffer (deque)							
+		self._imageFIFO = deque_img
 		
+		### Init base class
+		super(rpiImageDbxClass,self).__init__(*args, **kwargs)
 								                    			                    				
 	def __str__(self):
-		return "%s::: dbinfo:%s\nconfig:%s\nimageUpldList:%s\neventErrdelay:%s" % \
-				(self.name, self.dbinfo, self.config, self.imageUpldList, self.eventErrdelay)
+		msg = super(rpiImageDbxClass,self).__str__(self)		
+		return "%s::: dbinfo: %s\nimageUpldList: %s\n%s" % \
+				(self.name, self.dbinfo, self.imageUpldList, msg)
 	
 #	def __del__(self):
 #		logging.debug("%s::: Deleted!" % self.name)
 
-		### Update REST feed
-#		self.rest_update(-1)
 
 			
 	#
-	# Run (as a Job in APScheduler)
-	#
-	def run(self):
-
-		if self.eventEnd.is_set():
-			logging.info("%s::: eventEnd is set" % self.name)
-			return
-
-		if self.eventErr.is_set():	
-		
-			### Error was detected
-			logging.info("%s::: eventErr is set" % self.name)
-
-			### Try to reset DB API and clear the self.eventErr
-			# after 2x self.eventErrdelay of failed access/run attempts
-			if (time.time() - self.eventErrtime) > self.eventErrdelay:
-				if self.eventErrcount > 3:
-					self.config['errval'] = 3
-
-				self.initClass()					
-			else:	
-				logging.debug("eventErr was set at %s!" % time.ctime(self.eventErrtime))
-
-			return
-
-
-		if self.config['stop']:
-			logging.debug("%s::: Stoped." % self.name)
-			return
-
-		if self.config['pause']:
-			logging.debug("%s::: Paused." % self.name)
-			return												
-			
-		if self.config['init']:
-			self.initClass()
-			return
-
-		
-		try:					
-			### End-of-day OAM:
-			# 1) List all files found in the remote upload sub-folder
-			# 2) Dumps the list of all uploaded image files to the log file
-			# 3) Init Dropbox API client
-			if self.eventDayEnd.is_set():
-				self.endDayOAM()
-			
-			else:
-				
-				### Get the current images in the FIFO
-				### Refresh the last remote image when available
-				self.imageFIFO.acquireSemaphore()
-				if len(self.imageFIFO): 
+	# Main interface methods
+	#		
 	
-					### Update remote cam image with the current (last) image						
-					if not (self.imageFIFO[-1] == self.crt_image_snap):
-						self.putImage(self.imageFIFO[-1], self.config['image_snap'], True)
-						self.crt_image_snap = self.imageFIFO[-1]
-						self.numImgUpdDb += 1
-						logging.info("Updated remote %s with %s" % (self.config['image_snap'], self.imageFIFO[-1]) )
+	def jobRun(self):
+
+		
+		try:
+		
+			### Get the current images in the FIFO
+			### Refresh the last remote image when available
+			self._imageFIFO.acquireSemaphore()
+			if len(self._imageFIFO): 
+
+				### Update remote cam image with the current (last) image						
+				if not (self._imageFIFO[-1] == self.crt_image_snap):
+					self._putImage(self._imageFIFO[-1], self._config['image_snap'], True)
+					self.crt_image_snap = self._imageFIFO[-1]
+					self.numImgUpdDb += 1
+					logging.info("Updated remote %s with %s" % (self._config['image_snap'], self._imageFIFO[-1]) )
 
 
-					### Upload all images in the FIFO which have not been uploaded yet
-					### Init the current remote upload sub-folder
-					for img in self.imageFIFO:
-						if img not in self.imageUpldList:
-							self.upldir = os.path.normpath(os.path.join(self.config['image_dir'], self.imageFIFO.crtSubDir))
-							self.mkdirImage(self.upldir)
-							self.putImage(img, os.path.join(self.upldir, os.path.basename(img)))
-							logging.info("Uploaded %s" % img )
+				### Upload all images in the FIFO which have not been uploaded yet
+				### Init the current remote upload sub-folder
+				for img in self._imageFIFO:
+					if img not in self.imageUpldList:
+						self.upldir = os.path.normpath(os.path.join(self._config['image_dir'], self._imageFIFO.crtSubDir))
+						self._mkdirImage(self.upldir)
+						self._putImage(img, os.path.join(self.upldir, os.path.basename(img)))
+						logging.info("Uploaded %s" % img )
 
-					### Update REST feed
-					self.rest_update(self.numImgUpdDb)
-																				
-				else:
-					### Update REST feed
-					self.rest_update(0)
-			
-					logging.info('Nothing to upload')							
-
-				self.imageFIFO.releaseSemaphore()
-			
+				### Update REST feed
+				self.restUpdate(self.numImgUpdDb)
 																		
-		### Handle exceptions, mostly HTTP/SSL related!
+			else:
+				### Update REST feed
+				self.restUpdate(0)
+	
+				logging.info('Nothing to upload')							
+
+			self._imageFIFO.releaseSemaphore()
+			
+																										
+		# Handle exceptions, mostly HTTP/SSL related!
 		except exceptions.Timeout as e:
 			# Catching this error will catch both ReadTimeout and ConnectTimeout.
-			self.eventErr_set('run()')
-			logging.debug("Connect/ReadTimeoutError:\n%s" % str(e))
-			pass
+			raise rpiBaseClassError("%s::: jobRun(): Connect/ReadTimeoutError:\n%s" % (self.name, str(e)), 2)
 								
 		except exceptions.ConnectionError as e:
 			# A Connection error occurred.
-			self.eventErr_set('run()')
-			logging.debug("ConnectionError:\n%s" % str(e))
-			pass
+			raise rpiBaseClassError("%s::: jobRun(): ConnectionError:\n%s" % (self.name, str(e)), 2)
 
 		except exceptions.HTTPError as e:
 			# An HTTP error occurred.
-			self.eventErr_set('run()')
-			logging.debug("HTTPError:\n%s" % str(e))
-			pass
+			raise rpiBaseClassError("%s::: jobRun(): HTTPError:\n%s" % (self.name, str(e)), 2)
 
 		except exceptions.RequestException as e:
 			# There was an ambiguous exception that occurred while handling your request.
-			self.eventErr_set('run()')
-			logging.debug("RequestException:\n%s" % str(e))
-			pass
+			raise rpiBaseClassError("%s::: jobRun(): RequestException:\n%s" % (self.name, str(e)), 2)
 					
 # 			except BadStatusLine as e:
 # 				self.eventErr_set('run()')
@@ -199,59 +133,26 @@ class rpiImageDbClass():
 
 		
 		except RuntimeError as e:
-			self.eventErr_set('run()')
-			self.rest_update(-3)
-			logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
-			raise
+			raise rpiBaseClassError("%s::: jobRun(): RuntimeError:\n%s" % (self.name, str(e)), 4)
 					
 		except:
-			self.eventErr_set('run()')
-			self.rest_update(-4)
-			logging.error("Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)
-			raise
+			raise rpiBaseClassError("%s::: jobRun(): Unhandled Exception:\n%s" % (self.name, str(sys.exc_info())), 4)
 					
 					
 
-
-	### Helpers
-	def eventErr_set(self,str_func):
-		self.eventErr.set()
-		self.eventErrtime = time.time()
-		self.eventErrdelay = 300		
-		self.config['errval'] |= 1		
-		self.rest_update(-2)
-		logging.debug("%s::: Set eventErr in %s at %s!" % (self.name, str_func, time.ctime(self.eventErrtime)))
-			
-	def eventErr_clear(self,str_func):
-		if self.eventErr.is_set():
-			self.eventErr.clear()
-			self.eventErrtime = 0
-			self.config['errval'] ^= 1		
-			self.rest_update(0)
-			logging.debug("%s::: Clear eventErr in %s!" % (self.name, str_func))
-			
 	def initClass(self):
 		""""
 		(re)Initialize the class.
 		"""
 	
-		logging.info("%s::: Intialize class" % self.name) 
-
-		### The REST feed
-		self.restapi_fieldid = 'field3'		
-		
-		### Init error event
-		self.eventErr_clear("initClass()")
-						
 		#self.imageDbHash = None
-		self.imageDbCursor = None
+		self._imageDbCursor = None
 		self.imageDbList = [] 
 		self.imageUpldList = []
 		self.numImgUpdDb = 0
 		
-		self.current_path = '.'
-		self.crt_image_snap = 'none'
-		self.upldir = os.path.normpath(self.config['image_dir'])
+		self.crt_image_snap = None
+		self.upldir = os.path.normpath(os.path.join(self._config['image_dir'], self._imageFIFO.crtSubDir))
 		self.logfile = './upldlog.json'		
 		
 		### When there are already images listed in the upload log file, then
@@ -268,272 +169,195 @@ class rpiImageDbClass():
 					logging.info("%s::: Local log file %s initialized." % (self.name, self.logfile))
 				
 		except IOError:
-			### Update REST feed
-			self.rest_update(-5)
-			logging.error("%s::: Local log file %s was not found or could not be created! Exiting!" % (self.name, self.logfile), exc_info=True)
-			raise
-			
+			raise rpiBaseClassError("%s::: initClass(): Local log file %s was not found or could not be created." % (self.name, self.logfile), 4)
+
 		### Init Dropbox API client		
-		#self.app_key = self.config['app_key']
-		#self.app_secret = self.config['app_secret']
-		self.token_file = self.config['token_file']	
-		self.dbx = None
+		#self.app_key = self._config['app_key']
+		#self.app_secret = self._config['app_secret']
+		self._token_file = self._config['token_file']	
+		self._dbx = None
 		self.dbinfo = None
 		try:
-			with open(self.token_file, 'r') as token:
-				self.dbx = Dropbox(token.read())
+			with open(self._token_file, 'r') as token:
+				self._dbx = Dropbox(token.read())
 					
-			info = self.dbx.users_get_current_account()
+			info = self._dbx.users_get_current_account()
 			# info._all_field_names_ = 
 			# {'account_id', 'is_paired', 'locale', 'email', 'name', 'team', 'country', 'account_type', 'referral_link'}
 			self.dbinfo ={'email': info.email, 'referral_link': info.referral_link}
 			
-			logging.info("%s::: Loaded access token from ''%s''" % (self.name, self.token_file) )
+			logging.info("%s::: Loaded access token from ''%s''" % (self.name, self._token_file) )
 	
 			### Create remote root folder (relative to app root) if it does not exist yet
-			self.mkdirImage(os.path.normpath(self.config['image_dir']))
+			self._mkdirImage(os.path.normpath(self._config['image_dir']))
 					
 		except IOError:
-			self.eventErr_set("initClass()")
-			self.rest_update(-5)
-			logging.error("%s::: Token file ''%s'' not found! Exiting!" % (self.name, self.token_file), exc_info=True)
-			raise
+			raise rpiBaseClassError("%s::: initClass(): Token file ''%s'' could not be read." % (self.name, self._token_file), 4)
 		
 		except AuthError as e:
-			logging.error("%s::: AuthError:\n%s" % (self.name, str(e)))
-			raise
+			raise rpiBaseClassError("%s::: AuthError:\n%s" % (self.name, str(e)), 4)
 				
 		except DropboxException as e: 
-			logging.error("%s::: DropboxException:\n%s" % (self.name, str(e)))
-			raise
+			raise rpiBaseClassError("%s::: DropboxException:\n%s" % (self.name, str(e)), 4)
 		
 		except InternalServerError as e:	
-			logging.error("%s::: InternalServerError:\n%s" % (self.name, str(e)))
-			raise
+			raise rpiBaseClassError("%s::: InternalServerError:\n%s" % (self.name, str(e)), 4)
 			
-		### Init configs
-		self.config['jobid'] = self.name
-		self.config['run']   = True
-		self.config['stop']  = False
-		self.config['pause'] = False
-		self.config['init']  = False
-		self.config['cmdval'] = 3
-		self.config['errval'] = 0
 	
 	def endDayOAM(self):
 		"""
 		End-of-Day Operation and Maintenance sequence.
 		"""	
-		
-		logging.info("%s::: EoD maintenance sequence run" % self.name) 
 
-		### List all files found in the remote sub-folder
-		### Dumps the list of all uploaded image files to the log file
-		if not self.eventErr.is_set():
+		self._lsImage(self.upldir)		
+		logging.info("%s::: %d images in the remote folder %s" % (self.name, len(self.imageDbList), self.upldir))
 
-			self.lsImage(self.upldir)		
-			logging.info("%s::: %d images in the remote folder %s" % (self.name, len(self.imageDbList), self.upldir))
+		try:
+			with open(self.logfile,'w') as logf:
+				json.dump(self.imageUpldList, logf)
+				logging.info("%s::: Local log file %s updated." % (self.name, self.logfile))
 
-			try:
-				with open(self.logfile,'w') as logf:
-					json.dump(self.imageUpldList, logf)
-					logging.info("%s::: Local log file %s updated." % (self.name, self.logfile))
+		except IOError:
+			raise rpiBaseClassError("%s::: endDayOAM(): Local log file %s was not found." % (self.name, self.logfile), 4)
 
-			except IOError:
-				self.eventErr_set("endDayOAM()")
-				self.rest_update(-5)
-				logging.error("%s::: Local log file %s could not be created! Exiting!" % (self.name, self.logfile), exc_info=True)
-				raise
+		self.eventDayEnd.clear()
+		logging.debug("%s::: Reset eventEndDay" % self.name)
 
-			self.eventDayEnd.clear()
-			logging.debug("%s::: Reset eventEndDay" % self.name)
 	
-		else:
-			logging.debug("%s::: eventErr is set" % self.name)	
-			
-
-		### Init class	
-		self.initClass()																				
+#	def endOAM(self):
+#		"""
+#		End OAM procedure.
+#		"""	
 					
-	
-	def rest_update(self, stream_value):
-		"""
-		REST API function to upload a value. 			
-		"""
-		if self.restapi is not None:
-			self.restapi.setfield(self.restapi_fieldid, stream_value)
-			if stream_value < 0:
-				self.restapi.setfield('status', "%sError: %s" % (self.name, time.ctime(self.eventErrtime)))			
-				
-	def lsImage(self,from_path):
+	def _lsImage(self,from_path):
 		"""
 		List the image/video files in the remote directory.
 		Stores the found file names in self.imageDbList.	
 		"""
-		if not self.eventErr.is_set():
-			try:
-				if self.imageDbCursor is None:
-					self.ls_ref = self.dbx.files_list_folder('/' + os.path.normpath(from_path), recursive=False, include_media_info=True )  
+		try:
+			if self._imageDbCursor is None:
+				self.ls_ref = self._dbx.files_list_folder('/' + os.path.normpath(from_path), recursive=False, include_media_info=True )  
+			else:
+				new_ls = self._dbx.files_list_folder_continue(self._imageDbCursor)  
+				if new_ls.entries == []:
+					logging.debug("_lsImage():: No changes on the server")				
 				else:
-					new_ls = self.dbx.files_list_folder_continue(self.imageDbCursor)  
-					if new_ls.entries == []:
-						logging.debug("lsImage():: No changes on the server")				
-					else:
-						self.ls_ref = new_ls
-				
-				
-				foundImg = False
-				for f in self.ls_ref.entries:
-					if 'media_info' in f._all_field_names_ and \
-						f.media_info is not None:
-						img = '.%s' % f.path_lower
-						foundImg = True
-						if not img in self.imageDbList:
-							self.imageDbList.append(img)
+					self.ls_ref = new_ls
 			
-				
-				if not foundImg:
-					self.imageDbList = []	
-											
-				### Store the hash of the folder
-				#self.imageDbHash = self.ls_ref['hash']
-				self.imageDbCursor = self.ls_ref.cursor
-				
-				if len(self.imageDbList) > 0:				
-					logging.debug("lsImage():: imageDbList[0..%d]: %s .. %s" % (len(self.imageDbList)-1, self.imageDbList[0], self.imageDbList[-1]) )
-				else:
-					logging.debug("lsImage():: imageDbList[]: empty")
 			
-			except ApiError as e: 
-				logging.debug("lsImage():: %s", e.user_message_text)
-				pass 
+			foundImg = False
+			for f in self.ls_ref.entries:
+				if 'media_info' in f._all_field_names_ and \
+					f.media_info is not None:
+					img = '.%s' % f.path_lower
+					foundImg = True
+					if not img in self.imageDbList:
+						self.imageDbList.append(img)
+		
+			
+			if not foundImg:
+				self.imageDbList = []	
+										
+			### Store the hash of the folder
+			self._imageDbCursor = self.ls_ref.cursor
+			
+			if len(self.imageDbList) > 0:				
+				logging.debug("_lsImage():: imageDbList[0..%d]: %s .. %s" % (len(self.imageDbList)-1, self.imageDbList[0], self.imageDbList[-1]) )
+			else:
+				logging.debug("_lsImage():: imageDbList[]: empty")
+		
+		except ApiError as e: 
+			raise rpiBaseClassError("%s::: _lsImage(): %s", e.user_message_text, 3)
 				
-		else:
-			logging.debug("lsImage():: eventErr is set")	
 	
-	
-	def putImage(self, from_path, to_path, overwrite=False):
+	def _putImage(self, from_path, to_path, overwrite=False):
 		"""
 		Copy local file to remote file.
 		Stores the uploaded files names in self.imageUpldList.	
 
 		Examples:
-		putImage('./path/test.jpg', './path/dropbox-upload-test.jpg')
+		_putImage('./path/test.jpg', './path/dropbox-upload-test.jpg')
 		"""
-		if not self.eventErr.is_set():		
-			try:
-				mode = (WriteMode.overwrite if overwrite else WriteMode.add)
-            
-				with open(from_path, "rb") as from_file:
-					#self.api_client.put_file(to_path, from_file, overwrite)
-					self.dbx.files_upload( from_file, '/' + os.path.normpath(to_path), mode)
-					
-					if not overwrite:
-						self.imageUpldList.append(from_path)
-						#self.imageDbList.append(from_path)
-						
-					logging.debug("putImage():: Uploaded file from %s to remote %s" % (from_path, to_path))
-			
-			except ApiError as e: 
-				logging.debug("putImage():: %s", e.user_message_text)
-				pass 
+		try:
+			mode = (WriteMode.overwrite if overwrite else WriteMode.add)
+		
+			with open(from_path, "rb") as from_file:
+				#self.api_client.put_file(to_path, from_file, overwrite)
+				self._dbx.files_upload( from_file, '/' + os.path.normpath(to_path), mode)
 				
-#			except RateLimitError as e:
-
-# 			except IOError:
-# 				### Update REST feed
-# 				self.rest_update(-3)
-# 				
-# 				logging.error("putImage():: IOError: %s! Exiting!" % str(sys.exc_info()), exc_info=True)
-# 				#sys.exit(3)	
-# 				raise DBThreadExitError(3, 	'putImage():: IOError')		
-
-			
-		else:
-			logging.debug("putImage():: eventErr is set")	
+				if not overwrite:
+					self.imageUpldList.append(from_path)
+					#self.imageDbList.append(from_path)
+					
+				logging.debug("_putImage():: Uploaded file from %s to remote %s" % (from_path, to_path))
+	
+		except IOError:
+			raise rpiBaseClassError("%s::: _putImage(): Local img file %s could not be opened." % (self.name, from_path), 3)
+		
+		except ApiError as e: 
+			raise rpiBaseClassError("%s::: _putImage(): %s", e.user_message_text, 3)
 			
 
-	def mkdirImage(self, path):
+	def _mkdirImage(self, path):
 		"""
 		Create a new remote directory.
 		
 		Examples:
-		mkdirImage('./dropbox_dir_test')		
+		_mkdirImage('./dropbox_dir_test')		
 		"""
-		if not self.eventErr.is_set():				
-			try:
-				self.dbx.files_create_folder('/' + os.path.normpath(path))
+		try:
+			self._dbx.files_create_folder('/' + os.path.normpath(path))
 
-				logging.info("mkdirImage():: Remote output folder /%s created." % path)
-	
-			except ApiError as e:
-				logging.debug("mkdirImage():: Remote output folder /%s was not created! %s" % (path, e)) #.user_message_text
-				pass 
-					
-		else:
-			logging.debug("mkdirImage():: eventErr is set")	
+			logging.info("_mkdirImage():: Remote output folder /%s created." % path)
+
+		except ApiError as e:
+			raise rpiBaseClassError("%s::: _mkdirImage(): Remote output folder /%s was not created! %s", (path, e.user_message_text), 3)
+		
         
         
-	def mvImage(self, from_path, to_path):
+	def _mvImage(self, from_path, to_path):
 		"""
 		Move/rename a remote file or directory.
 	
 		Examples:
-		mvImage('./path1/dropbox-move-test.jpg', './path2/dropbox-move-test.jpg')		
+		_mvImage('./path1/dropbox-move-test.jpg', './path2/dropbox-move-test.jpg')		
 		"""
-		if not self.eventErr.is_set():		
-			try:
-				self.dbx.files_move( '/' + os.path.normpath(from_path), '/' +  os.path.normpath(to_path) )
-				
-				logging.debug("mvImage():: Moved file from %s to %s" % (from_path, to_path))
-										
-			except ApiError as e: 
-				logging.debug("mvImage():: %s", e)
-				pass 
+		try:
+			self._dbx.files_move( '/' + os.path.normpath(from_path), '/' +  os.path.normpath(to_path) )
 			
-		else:
-			logging.debug("mvImage():: eventErr is set")	
+			logging.debug("_mvImage():: Moved file from %s to %s" % (from_path, to_path))
+									
+		except ApiError as e: 
+			raise rpiBaseClassError("%s::: _mvImage(): %s", e.user_message_text, 3)
+		
 	
-# 	def getImage(self, from_file, to_path):
+# 	def _getImage(self, from_file, to_path):
 # 		"""
 # 		Copy file from remote directory to local file.
 # 
 # 		Examples:
-# 		getImage('./path/dropbox-download-test.jpg', './file.jpg',)
+# 		_getImage('./path/dropbox-download-test.jpg', './file.jpg',)
 # 		"""
-# 		if not self.eventErr.is_set():
-# 			try:
-# 				metadata, response  = self.dbx.files_download_to_file( to_path, '/' + os.path.normpath(from_file) )
-# 				logging.debug("getImage():: Downloaded file from remote %s to %s. Metadata: %s" % (from_file, to_path, metadata) )
-# 			
-# 			except ApiError as e: 
-# 				logging.debug("getImage():: %s", e.user_message_text)
-# 				pass 
-#
-# 		else:
-# 			logging.debug("getImage():: eventErr is set")	
+# 		try:
+# 			metadata, response  = self._dbx.files_download_to_file( to_path, '/' + os.path.normpath(from_file) )
+# 			logging.debug("_getImage():: Downloaded file from remote %s to %s. Metadata: %s" % (from_file, to_path, metadata) )
+# 		
+# 		except ApiError as e: 
+# 			raise rpiBaseClassError("%s::: _getImage(): %s", e.user_message_text, 3)
 
 	
-# 	def searchImage(self, string):
+# 	def _searchImage(self, string):
 # 		"""
 # 		Search remote directory for image/video filenames containing the given string.
 # 		"""
-# 		if not self.eventErr.is_set():				
-# 			try:
-# 				results = self.dbx.files_search( '', string, start=0, max_results=100, mode=SearchMode('filename', None) )
-# 				
-# 			#for r in results.matches:
-# 			#	print(r)
-# 
-# 			except ApiError as e: #rest.ErrorResponse as e:
-# 				logging.debug("searchImage():: %s", e.user_message_text)
-# 				pass
-# 
-# 		else:
-# 			logging.debug("searchImage():: eventErr is set")	
+# 		try:
+# 			results = self._dbx.files_search( '', string, start=0, max_results=100, mode=SearchMode('filename', None) )
+# 			
+# 		except ApiError as e: #rest.ErrorResponse as e:
+# 			raise rpiBaseClassError("%s::: _searchImage(): %s", e.user_message_text, 3)
 
 	        
-# 	def rmImage(self, path):
+# 	def _rmImage(self, path):
 # 		"""
 # 		Delete a remote image/video file 
 # 		"""

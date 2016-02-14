@@ -19,6 +19,7 @@
     
 Implements the rpiBase class to provide the base with common functionalities for all rpi classes. 	    
 """
+import sys
 import time
 import logging
 import thingspk

@@ -187,6 +187,8 @@ def jobListener(event):
 		eventsRPi.eventErrtimeList[e_jobid]  = 0 
 		eventsRPi.eventErrdelayList[e_jobid] = 0 
 		
+		eventsRPi.stateValList[e_jobid] = 3
+		
 		logging.error("%s: The job crashed!" % e_jobid)
 		restUpdate("%s: Crash" % e_jobid)
 	

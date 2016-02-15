@@ -332,7 +332,7 @@ def restJob():
 		
 		
 ### The events
-eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob', 'TBJob'])
+eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob', 'RESTJob'])
 logging.debug(eventsRPi)
 
 ### Instantiate the job classes	
@@ -392,8 +392,7 @@ def main():
 	restJob()
 
 	# Add REST client job; run every preset (long) interval
-	if RESTTalkB is not None:
-		sched.add_job(restJob, 'interval', id="RESTJob", seconds=timerConfig['interval_sec'][0], misfire_grace_time=10, name='REST' )
+	sched.add_job(restJob, 'interval', id="RESTJob", seconds=timerConfig['interval_sec'][0], misfire_grace_time=10, name='REST' )
 
 	# Main loop
 	MainRun = True

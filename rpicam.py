@@ -88,8 +88,8 @@ class rpiCamClass(rpiBaseClass):
 												
 	def __str__(self):
 		msg = super(rpiCamClass,self).__str__()
-		return "%s::: %s\nimageFIFO: %s\nFake: %s, RaspiStill: %s, RPiCam: %s\n%s" % \
-			(self.name, self.camid, self.imageFIFO, FAKESNAP, RASPISTILL, RPICAM, msg)
+		return "%s::: %s, Fake: %s, RaspiStill: %s, RPiCam: %s\nimageFIFO: %s\n%s" % \
+			(self.name, self.camid, FAKESNAP, RASPISTILL, RPICAM, self.imageFIFO, msg)
 		
 	def __del__(self):
 		
@@ -224,9 +224,9 @@ class rpiCamClass(rpiBaseClass):
 				### Add overlay text to the final image
 				draw = ImageDraw.Draw(image,'RGBA')	
 				draw.rectangle([0,image.size[1]-20,image.size[0],image.size[1]], fill=(150,200,150,100))
-				draw.text((2,image.size[1]-18), self.camid + sN + time.strftime('%b %d %Y, %H:%M', time.localtime()), fill=(0,0,0,0), font=self.TXTfont)
+				draw.text((2,image.size[1]-18), self.camid + sN + time.strftime('%b %d %Y, %H:%M', time.localtime()), fill=(0,0,0,0), font=self._TXTfont)
 				#n_width, n_height = TXTfont.getsize('#XX')
-				#draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=TXTfont)	
+				#draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=self._TXTfont)	
 				del draw 
 				
 				### Save image and close

@@ -317,6 +317,7 @@ class rpiImageDbxClass(rpiBaseClass):
 			logging.info("%s::: Remote output folder /%s created." % (self.name, path))
 
 		except ApiError as e:
+			noerr = False
 			# dropbox.files.CreateFolderError			
 			if e.error.is_path():
 				# dropbox.files.WriteError
@@ -327,10 +328,12 @@ class rpiImageDbxClass(rpiBaseClass):
 					# union tag is 'folder'
 					if wce.is_folder():
 						logging.info("%s::: Remote output folder /%s already exist!" % (self.name, path))
-						pass
+						noerr = True
 	
-			raise rpiBaseClassError("_mkdirImage(): Remote output folder /%s was not created! %s" % (path, e.error), 4)
-		
+			if not noerr:
+				raise rpiBaseClassError("_mkdirImage(): Remote output folder /%s was not created! %s" % (path, e.error), 4)
+			else:
+				pass	
         
         
 	def _mvImage(self, from_path, to_path):

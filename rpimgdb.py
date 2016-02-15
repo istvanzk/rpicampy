@@ -320,7 +320,7 @@ class rpiImageDbxClass(rpiBaseClass):
 			# dropbox.files.CreateFolderError			
 			if e.error.is_path():
 				# dropbox.files.WriteError
-				we = e.reason.get_path()
+				we = e.error.get_path()
 				if we.is_conflict():
 					# dropbox.files.WriteConflictError
 					wce = we.get_conflict()

@@ -132,6 +132,8 @@ class rpiImageDbxClass(rpiBaseClass):
 # 				logging.debug("BadStatusLine:\n%s" % str(e))
 # 				pass
 
+		except rpiBaseClassError as e:
+			raise rpiBaseClassError("%s::: jobRun(): %s" % (self.name, e.errmsg), e.errval)
 		
 		except RuntimeError as e:
 			raise rpiBaseClassError("%s::: jobRun(): RuntimeError:\n%s" % (self.name, str(e)), 4)
@@ -193,19 +195,19 @@ class rpiImageDbxClass(rpiBaseClass):
 			self._mkdirImage(os.path.normpath(self._config['image_dir']))
 
 		except rpiBaseClassError as e:
-			raise rpiBaseClassError(e.errmsg, e.errval)
+			raise rpiBaseClassError("initClass(): %s" % e.errmsg, e.errval)
 					
 		except IOError:
-			raise rpiBaseClassError("%s::: initClass(): Token file ''%s'' could not be read." % (self.name, self._token_file), 4)
+			raise rpiBaseClassError("initClass(): Token file ''%s'' could not be read." % (self.name, self._token_file), 4)
 		
 		except AuthError as e:
-			raise rpiBaseClassError("%s::: initClass(): AuthError:\n%s" % (self.name, e.error), 4)
+			raise rpiBaseClassError("initClass(): AuthError:\n%s" % e.error, 4)
 				
 		except DropboxException as e: 
-			raise rpiBaseClassError("%s::: initClass(): DropboxException:\n%s" % (self.name, str(e)), 4)
+			raise rpiBaseClassError("initClass(): DropboxException:\n%s" %  str(e), 4)
 		
 		except InternalServerError as e:	
-			raise rpiBaseClassError("%s::: initClass(): InternalServerError:\n%s" % (self.name, str(e.status_code)), 4)
+			raise rpiBaseClassError("initClass(): InternalServerError:\n%s" % str(e.status_code), 4)
 			
 	
 	def endDayOAM(self):
@@ -222,7 +224,7 @@ class rpiImageDbxClass(rpiBaseClass):
 				logging.info("%s::: Local log file %s updated." % (self.name, self.logfile))
 
 		except IOError:
-			raise rpiBaseClassError("%s::: endDayOAM(): Local log file %s was not found." % (self.name, self.logfile), 4)
+			raise rpiBaseClassError("endDayOAM(): Local log file %s was not found." % self.logfile, 4)
 
 		self.eventDayEnd.clear()
 		logging.debug("%s::: Reset eventEndDay" % self.name)
@@ -271,7 +273,7 @@ class rpiImageDbxClass(rpiBaseClass):
 				logging.debug("_lsImage():: imageDbList[]: empty")
 		
 		except ApiError as e: 
-			raise rpiBaseClassError("%s::: _lsImage(): %s" % e.error, 3)
+			raise rpiBaseClassError("_lsImage(): %s" % e.error, 3)
 				
 	
 	def _putImage(self, from_path, to_path, overwrite=False):
@@ -293,13 +295,13 @@ class rpiImageDbxClass(rpiBaseClass):
 					self.imageUpldList.append(from_path)
 					#self.imageDbList.append(from_path)
 					
-				logging.debug("_putImage():: Uploaded file from %s to remote %s" % (from_path, to_path))
+				logging.debug("_putImage(): Uploaded file from %s to remote %s" % (from_path, to_path))
 	
 		except IOError:
-			raise rpiBaseClassError("%s::: _putImage(): Local img file %s could not be opened." % (self.name, from_path), 3)
+			raise rpiBaseClassError("_putImage(): Local img file %s could not be opened." %  from_path, 3)
 		
 		except ApiError as e: 
-			raise rpiBaseClassError("%s::: _putImage(): %s" % e.error, 3)
+			raise rpiBaseClassError("_putImage(): %s" % e.error, 3)
 			
 
 	def _mkdirImage(self, path):
@@ -312,10 +314,21 @@ class rpiImageDbxClass(rpiBaseClass):
 		try:
 			self._dbx.files_create_folder('/' + os.path.normpath(path))
 
-			logging.info("_mkdirImage():: Remote output folder /%s created." % path)
+			logging.info("_mkdirImage(): Remote output folder /%s created." % path)
 
 		except ApiError as e:
-			raise rpiBaseClassError("%s::: _mkdirImage(): Remote output folder /%s was not created! %s" % (self.name, path, e.error), 3)
+			# dropbox.files.CreateFolderError			
+			if e.reason.is_path():
+				# dropbox.files.WriteError
+				we = e.reason.get_path()
+				if we.is_conflict():
+					# dropbox.files.WriteConflictError
+					wce = we.get_conflict()
+					# union tag is 'folder'
+					if wce.is_folder():
+						raise rpiBaseClassError("_mkdirImage(): Remote output folder /%s already exist. %s" % (path, e.error), 2)
+	
+			raise rpiBaseClassError("_mkdirImage(): Remote output folder /%s was not created! %s" % (path, e.error), 4)
 		
         
         
@@ -329,10 +342,10 @@ class rpiImageDbxClass(rpiBaseClass):
 		try:
 			self._dbx.files_move( '/' + os.path.normpath(from_path), '/' +  os.path.normpath(to_path) )
 			
-			logging.debug("_mvImage():: Moved file from %s to %s" % (from_path, to_path))
+			logging.debug("_mvImage(): Moved file from %s to %s" % (from_path, to_path))
 									
 		except ApiError as e: 
-			raise rpiBaseClassError("%s::: _mvImage(): %s" % e.error, 3)
+			raise rpiBaseClassError("_mvImage(): Image %s could not be moved to %s! %s" % (from_path, to_path, e.error), 3)
 		
 	
 # 	def _getImage(self, from_file, to_path):
@@ -344,10 +357,10 @@ class rpiImageDbxClass(rpiBaseClass):
 # 		"""
 # 		try:
 # 			metadata, response  = self._dbx.files_download_to_file( to_path, '/' + os.path.normpath(from_file) )
-# 			logging.debug("_getImage():: Downloaded file from remote %s to %s. Metadata: %s" % (from_file, to_path, metadata) )
+# 			logging.debug("_getImage(): Downloaded file from remote %s to %s. Metadata: %s" % (from_file, to_path, metadata) )
 # 		
 # 		except ApiError as e: 
-# 			raise rpiBaseClassError("%s::: _getImage(): %s" % e.error, 3)
+# 			raise rpiBaseClassError("_getImage(): %s" % e.error, 3)
 
 	
 # 	def _searchImage(self, string):
@@ -358,7 +371,7 @@ class rpiImageDbxClass(rpiBaseClass):
 # 			results = self._dbx.files_search( '', string, start=0, max_results=100, mode=SearchMode('filename', None) )
 # 			
 # 		except ApiError as e: #rest.ErrorResponse as e:
-# 			raise rpiBaseClassError("%s::: _searchImage(): %s" % e.error, 3)
+# 			raise rpiBaseClassError("_searchImage(): %s" % e.error, 3)
 
 	        
 # 	def _rmImage(self, path):

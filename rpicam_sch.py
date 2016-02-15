@@ -260,7 +260,9 @@ def procStateVal():
 	
 	# The combined state (cmd and err) values for all jobs
 	state_val = eventsRPi.stateValList[imgCam.name] + 16*eventsRPi.stateValList[imgDir.name] + 16*16*eventsRPi.stateValList[imgDbx.name]
-
+	
+	print("state_val: %d. timerConfig['stateval']: %d" % (state_val, timerConfig['stateval']))
+	
 	# Update REST feed with a new state value only
 	if timerConfig['stateval'] != state_val:
 		timerConfig['stateval'] = state_val

@@ -169,7 +169,7 @@ class rpiCamClass(rpiBaseClass):
 					self._camera.rotation = 90
 
 				### Set camera exposure according to the 'dark' time threshold
-				self._setPICamExp()
+				self._setCamExp()
 
 				### Create the in-memory stream
 				stream = io.BytesIO()

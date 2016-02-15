@@ -31,7 +31,7 @@ class rpiBaseClassError(Exception):
 	"""
 
 	def __init__(self, errstr, errval):
-		self.errmsg = "rpiBaseClass error:\n%s (%d)" % (errstr, errval)
+		self.errmsg = "rpiBaseClass error: (%s (%d))" % (errstr, errval)
 		self.errstr = errstr
 		self.errval = errval
 		

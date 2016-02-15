@@ -238,15 +238,15 @@ def procCmdRx(cmdval, imgClass):
 
 	# Process the command
 	if cmdval==3 and imgClass.setRun():
-		sched.resume_job(dictConfig['jobid'])
+		sched.resume_job(imgClass.name)
 		restUpdate("%s run" % imgClass.name)
 
 	elif cmdval==0 and imgClass.setStop():
-		sched.remove_job(dictConfig['jobid'])
+		sched.remove_job(imgClass.name)
 		restUpdate("%s stop" % imgClass.name)
 
 	elif cmdval==1 and imgClass.setPause():
-		sched.pause_job(dictConfig['jobid'])
+		sched.pause_job(imgClass.name)
 		restUpdate("%s pause" % imgClass.name)
 
 	elif cmdval==2 and imgClass.setInit():
@@ -259,7 +259,7 @@ def procStateVal():
 	"""
 	
 	# The combined state (cmd and err) values for all jobs
-	state_val = eventsRPi.stateValList[imgCam.name] + 16*eventsRPi.stateValList[imgDir.name] + 16*16*eventsRPi.stateValList[imgDbx.name]
+	state_val = 13 #eventsRPi.stateValList[imgCam.name] + 16*eventsRPi.stateValList[imgDir.name] + 16*16*eventsRPi.stateValList[imgDbx.name]
 
 	# Update REST feed with a new state value only
 	if timerConfig['stateval'] != state_val:
@@ -338,13 +338,13 @@ eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob', 'RESTJob'])
 logging.debug(eventsRPi)
 
 ### Instantiate the job classes	
-imgCam = rpicam.rpiCamClass("CAMJob", camConfig, eventsRPi, RESTfeed, 'field2') 
+imgCam = rpicam.rpiCamClass("CAMJob", camConfig, eventsRPi, RESTfeed, "field2") 
 logging.info(imgCam)
 
-imgDir = rpimgdir.rpiImageDirClass(imgCam.imageFIFO, "DIRJob", dirConfig, eventsRPi, RESTfeed, 'field3')
+imgDir = rpimgdir.rpiImageDirClass(imgCam.imageFIFO, "DIRJob", dirConfig, eventsRPi, RESTfeed, "field3")
 logging.info(imgDir)
 
-imgDbx = rpimgdb.rpiImageDbxClass(imgCam.imageFIFO, "DBXJob", dbxConfig, eventsRPi, RESTfeed, 'field4')
+imgDbx = rpimgdb.rpiImageDbxClass(imgCam.imageFIFO, "DBXJob", dbxConfig, eventsRPi, RESTfeed, "field4")
 logging.info(imgDbx)
 
 
@@ -390,7 +390,7 @@ def main():
 	print("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
 
 	# Update REST feed (now) 
-	restUpdate('Start')
+	restUpdate('SchStart')
 	restJob()
 
 	# Add REST client job; run every preset (long) interval
@@ -529,7 +529,7 @@ def main():
 	logging.debug("Scheduler stop on: %s" % time.ctime(time.time()))
 
 	# Update REST feed (now) 
-	restUpdate('Stop')
+	restUpdate('SchStop')
 	restJob()
 	time.sleep( 60 )
 

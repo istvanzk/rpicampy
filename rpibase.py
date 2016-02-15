@@ -428,11 +428,10 @@ class rpiBaseClass(object):
 		"""
 		Clear eventErr and set delay.
 		"""	
-		if self._eventErr.is_set():
-			self._eventErr.clear()
-			self._eventErrtime = 0
-			self._eventErrdelay = 3*self._config['interval_sec']		
-			self._state['errval'] = 0
-			self._setstate()		
-			self.restUpdate(0)
-			logging.debug("%s::: Clear eventErr in %s!" % (self.name, str_func))
+		self._eventErr.clear()
+		self._eventErrtime = 0
+		self._eventErrdelay = 3*self._config['interval_sec']		
+		self._state['errval'] = 0
+		self._setstate()		
+		self.restUpdate(0)
+		logging.debug("%s::: Clear eventErr in %s!" % (self.name, str_func))

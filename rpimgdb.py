@@ -318,7 +318,7 @@ class rpiImageDbxClass(rpiBaseClass):
 
 		except ApiError as e:
 			# dropbox.files.CreateFolderError			
-			if e.reason.is_path():
+			if e.error.is_path():
 				# dropbox.files.WriteError
 				we = e.reason.get_path()
 				if we.is_conflict():

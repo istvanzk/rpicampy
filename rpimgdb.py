@@ -246,7 +246,7 @@ class rpiImageDbxClass(rpiBaseClass):
 			else:
 				new_ls = self._dbx.files_list_folder_continue(self._imageDbCursor)  
 				if new_ls.entries == []:
-					logging.debug("_lsImage():: No changes on the server")				
+					logging.debug("%s::: _lsImage():: No changes on the server." % self.name)				
 				else:
 					self.ls_ref = new_ls
 			
@@ -268,9 +268,9 @@ class rpiImageDbxClass(rpiBaseClass):
 			self._imageDbCursor = self.ls_ref.cursor
 			
 			if len(self.imageDbList) > 0:				
-				logging.debug("_lsImage():: imageDbList[0..%d]: %s .. %s" % (len(self.imageDbList)-1, self.imageDbList[0], self.imageDbList[-1]) )
+				logging.debug("%s::: _lsImage():: imageDbList[0..%d]: %s .. %s" % (self.name, len(self.imageDbList)-1, self.imageDbList[0], self.imageDbList[-1]) )
 			else:
-				logging.debug("_lsImage():: imageDbList[]: empty")
+				logging.debug("%s::: _lsImage():: imageDbList[]: empty" % self.name)
 		
 		except ApiError as e: 
 			raise rpiBaseClassError("_lsImage(): %s" % e.error, 3)
@@ -295,7 +295,7 @@ class rpiImageDbxClass(rpiBaseClass):
 					self.imageUpldList.append(from_path)
 					#self.imageDbList.append(from_path)
 					
-				logging.debug("_putImage(): Uploaded file from %s to remote %s" % (from_path, to_path))
+				logging.debug("%s::: _putImage(): Uploaded file from %s to remote %s" % (self.name, from_path, to_path))
 	
 		except IOError:
 			raise rpiBaseClassError("_putImage(): Local img file %s could not be opened." %  from_path, 3)
@@ -314,7 +314,7 @@ class rpiImageDbxClass(rpiBaseClass):
 		try:
 			self._dbx.files_create_folder('/' + os.path.normpath(path))
 
-			logging.info("_mkdirImage(): Remote output folder /%s created." % path)
+			logging.info("%s::: Remote output folder /%s created." % (self.name, path))
 
 		except ApiError as e:
 			# dropbox.files.CreateFolderError			
@@ -326,7 +326,7 @@ class rpiImageDbxClass(rpiBaseClass):
 					wce = we.get_conflict()
 					# union tag is 'folder'
 					if wce.is_folder():
-						raise rpiBaseClassError("_mkdirImage(): Remote output folder /%s already exist." % path, 2)
+						logging.info("%s::: Remote output folder /%s already exist!" % (self.name, path))
 	
 			raise rpiBaseClassError("_mkdirImage(): Remote output folder /%s was not created! %s" % (path, e.error), 4)
 		
@@ -342,7 +342,7 @@ class rpiImageDbxClass(rpiBaseClass):
 		try:
 			self._dbx.files_move( '/' + os.path.normpath(from_path), '/' +  os.path.normpath(to_path) )
 			
-			logging.debug("_mvImage(): Moved file from %s to %s" % (from_path, to_path))
+			logging.debug("%s::: _mvImage(): Moved file from %s to %s" % (self.name, from_path, to_path))
 									
 		except ApiError as e: 
 			raise rpiBaseClassError("_mvImage(): Image %s could not be moved to %s! %s" % (from_path, to_path, e.error), 3)
@@ -357,7 +357,7 @@ class rpiImageDbxClass(rpiBaseClass):
 # 		"""
 # 		try:
 # 			metadata, response  = self._dbx.files_download_to_file( to_path, '/' + os.path.normpath(from_file) )
-# 			logging.debug("_getImage(): Downloaded file from remote %s to %s. Metadata: %s" % (from_file, to_path, metadata) )
+# 			logging.debug("%s::: _getImage(): Downloaded file from remote %s to %s. Metadata: %s" % (self.name, from_file, to_path, metadata) )
 # 		
 # 		except ApiError as e: 
 # 			raise rpiBaseClassError("_getImage(): %s" % e.error, 3)

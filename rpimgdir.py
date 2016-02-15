@@ -48,7 +48,7 @@ class rpiImageDirClass(rpiBaseClass):
 						
 	def __str__(self):
 		msg = super(rpiImageDirClass,self).__str__()	
-		return "%s:::locdir: %s\nimage_names: %s\nnlen(imagelist_ref): %d\n%s" % \
+		return "%s:::locdir: %s, image_names: %s, len(imagelist_ref): %d\n%s" % \
 				(self.name, self._locdir, self._image_names, len(self._imagelist_ref), msg)
 
 	def __del__(self):

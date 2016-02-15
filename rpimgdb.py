@@ -327,6 +327,7 @@ class rpiImageDbxClass(rpiBaseClass):
 					# union tag is 'folder'
 					if wce.is_folder():
 						logging.info("%s::: Remote output folder /%s already exist!" % (self.name, path))
+						pass
 	
 			raise rpiBaseClassError("_mkdirImage(): Remote output folder /%s was not created! %s" % (path, e.error), 4)
 		

@@ -46,15 +46,19 @@ class rpiBaseClass(object):
 	def __init__(self, name, dict_config, rpi_events, restapi=None, restfield=None):
 	
 		self.name 	 = name
+		
+		# Privat but can be changed via the dict_config
 		self._config = dict_config
 		
+		# Privat but can be changed via the rpi_events 
 		self._eventDayEnd 	= rpi_events.eventDayEnd				
 		self._eventEnd 		= rpi_events.eventEnd
 		self._eventErr 		= rpi_events.eventErrList[self.name]
-		
+		self._eventErrdelay = rpi_events.eventErrdelayList[self.name]	
+			
+		# Privat and internal only
 		self._eventErrcount = 0
 		self._eventErrtime 	= 0
-		self._eventErrdelay	= 0
 						
 		self._restapi         = restapi
 		self._restapi_fieldid = restfield		
@@ -422,7 +426,7 @@ class rpiBaseClass(object):
 		self._eventErrtime = time.time()		
 		self._state['errval'] |= (err_val-1)
 		self._setstate()
-		self.restUpdate(-1*err_val+1)
+		self.restUpdate(1-err_val)
 		logging.debug("%s::: Set eventErr in %s at %s!" % (self.name, str_func, time.ctime(self._eventErrtime)))
 	
 	def _cleareventerr(self,str_func):
@@ -431,7 +435,6 @@ class rpiBaseClass(object):
 		"""	
 		self._eventErr.clear()
 		self._eventErrtime = 0
-		self._eventErrdelay = 3*self._config['interval_sec']		
 		self._state['errval'] = 0
 		self._setstate()		
 		self.restUpdate(0)

@@ -31,7 +31,7 @@ class rpiBaseClassError(Exception):
 	"""
 
 	def __init__(self, errstr, errval):
-		self.errmsg = "rpiBaseClassError: (%s: %d)" % (errstr, errval)
+		self.errmsg = "rpiBaseClassError: (errstr=''%s'', errval=%d)" % (errstr, errval)
 		self.errstr = errstr
 		self.errval = errval
 		
@@ -54,9 +54,9 @@ class rpiBaseClass(object):
 		self._eventDayEnd 	= rpi_events.eventDayEnd				
 		self._eventEnd 		= rpi_events.eventEnd
 		self._eventErr 		= rpi_events.eventErrList[self.name]
-		self._eventErrdelay = rpi_events.eventErrdelayList[self.name]	
-			
+		
 		# Privat and internal only
+		self._eventErrdelay = 0				
 		self._eventErrcount = 0
 		self._eventErrtime 	= 0
 						
@@ -201,6 +201,23 @@ class rpiBaseClass(object):
 		else:
 			return True
 	
+	def setErrDly(self, delay_sec):
+		"""
+		Set the allowed time delay before re-initializing the class after a fatal error.
+		"""
+		self._eventErrdelay = delay_sec
+
+	def getErrTime(self):
+		"""
+		Return the time (time.time()) when the last error was set.
+		"""
+		return self._eventErrtime
+		
+	def getErrCount(self):
+		"""
+		Return the number of times the job has run while in the delay time period (self._eventErrdelay).
+		"""
+		return self._eventErrcount
 
 	def run(self):
 		"""
@@ -208,51 +225,52 @@ class rpiBaseClass(object):
 		"""
 		
 		###	Run the internal functionalities	
-		
-		if self._state['stop']:
-			return
-
-		if self._state['pause']:
-			return
-		
-		if self._eventEnd.is_set():
-			self._endoam()
-			return
-
-		if self._eventDayEnd.is_set():
-			self._enddayoam()
-			return
-
-
-		if self._state['init']:
-			self._initclass()
-							
-		if self._eventErr.is_set():	
-	
-			### Error was detected
-			logging.info("%s::: eventErr is set!" % self.name)
-	
-			### Try to reset  and clear the self._eventErr
-			# after self._eventErrdelay time of failed access/run attempts
-			if (time.time() - self._eventErrtime) > self._eventErrdelay:
-				self._initclass()	
-				
-			else:	
-				self._eventErrcount += 1
-				logging.debug("%s::: eventErr was set at %s!" % (self.name, time.ctime(self._eventErrtime)))
-				return
-	
 		try:
+
+			if self._state['stop']:
+				return
+
+			if self._state['pause']:
+				return
+		
+			if self._eventEnd.is_set():
+				self._endoam()
+				return
+
+			if self._eventDayEnd.is_set():
+				self._enddayoam()
+				return
+
+
+			if self._state['init']:
+				self._initclass()
+							
+			if self._eventErr.is_set():	
+	
+				### Error was detected
+				logging.info("%s::: eventErr is set!" % self.name)
+	
+				### Try to reset  and clear the self._eventErr
+				# after self._eventErrdelay time of failed access/run attempts
+				if (time.time() - self._eventErrtime) > self._eventErrdelay:
+					self._initclass()	
+				
+				else:	
+					self._eventErrcount += 1
+					logging.debug("%s::: eventErr was set at %s!" % (self.name, time.ctime(self._eventErrtime)))
+					return
+	
+		
 			### Run the user defined method						
 			self.jobRun()
-				
+			
 		except rpiBaseClassError as e:
 			if e.errval < 4:
 				logging.warning("%s" % e.errmsg)
 				self._seteventerr('run()', e.errval)
 				pass		
 			else:
-				logging.error("%s\nExiting!" % e.errmsg, exc_info=True)
+				logging.error("%s\nExiting job!" % e.errmsg, exc_info=True)
 				self._seteventerr('run()', 4)
 				raise
 				
@@ -294,29 +312,8 @@ class rpiBaseClass(object):
 		logging.info("%s::: Intialize class" % self.name) 
 								
 		### User defined init	
-		try:
-			self.initClass()		
+		self.initClass()		
 			
-		except rpiBaseClassError as e:
-			if e.errval < 4:
-				logging.warning("%s" % e.errmsg)
-				self._seteventerr('_initclass()', e.errval)
-				pass		
-			else:
-				logging.error("%s" % e.errmsg)
-				self._seteventerr('_initclass()', 4)
-				raise
-
-		except RuntimeError as e:
-			self._seteventerr('_initclass()',4)
-			logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
-			raise
-																														
-		except:
-			logging.error("Unhandled Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)			
-			self._seteventerr('_initclass()', 4)
-			raise
-		
 		### Init error event and state
 		self._cleareventerr("initClass()")
 		self._state['errval'] = 0		
@@ -336,28 +333,7 @@ class rpiBaseClass(object):
 		if not self._eventErr.is_set():	
 		
 			### User defined EoD	
-			try:
-				self.endDayOAM()																				
-
-			except rpiBaseClassError as e:
-				if e.errval < 4:
-					logging.warning("%s" % e.errmsg)
-					self._seteventerr('_enddayoam()', e.errval)
-					pass		
-				else:
-					logging.error("%s" % e.errmsg)
-					self._seteventerr('_enddayoam()', 4)
-					raise
-
-			except RuntimeError as e:
-				self._seteventerr('_enddayoam()',4)
-				logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
-				raise
-																														
-			except:
-				logging.error("Unhandled Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)			
-				self._seteventerr('_enddayoam()', 4)
-				raise
+			self.endDayOAM()																				
 			
 			### Init class
 			self._initclass()
@@ -380,29 +356,8 @@ class rpiBaseClass(object):
 		if not self._eventErr.is_set():	
 		
 			### User defined EoD	
-			try:
-				self.endOAM()																				
+			self.endOAM()																				
 
-			except rpiBaseClassError as e:
-				if e.errval < 4:
-					logging.warning("%s" % e.errmsg)
-					self._seteventerr('_endoam()', e.errval)
-					pass		
-				else:
-					logging.error("%s" % e.errmsg)
-					self._seteventerr('_endoam()', 4)
-					raise
-		
-			except RuntimeError as e:
-				self._seteventerr('_endoam()',4)
-				logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
-				raise
-																									
-			except:
-				logging.error("Unhandled Exception: %s! Exiting!" % str(sys.exc_info()), exc_info=True)			
-				self._seteventerr('_endoam()', 4)
-				raise
-			
 			### Init class
 			self._initclass()
 			
@@ -422,12 +377,13 @@ class rpiBaseClass(object):
 		"""
 		Set eventErr, the error value (2,3 or 4) and store timestamp.
 		"""	
-		self._eventErr.set()
-		self._eventErrtime = time.time()		
-		self._state['errval'] |= (err_val-1)
-		self._setstate()
-		self.restUpdate(1-err_val)
-		logging.debug("%s::: Set eventErr in %s at %s!" % (self.name, str_func, time.ctime(self._eventErrtime)))
+		if err_val > 1:
+			self._eventErr.set()
+			self._eventErrtime = time.time()		
+			self._state['errval'] |= (err_val-1)
+			self._setstate()
+			self.restUpdate(1-err_val)
+			logging.debug("%s::: Set eventErr in %s at %s!" % (self.name, str_func, time.ctime(self._eventErrtime)))
 	
 	def _cleareventerr(self,str_func):
 		"""

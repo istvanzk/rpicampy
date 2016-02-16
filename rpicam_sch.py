@@ -451,9 +451,9 @@ def main():
 
 					# Clear events and set the eventErrdelay for each job
 					eventsRPi.clearEvents()
-					eventsRPi.eventErrdelayList[imgCam.name] = 3*camConfig['interval_sec'][tper]
-					eventsRPi.eventErrdelayList[imgDir.name] = 3*dirConfig['interval_sec'][tper]
-					eventsRPi.eventErrdelayList[imgDbx.name] = 3*dbxConfig['interval_sec'][tper]
+					imgCam.setErrDly(3*camConfig['interval_sec'][tper])
+					imgDir.setErrDly(3*dirConfig['interval_sec'][tper])
+					imgDbx.setErrDly(3*dbxConfig['interval_sec'][tper])
 					
 					# The jobs will be run only between tstart_per and tstop_per 
 					sched.add_job(imgCam.run, 'interval', id=imgCam.name, seconds=camConfig['interval_sec'][tper], start_date=tstart_per, end_date=tstop_per, misfire_grace_time=10, name='CAM' )

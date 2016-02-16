@@ -39,6 +39,7 @@ class rpiEventsClass():
 			self.eventErrList[id] = Event() 
 			self.eventErrList[id].clear()			
 			self.eventErrtimeList[id]  = 0 
+			self.eventErrdelayList[id] = 0
 			self.eventErrcountList[id] = 0 
 			self.eventRuncountList[id] = 0 
 			self.stateValList[id]      = 0
@@ -71,6 +72,7 @@ class rpiEventsClass():
 		for id in self.event_ids:
 			self.eventErrList[id].clear()		
 			self.eventErrtimeList[id]  = 0 
+			self.eventErrdelayList[id] = 0			
 			self.eventErrcountList[id] = 0 
 			self.eventRuncountList[id] = 0 
 			self.stateValList[id]      = 0

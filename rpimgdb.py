@@ -106,8 +106,6 @@ class rpiImageDbxClass(rpiBaseClass):
 				self.restUpdate(0)
 	
 				logging.info('Nothing to upload')							
-
-			self._imageFIFO.releaseSemaphore()
 			
 																										
 		# Handle exceptions, mostly HTTP/SSL related!
@@ -141,6 +139,8 @@ class rpiImageDbxClass(rpiBaseClass):
 		except:
 			raise rpiBaseClassError("%s::: jobRun(): Unhandled Exception:\n%s" % (self.name, str(sys.exc_info())), 4)
 					
+		finally:
+			self._imageFIFO.releaseSemaphore()
 					
 
 	def initClass(self):

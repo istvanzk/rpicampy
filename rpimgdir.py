@@ -94,7 +94,7 @@ class rpiImageDirClass(rpiBaseClass):
 		
 				self._imageFIFO.releaseSemaphore()
 			
-				raise rpiBaseClassError("%s::: jobRun(): Test crash!" % self.name, 4)	
+			raise rpiBaseClassError("%s::: jobRun(): Test crash!" % self.name, 4)	
 				
 			### Update REST feed
 			self.restUpdate(len(self.imagelist))

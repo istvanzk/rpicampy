@@ -31,13 +31,13 @@ class rpiBaseClassError(Exception):
 	"""
 
 	def __init__(self, errstr, errval):
-		self.errmsg = "rpiBaseClass error: (%s (%d))" % (errstr, errval)
+		self.errmsg = "rpiBaseClassError: (%s: %d)" % (errstr, errval)
 		self.errstr = errstr
 		self.errval = errval
 		
 	def __str__(self):
 		return repr(self.errmsg)
-
+		
 class rpiBaseClass(object):
 	"""
 	Implements the base class for common functionalities.
@@ -51,10 +51,10 @@ class rpiBaseClass(object):
 		self._eventDayEnd 	= rpi_events.eventDayEnd				
 		self._eventEnd 		= rpi_events.eventEnd
 		self._eventErr 		= rpi_events.eventErrList[self.name]
-		self._eventErrcount = rpi_events.eventErrcountList[self.name]
-		self._eventErrtime 	= rpi_events.eventErrtimeList[self.name]
-		self._eventErrdelay	= rpi_events.eventErrdelayList[self.name]
-		self.stateVal 		= rpi_events.stateValList[self.name]
+		
+		self._eventErrcount = 0
+		self._eventErrtime 	= 0
+		self._eventErrdelay	= 0
 						
 		self._restapi         = restapi
 		self._restapi_fieldid = restfield		
@@ -66,7 +66,8 @@ class rpiBaseClass(object):
 		self._state['init']  = False
 		self._state['cmdval'] = -1
 		self._state['errval'] = 0
-						
+		self.stateVal 		 = 0
+								
 		### Init class
 		self._initclass()
 												

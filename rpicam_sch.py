@@ -182,18 +182,20 @@ def jobListener(event):
 	status_str = None	
 	if e_code == EVENT_JOB_ERROR:
 	
-		# Clear error flag to allow the other jobs to run normally
-		eventsRPi.eventErrList[e_jobid].clear()
-		eventsRPi.eventErrtimeList[e_jobid]  = 0 
-		eventsRPi.eventErrdelayList[e_jobid] = 0 
-		
+		# Set job error flag and start counter
+		eventsRPi.eventErrList[e_jobid].set()
 		eventsRPi.stateValList[e_jobid] = 3
-		
-		logging.error("%s: The job crashed!" % e_jobid)
-		restUpdate("%s: Crash" % e_jobid)
+
+		eventsRPi.eventErrtimeList[e_jobid]  = time.time() 
+		eventsRPi.eventErrcountList[e_jobid] += 1 
+		eventsRPi.eventRuncountList[e_jobid] += 1
+				
+		logging.error("%s: The job crashed %d times (%s)!" % (e_jobid, eventsRPi.eventErrcountList[e_jobid], time.ctime(eventsRPi.eventErrtimeList[e_jobid])))
+		restUpdate("%s: Crash %d" % (e_jobid, eventsRPi.eventErrcountList[e_jobid]))
 	
 	elif e_code == EVENT_JOB_EXECUTED:
 
+		eventsRPi.eventErrcountList[e_jobid]  = 0
 		eventsRPi.eventRuncountList[e_jobid] += 1
 		eventsRPi.jobRuncount += 1
 		
@@ -257,16 +259,20 @@ def procStateVal():
 	"""
 	Post the combined state (cmd and err) values for all jobs
 	"""
+	# Store state values
+	eventsRPi.stateValList[imgCam.name] = imgCam.stateVal
+	eventsRPi.stateValList[imgDir.name] = imgDir.stateVal
+	eventsRPi.stateValList[imgDbx.name] = imgDbx.stateVal
 	
 	# The combined state (cmd and err) values for all jobs
-	#state_val = eventsRPi.stateValList[imgCam.name] + 16*eventsRPi.stateValList[imgDir.name] + 16*16*eventsRPi.stateValList[imgDbx.name]
-	state_val = imgCam.stateVal + 16*imgDir.stateVal + 16*16*imgDbx.stateVal 
-	print("state_val: %d. timerConfig['stateval']: %d" % (state_val, timerConfig['stateval']))
-	
-	# Update REST feed with a new state value only
-	if timerConfig['stateval'] != state_val:
-		timerConfig['stateval'] = state_val
-		restUpdate(stream_value=state_val)			
+	timerConfig['stateval'] = eventsRPi.stateValList[imgCam.name] + 16*eventsRPi.stateValList[imgDir.name] + 256*eventsRPi.stateValList[imgDbx.name]
+
+	# Add state value for the timer
+	timerConfig['stateval'] += 256*0
+
+	# Update REST feed with a new state value
+	restUpdate(stream_value=timerConfig['stateval'])			
+
 
 		
 def restJob():

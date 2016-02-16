@@ -80,19 +80,24 @@ class rpiImageDirClass(rpiBaseClass):
 				len(self.imagelist) > self._config['list_size']:
 	
 				### Remove all the images not in the imageFIFO
-				self._imageFIFO.acquireSemaphore()
+				try:
+					self._imageFIFO.acquireSemaphore()
 		
-				for img in self.imagelist:
-					if not img in self._imageFIFO:					
-						logging.info("Remove image: %s" % img)				
-						self._rmimg = subprocess.Popen("rm " + img, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
-						self._diroutput, self._direrrors = self._rmimg.communicate()
+					for img in self.imagelist:
+						if not img in self._imageFIFO:					
+							logging.info("Remove image: %s" % img)				
+							self._rmimg = subprocess.Popen("rm " + img, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
+							self._diroutput, self._direrrors = self._rmimg.communicate()
 			
-						### Check return/errors
-						if len(self._direrrors):	
-							raise rpiBaseClassError("%s::: jobRun(): File could not be deleted! %s\n%s" % (self.name, self._camoutput, self._camerrors ), 3)
-		
-				self._imageFIFO.releaseSemaphore()
+							
+				except OSError as e:
+					raise rpiBaseClassError("%s::: jobRun(): File %s could not be deleted!\n%s" % (self.name, img, e), 3)
+				
+				except:
+					raise rpiBaseClassError("%s::: jobRun(): Unhandled Exception:\n%s" % (self.name, str(sys.exc_info())), 4)
+				
+				finally:		
+					self._imageFIFO.releaseSemaphore()
 			
 			raise rpiBaseClassError("%s::: jobRun(): Test crash!" % self.name, 4)	
 				

@@ -434,22 +434,26 @@ def main():
 			# Loop over the defined day periods	
 			for tper in range(len(timerConfig['start_hour'])):
 
-				# Run only the valid day periods
-				if not bValidDayPer[tper]:
-					continue # next period/day
-
-				# The current day period start/stop; the jobs will be run only between tstart_per and tstop_per 
-				tstart_per = datetime(tcrt.year, tcrt.month, tcrt.day, timerConfig['start_hour'][tper], timerConfig['start_min'][tper], 0, 0)
-				tstop_per  = datetime(tcrt.year, tcrt.month, tcrt.day, timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper], 59, 0)
-
-				# Schedule the jobs to be run in the configured time period. All are paused until the scheduler is started			
-				eventsRPi.clearEvents()
 				try:
+					# Run only the valid day periods
+					if not bValidDayPer[tper]:
+						continue # next period/day
+
 					# Re-init the jobs when they run the first time
 					if not MainRun:
 						imgCam.setInit()
 						imgDir.setInit()
 						imgDbx.setInit()
+
+					# The current day period start/stop; the jobs will be run only between tstart_per and tstop_per 
+					tstart_per = datetime(tcrt.year, tcrt.month, tcrt.day, timerConfig['start_hour'][tper], timerConfig['start_min'][tper], 0, 0)
+					tstop_per  = datetime(tcrt.year, tcrt.month, tcrt.day, timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper], 59, 0)
+
+					# Clear events and set the eventErrdelay for each job
+					eventsRPi.clearEvents()
+					eventsRPi.eventErrdelayList[imgCam.name] = 3*camConfig['interval_sec'][tper]
+					eventsRPi.eventErrdelayList[imgDir.name] = 3*dirConfig['interval_sec'][tper]
+					eventsRPi.eventErrdelayList[imgDbx.name] = 3*dbxConfig['interval_sec'][tper]
 					
 					# The jobs will be run only between tstart_per and tstop_per 
 					sched.add_job(imgCam.run, 'interval', id=imgCam.name, seconds=camConfig['interval_sec'][tper], start_date=tstart_per, end_date=tstop_per, misfire_grace_time=10, name='CAM' )
@@ -484,12 +488,12 @@ def main():
 					pass
 
 				except RuntimeError as e:
-					self.eventEnd.set()
+					eventsRPi.eventEnd.set()
 					logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
 					raise
 
 				except:
-					self.eventEnd.set()
+					eventsRPi.eventEnd.set()
 					logging.error("Exception: %s! Exiting!" %  str(sys.exc_info()), exc_info=True)
 					raise
 

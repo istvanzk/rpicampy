@@ -31,7 +31,7 @@ class rpiBaseClassError(Exception):
 	"""
 
 	def __init__(self, errstr, errval):
-		self.errmsg = "rpiBaseClassError: (errstr=''%s'', errval=%d)" % (errstr, errval)
+		self.errmsg = "rpiBaseClassError: (errstr='%s', errval=%d)" % (errstr, errval)
 		self.errstr = errstr
 		self.errval = errval
 		
@@ -70,14 +70,14 @@ class rpiBaseClass(object):
 		self._state['init']  = False
 		self._state['cmdval'] = -1
 		self._state['errval'] = 0
-		self.stateVal 		 = 0
+		self._stateVal 		 = 0
 								
 		### Init class
 		self._initclass()
 												
 	def __str__(self):
-		return "%s::: config: %s\neventErrcount: %d, eventErrtime: %s, eventErrdelay: %s, stateVal: %d" % \
-			(self.name, self._config, self._eventErrcount, time.ctime(self._eventErrtime), self._eventErrdelay, self.stateVal)
+		return "%s::: config: %s\neventErrcount: %d, eventErrtime: %s, eventErrdelay: %s, _stateVal: %d" % \
+			(self.name, self._config, self._eventErrcount, time.ctime(self._eventErrtime), self._eventErrdelay, self._stateVal)
 		
 	def __del__(self):
 		logging.debug("%s::: Deleted!" % self.name)
@@ -201,24 +201,41 @@ class rpiBaseClass(object):
 		else:
 			return True
 	
-	def setErrDly(self, delay_sec):
+	@property
+	def errDelay(self, delay_sec):
+		"""
+		Return the allowed time delay before re-initializing the class after a fatal error.
+		"""
+		return self._eventErrdelay
+
+	@errDelay.setter
+	def errDelay(self, delay_sec):
 		"""
 		Set the allowed time delay before re-initializing the class after a fatal error.
 		"""
 		self._eventErrdelay = delay_sec
 
-	def getErrTime(self):
+	@property
+	def errTime(self):
 		"""
 		Return the time (time.time()) when the last error was set.
 		"""
 		return self._eventErrtime
 		
-	def getErrCount(self):
+	@property	
+	def errCount(self):
 		"""
 		Return the number of times the job has run while in the delay time period (self._eventErrdelay).
 		"""
 		return self._eventErrcount
 
+	@property
+	def stateVal(self):
+		"""
+		Return the combined/encoded state value corresponding to the cmd and err states.
+		"""
+		return self._stateVal
+		
 	def run(self):
 		"""
 		Run first the internal functionalities, and then calls the user defined runJob method.
@@ -248,7 +265,7 @@ class rpiBaseClass(object):
 			if self._eventErr.is_set():	
 	
 				### Error was detected
-				logging.info("%s::: eventErr is set!" % self.name)
+				logging.info("%s::: eventErr is set (%d)!" % (self.name, self._eventErrcount))
 	
 				### Try to reset  and clear the self._eventErr
 				# after self._eventErrdelay time of failed access/run attempts
@@ -257,7 +274,7 @@ class rpiBaseClass(object):
 				
 				else:	
 					self._eventErrcount += 1
-					logging.debug("%s::: eventErr was set at %s!" % (self.name, time.ctime(self._eventErrtime)))
+					logging.debug("%s::: eventErr was set at %s (%d)!" % (self.name, time.ctime(self._eventErrtime), self._eventErrcount))
 					return
 	
 		
@@ -370,7 +387,7 @@ class rpiBaseClass(object):
 		"""
 		Set the combined/encoded state value corresponding to the cmd and err states.
 		"""
-		self.stateVal = self._state['errval'] + 4*self._state['cmdval']
+		self._stateVal = self._state['errval'] + 4*self._state['cmdval']
 		
 		
 	def _seteventerr(self,str_func,err_val=2):

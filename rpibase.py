@@ -24,6 +24,17 @@ import time
 import logging
 import thingspk
 
+# Command values (remote job control)
+CMDRUN   = 3
+CMDSTOP  = 0
+CMDPAUSE = 1
+CMDINIT  = 2
+
+# Error values (levels)
+ERRCRIT = 4 #raise
+ERRLEV2 = 3 #pass
+ERRLEV1 = 2 #pass
+NOERR	= 1 #pass
 
 class rpiBaseClassError(Exception):
 	"""
@@ -50,12 +61,12 @@ class rpiBaseClass(object):
 		# Privat but can be changed via the dict_config
 		self._config = dict_config
 		
-		# Privat but can be changed via the rpi_events 
+		# Privat events but can be changed via the rpi_events 
 		self._eventDayEnd 	= rpi_events.eventDayEnd				
 		self._eventEnd 		= rpi_events.eventEnd
 		self._eventErr 		= rpi_events.eventErrList[self.name]
 		
-		# Privat and internal only
+		# Privat variables
 		self._eventErrdelay = 0				
 		self._eventErrcount = 0
 		self._eventErrtime 	= 0
@@ -76,8 +87,8 @@ class rpiBaseClass(object):
 		self._initclass()
 												
 	def __str__(self):
-		return "%s::: config: %s\neventErrcount: %d, eventErrtime: %s, eventErrdelay: %s, _stateVal: %d" % \
-			(self.name, self._config, self._eventErrcount, time.ctime(self._eventErrtime), self._eventErrdelay, self._stateVal)
+		return "%s::: config: %s\neventErrcount: %d, eventErrtime: %s, eventErrdelay: %s, state: %s, stateVal: %d" % \
+			(self.name, self._config, self._eventErrcount, time.ctime(self._eventErrtime), self._eventErrdelay, self._state, self._stateVal)
 		
 	def __del__(self):
 		logging.debug("%s::: Deleted!" % self.name)
@@ -127,7 +138,7 @@ class rpiBaseClass(object):
 		self._state['stop']  = False
 		self._state['pause'] = False
 		self._state['init']  = False
-		self._state['cmdval'] = 3
+		self._state['cmdval'] = CMDRUN
 
 		self._setstate()
 		
@@ -148,7 +159,7 @@ class rpiBaseClass(object):
 		self._state['stop']  = True
 		self._state['pause'] = False
 		self._state['init']  = False
-		self._state['cmdval'] = 0
+		self._state['cmdval'] = CMDSTOP
 
 		self._setstate()
 
@@ -169,7 +180,7 @@ class rpiBaseClass(object):
 		self._state['stop']  = False
 		self._state['pause'] = True
 		self._state['init']  = False
-		self._state['cmdval'] = 1
+		self._state['cmdval'] = CMDPAUSE
 		
 		self._setstate()
 		
@@ -190,7 +201,7 @@ class rpiBaseClass(object):
 		self._state['stop']  = False
 		self._state['pause'] = False
 		self._state['init']  = True
-		self._state['cmdval'] = 2
+		self._state['cmdval'] = CMDINIT
 
 		self._setstate()
 
@@ -234,6 +245,7 @@ class rpiBaseClass(object):
 		"""
 		Return the combined/encoded state value corresponding to the cmd and err states.
 		"""
+		self._setstate()
 		return self._stateVal
 		
 	def run(self):
@@ -282,22 +294,22 @@ class rpiBaseClass(object):
 			self.jobRun()
 			
 		except rpiBaseClassError as e:
-			if e.errval < 4:
+			if e.errval < ERRCRIT:
 				logging.warning("%s" % e.errmsg)
 				self._seteventerr('run()', e.errval)
 				pass		
-			else:
+			elif e.errval > NOERR:
 				logging.error("%s\nExiting job!" % e.errmsg, exc_info=True)
-				self._seteventerr('run()', 4)
+				self._seteventerr('run()', ERRCRIT)
 				raise
 				
 		except RuntimeError as e:
-			self._seteventerr('run()',4)
+			self._seteventerr('run()',ERRCRIT)
 			logging.error("RuntimeError: %s\nExiting!" % str(e), exc_info=True)
 			raise
 					
 		except:
-			self._seteventerr('run()',4)
+			self._seteventerr('run()',ERRCRIT)
 			logging.error("Unhandled Exception: %s\nExiting!" % str(sys.exc_info()), exc_info=True)
 			raise
 												
@@ -390,11 +402,11 @@ class rpiBaseClass(object):
 		self._stateVal = self._state['errval'] + 4*self._state['cmdval']
 		
 		
-	def _seteventerr(self,str_func,err_val=2):
+	def _seteventerr(self,str_func,err_val=ERRLEV1):
 		"""
-		Set eventErr, the error value (2,3 or 4) and store timestamp.
+		Set eventErr, set the error value (ERRLEV1, ERRLEV2 or ERRCRIT) and store timestamp.
 		"""	
-		if err_val > 1:
+		if err_val > NOERR:
 			self._eventErr.set()
 			self._eventErrtime = time.time()		
 			self._state['errval'] |= (err_val-1)
@@ -404,11 +416,11 @@ class rpiBaseClass(object):
 	
 	def _cleareventerr(self,str_func):
 		"""
-		Clear eventErr and set delay.
+		Clear eventErr and reset error value and reset timestamp.
 		"""	
 		self._eventErr.clear()
 		self._eventErrtime = 0
-		self._state['errval'] = 0
+		self._state['errval'] = NOERR-1
 		self._setstate()		
 		self.restUpdate(0)
 		logging.debug("%s::: Clear eventErr in %s!" % (self.name, str_func))

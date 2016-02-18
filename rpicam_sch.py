@@ -158,7 +158,6 @@ def restUpdate(status_str=None, stream_value=None):
 	The actual REST call is performed in restPost()! 			
 	"""
 	if RESTfeed is not None:
-		RESTfeed.setfield('status','')	
 		if status_str is not None: 
 			RESTfeed.setfield('status',status_str)
 		if stream_value is not None:

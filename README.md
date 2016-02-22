@@ -1,7 +1,7 @@
 # rpicampy
 Time-lapse with Rasberry Pi controlled camera.
 
-Version 4.0 for Python 3.4+
+Version 4.5 for Python 3.4+
 
 
 rpibase:	Base class for rpicam, rpimgdir and rpimgdb

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 4.0 for Python 3.4+
+    Time-lapse with Rasberry Pi controlled camera - VER 4.5 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -33,6 +33,7 @@ import logging
 
 import rpififo
 from rpibase import rpiBaseClass, rpiBaseClassError
+from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 
 # OpenCV
 #import numpy as np
@@ -75,21 +76,24 @@ class rpiCamClass(rpiBaseClass):
 	Use GPIO to ON/OFF control an IR/VL reflector for night imaging.
 	"""
 		
-	def __init__(self, name, dict_config, rpi_events, restapi=None, restfield=None):
-			
-		### Create FIFO buffer (deque)					
-		self.imageFIFO = rpififo.rpiFIFOClass([], dict_config['list_size'])
-	
+	def __init__(self, name, rpi_apscheduler, rpi_events, rpi_config, dbuff_rpififo=None):
+
 		### Get the Dbx error event	
 		self._eventDbErr 	= rpi_events.eventErrList["DBXJob"] 
+			
+		### Get the custom config parameters			
+		self._config = rpi_config
+			
+		### The FIFO buffer (deque)					
+		self.imageFIFO = rpififo.rpiFIFOClass([], self._config['list_size'])
 						
 		### Init base class
-		super(rpiCamClass,self).__init__(name, dict_config, rpi_events, restapi, restfield)
+		super().__init__(name, rpi_apscheduler, rpi_events)
 												
 	def __str__(self):
-		msg = super(rpiCamClass,self).__str__()
-		return "%s::: %s, Fake: %s, RaspiStill: %s, RPiCam: %s\nimageFIFO: %s\n%s" % \
-			(self.name, self.camid, FAKESNAP, RASPISTILL, RPICAM, self.imageFIFO, msg)
+		msg = super().__str__()
+		return "%s::: %s, config: %s, FAKESNAP: %s, RASPISTILL: %s, RPiCAM: %s\nimageFIFO: %s\n%s" % \
+			(self.name, self.camid, self._config, FAKESNAP, RASPISTILL, RPICAM, self.imageFIFO, msg)
 		
 	def __del__(self):
 		
@@ -106,7 +110,7 @@ class rpiCamClass(rpiBaseClass):
 			pass
 
 		### Clean base class
-		super(rpiCamClass,self).__del__()
+		super().__del__()
 			
 
 	#
@@ -129,7 +133,7 @@ class rpiCamClass(rpiBaseClass):
 				logging.debug("%s::: Local daily output folder %s already exist!" % (self.name, self._locdir))
 				pass	
 			else:
-				raise rpiBaseClassError("%s::: jobRun(): Local daily output folder %s could not be created" % (self.name, self._locdir) , 4)	
+				raise rpiBaseClassError("%s::: jobRun(): Local daily output folder %s could not be created" % (self.name, self._locdir) , ERRCRIT)	
 				
 		finally:
 			self.image_name = self.imageFIFO.crtSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
@@ -263,15 +267,16 @@ class rpiCamClass(rpiBaseClass):
 		
 			self.imageFIFO.releaseSemaphore()
 		
-			### Update REST feed
-			self.restUpdate(self.crtlenFIFO)
+			### Update status
+			self.statusUpdate("imageFIFO", self.crtlenFIFO)
 			
 			### Close the picamera
 			if RPICAM:
 				self._camera.close()
 												
 		except OSError as e:	
-			raise rpiBaseClassError("%s::: jobRun(): Snapshot %s could not be created!\n%s" % (self.name, self.image_path, e), 3)
+			raise rpiBaseClassError("%s::: jobRun(): Snapshot %s could not be created!\n%s" % (self.name, self.image_path, e), ERRLEV2)
+	
 	
 	def initClass(self):
 		""""
@@ -309,7 +314,7 @@ class rpiCamClass(rpiBaseClass):
 				logging.info("%s::: Local output folder %s already exist!" % (self.name, self._config['image_dir']))
 				pass
 			else:
-				raise rpiBaseClassError("%s::: initClass(): Local output folder %s could not be created" % (self.name, self._config['image_dir']) , 4)	
+				raise rpiBaseClassError("%s::: initClass(): Local output folder %s could not be created" % (self.name, self._config['image_dir']) , ERRCRIT)	
 									
 		### Fill in the fifo buffer with images found in the output directory	
 		### Only the image files with the current date are listed!			

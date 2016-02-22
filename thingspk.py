@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 4.0 for Python 3.4+
+    Time-lapse with Rasberry Pi controlled camera - VER 4.5 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -43,7 +43,7 @@ try:
 except ImportError:
 	import simplejson as json
 
-SDK_VERSION = 0.8
+SDK_VERSION = 0.9
 TINTV_CH_SEC = 300
 TINTV_TB_SEC = 300
 	
@@ -255,7 +255,7 @@ class ThingSpeakTBTimer(Thread):
 		"""	
 		self.Active.clear()
 			
-class ThingSpeakTBClient(object):
+class ThingSpeakTBClient:
 	"""
 	The API root object from which the user can manage TalkBack apps.
 	The TalkBack apps are managed via the class:TalkBacksManager instances.
@@ -410,7 +410,7 @@ class ThingSpeakCHTimer(Thread):
 		"""	
 		self.Active.clear()
 			
-class ThingSpeakAPIClient(object):
+class ThingSpeakAPIClient:
 	"""
 	The API root object from which the user can manage channels and charts.
 	The Channels and Charts are managed via the class:ChannelsManager and 
@@ -516,7 +516,7 @@ class ThingSpeakAPIClient(object):
 		return self._chart
 
 
-class ManagerBase(object):
+class ManagerBase:
 	"""Abstract base class for all of ThingSpeak manager classes."""
 
 	@property

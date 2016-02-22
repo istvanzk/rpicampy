@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 4.0 for Python 3.4+
+    Time-lapse with Rasberry Pi controlled camera - VER 4.5 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -42,28 +42,35 @@ import json
 #     from StringIO import StringIO
 
 from rpibase import rpiBaseClass, rpiBaseClassError
+from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 
 class rpiImageDbxClass(rpiBaseClass):
 	"""
 	Implements the rpiImageDb class to manage images in a remote directory (dropbox).
 	"""
 				
-	def __init__(self, deque_img, *args, **kwargs):
+	def __init__(self, name, rpi_apscheduler, rpi_events, rpi_config, dbuff_rpififo=None):
+
+		### Get the Dbx error event	
+		#self._eventDbErr 	= rpi_events.eventErrList["DBXJob"] 
+
+		### Get the custom config parameters			
+		self._config = rpi_config
 	
 		### Get FIFO buffer (deque)							
-		self._imageFIFO = deque_img
+		self._imageFIFO = dbuff_rpififo
 		
 		### Init base class
-		super(rpiImageDbxClass,self).__init__(*args, **kwargs)
+		super().__init__(name, rpi_apscheduler, rpi_events)
 								                    			                    				
 	def __str__(self):
-		msg = super(rpiImageDbxClass,self).__str__()		
-		return "%s::: dbinfo: %s\nimageUpldList: %s\n%s" % \
-				(self.name, self.dbinfo, self.imageUpldList, msg)
+		msg = super().__str__()		
+		return "%s::: dbinfo: %s, config: %s\nimageUpldList: %s\n%s" % \
+				(self.name, self.dbinfo, self._config, self.imageUpldList, msg)
 	
 	def __del__(self):
 		### Clean base class
-		super(rpiImageDbxClass,self).__del__()
+		super().__del__()
 
 
 			
@@ -72,7 +79,6 @@ class rpiImageDbxClass(rpiBaseClass):
 	#		
 	
 	def jobRun(self):
-
 		
 		try:
 		
@@ -98,12 +104,12 @@ class rpiImageDbxClass(rpiBaseClass):
 						self._putImage(img, os.path.join(self.upldir, os.path.basename(img)))
 						logging.info("Uploaded %s" % img )
 
-				### Update REST feed
-				self.restUpdate(self.numImgUpdDb)
+				### Update status
+				self.statusUpdate("imageUpld", self.numImgUpdDb)
 																		
 			else:
-				### Update REST feed
-				self.restUpdate(0)
+				### Update status
+				self.statusUpdate("imageUpld", ERRNONE)
 	
 				logging.info('Nothing to upload')							
 			
@@ -111,19 +117,19 @@ class rpiImageDbxClass(rpiBaseClass):
 		# Handle exceptions, mostly HTTP/SSL related!
 		except exceptions.Timeout as e:
 			# Catching this error will catch both ReadTimeout and ConnectTimeout.
-			raise rpiBaseClassError("%s::: jobRun(): Connect/ReadTimeoutError:\n%s" % (self.name, str(e)), 2)
+			raise rpiBaseClassError("%s::: jobRun(): Connect/ReadTimeoutError:\n%s" % (self.name, str(e)), ERRLEV2)
 								
 		except exceptions.ConnectionError as e:
 			# A Connection error occurred.
-			raise rpiBaseClassError("%s::: jobRun(): ConnectionError:\n%s" % (self.name, str(e)), 2)
+			raise rpiBaseClassError("%s::: jobRun(): ConnectionError:\n%s" % (self.name, str(e)), ERRLEV2)
 
 		except exceptions.HTTPError as e:
 			# An HTTP error occurred.
-			raise rpiBaseClassError("%s::: jobRun(): HTTPError:\n%s" % (self.name, str(e)), 2)
+			raise rpiBaseClassError("%s::: jobRun(): HTTPError:\n%s" % (self.name, str(e)), ERRLEV2)
 
 		except exceptions.RequestException as e:
 			# There was an ambiguous exception that occurred while handling your request.
-			raise rpiBaseClassError("%s::: jobRun(): RequestException:\n%s" % (self.name, str(e)), 2)
+			raise rpiBaseClassError("%s::: jobRun(): RequestException:\n%s" % (self.name, str(e)), ERRLEV2)
 					
 # 			except BadStatusLine as e:
 # 				self.eventErr_set('run()')
@@ -134,10 +140,10 @@ class rpiImageDbxClass(rpiBaseClass):
 			raise rpiBaseClassError("%s::: jobRun(): %s" % (self.name, e.errmsg), e.errval)
 		
 		except RuntimeError as e:
-			raise rpiBaseClassError("%s::: jobRun(): RuntimeError:\n%s" % (self.name, str(e)), 4)
+			raise rpiBaseClassError("%s::: jobRun(): RuntimeError:\n%s" % (self.name, str(e)), ERRCRIT)
 					
 		except:
-			raise rpiBaseClassError("%s::: jobRun(): Unhandled Exception:\n%s" % (self.name, str(sys.exc_info())), 4)
+			raise rpiBaseClassError("%s::: jobRun(): Unhandled Exception:\n%s" % (self.name, str(sys.exc_info())), ERRCRIT)
 					
 		finally:
 			self._imageFIFO.releaseSemaphore()
@@ -172,7 +178,7 @@ class rpiImageDbxClass(rpiBaseClass):
 					logging.info("%s::: Local log file %s initialized." % (self.name, self.logfile))
 				
 		except IOError:
-			raise rpiBaseClassError("%s::: initClass(): Local log file %s was not found or could not be created." % (self.name, self.logfile), 4)
+			raise rpiBaseClassError("%s::: initClass(): Local log file %s was not found or could not be created." % (self.name, self.logfile), ERRCRIT)
 
 		### Init Dropbox API client		
 		#self.app_key = self._config['app_key']
@@ -198,16 +204,16 @@ class rpiImageDbxClass(rpiBaseClass):
 			raise rpiBaseClassError("initClass(): %s" % e.errmsg, e.errval)
 					
 		except IOError:
-			raise rpiBaseClassError("initClass(): Token file ''%s'' could not be read." % (self.name, self._token_file), 4)
+			raise rpiBaseClassError("initClass(): Token file ''%s'' could not be read." % (self.name, self._token_file), ERRCRIT)
 		
 		except AuthError as e:
-			raise rpiBaseClassError("initClass(): AuthError:\n%s" % e.error, 4)
+			raise rpiBaseClassError("initClass(): AuthError:\n%s" % e.error, ERRCRIT)
 				
 		except DropboxException as e: 
-			raise rpiBaseClassError("initClass(): DropboxException:\n%s" %  str(e), 4)
+			raise rpiBaseClassError("initClass(): DropboxException:\n%s" %  str(e), ERRCRIT)
 		
 		except InternalServerError as e:	
-			raise rpiBaseClassError("initClass(): InternalServerError:\n%s" % str(e.status_code), 4)
+			raise rpiBaseClassError("initClass(): InternalServerError:\n%s" % str(e.status_code),  ERRCRIT)
 			
 	
 	def endDayOAM(self):
@@ -224,7 +230,7 @@ class rpiImageDbxClass(rpiBaseClass):
 				logging.info("%s::: Local log file %s updated." % (self.name, self.logfile))
 
 		except IOError:
-			raise rpiBaseClassError("endDayOAM(): Local log file %s was not found." % self.logfile, 4)
+			raise rpiBaseClassError("endDayOAM(): Local log file %s was not found." % self.logfile,  ERRCRIT)
 
 		self.eventDayEnd.clear()
 		logging.debug("%s::: Reset eventEndDay" % self.name)
@@ -273,7 +279,7 @@ class rpiImageDbxClass(rpiBaseClass):
 				logging.debug("%s::: _lsImage():: imageDbList[]: empty" % self.name)
 		
 		except ApiError as e: 
-			raise rpiBaseClassError("_lsImage(): %s" % e.error, 3)
+			raise rpiBaseClassError("_lsImage(): %s" % e.error, ERRLEV2)
 				
 	
 	def _putImage(self, from_path, to_path, overwrite=False):
@@ -298,10 +304,10 @@ class rpiImageDbxClass(rpiBaseClass):
 				logging.debug("%s::: _putImage(): Uploaded file from %s to remote %s" % (self.name, from_path, to_path))
 	
 		except IOError:
-			raise rpiBaseClassError("_putImage(): Local img file %s could not be opened." %  from_path, 3)
+			raise rpiBaseClassError("_putImage(): Local img file %s could not be opened." %  from_path, ERRCRIT)
 		
 		except ApiError as e: 
-			raise rpiBaseClassError("_putImage(): %s" % e.error, 3)
+			raise rpiBaseClassError("_putImage(): %s" % e.error, ERRLEV2)
 			
 
 	def _mkdirImage(self, path):
@@ -331,7 +337,7 @@ class rpiImageDbxClass(rpiBaseClass):
 						noerr = True
 	
 			if not noerr:
-				raise rpiBaseClassError("_mkdirImage(): Remote output folder /%s was not created! %s" % (path, e.error), 4)
+				raise rpiBaseClassError("_mkdirImage(): Remote output folder /%s was not created! %s" % (path, e.error), ERRCRIT)
 			else:
 				pass	
         
@@ -349,7 +355,7 @@ class rpiImageDbxClass(rpiBaseClass):
 			logging.debug("%s::: _mvImage(): Moved file from %s to %s" % (self.name, from_path, to_path))
 									
 		except ApiError as e: 
-			raise rpiBaseClassError("_mvImage(): Image %s could not be moved to %s! %s" % (from_path, to_path, e.error), 3)
+			raise rpiBaseClassError("_mvImage(): Image %s could not be moved to %s! %s" % (from_path, to_path, e.error), ERRLEV2)
 		
 	
 # 	def _getImage(self, from_file, to_path):
@@ -364,7 +370,7 @@ class rpiImageDbxClass(rpiBaseClass):
 # 			logging.debug("%s::: _getImage(): Downloaded file from remote %s to %s. Metadata: %s" % (self.name, from_file, to_path, metadata) )
 # 		
 # 		except ApiError as e: 
-# 			raise rpiBaseClassError("_getImage(): %s" % e.error, 3)
+# 			raise rpiBaseClassError("_getImage(): %s" % e.error, ERRLEV2)
 
 	
 # 	def _searchImage(self, string):
@@ -375,7 +381,7 @@ class rpiImageDbxClass(rpiBaseClass):
 # 			results = self._dbx.files_search( '', string, start=0, max_results=100, mode=SearchMode('filename', None) )
 # 			
 # 		except ApiError as e: #rest.ErrorResponse as e:
-# 			raise rpiBaseClassError("_searchImage(): %s" % e.error, 3)
+# 			raise rpiBaseClassError("_searchImage(): %s" % e.error, ERRLEV2)
 
 	        
 # 	def _rmImage(self, path):

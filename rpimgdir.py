@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 4.0 for Python 3.4+
+    Time-lapse with Rasberry Pi controlled camera - VER 4.5 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -29,31 +29,35 @@ import subprocess
 import logging
 
 from rpibase import rpiBaseClass, rpiBaseClassError
+from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 
 class rpiImageDirClass(rpiBaseClass):
 	"""
 	Implements the rpiImageDir class to manage the set of saved images by rpiCam
 	"""
 
-	def __init__(self, deque_img, *args, **kwargs):
+	def __init__(self, name, rpi_apscheduler, rpi_events, rpi_config, dbuff_rpififo=None):
+	
+		### Get the Dbx error event	
+		self._eventDbErr 	= rpi_events.eventErrList["DBXJob"] 
+
+		### Get the custom config parameters			
+		self._config = rpi_config
 	
 		### Get FIFO buffer (deque)							
-		self._imageFIFO = deque_img
-		
-		### Get the Dbx error event	
-		self._eventDbErr 	= args[2].eventErrList["DBXJob"] 
-		
+		self._imageFIFO = dbuff_rpififo
+				
 		### Init base class
-		super(rpiImageDirClass,self).__init__(*args, **kwargs)
+		super().__init__(name, rpi_apscheduler, rpi_events)
 						
 	def __str__(self):
-		msg = super(rpiImageDirClass,self).__str__()	
-		return "%s:::locdir: %s, image_names: %s, len(imagelist_ref): %d\n%s" % \
-				(self.name, self._locdir, self._image_names, len(self._imagelist_ref), msg)
+		msg = super().__str__()	
+		return "%s::: config: %s, locdir: %s, image_names: %s, len(imagelist_ref): %d\n%s" % \
+				(self.name, self._config, self._locdir, self._image_names, len(self._imagelist_ref), msg)
 
 	def __del__(self):
 		### Clean base class
-		super(rpiImageDirClass,self).__del__()
+		super().__del__()
 
 
 	#
@@ -91,18 +95,18 @@ class rpiImageDirClass(rpiBaseClass):
 			
 							
 				except OSError as e:
-					raise rpiBaseClassError("%s::: jobRun(): File %s could not be deleted!\n%s" % (self.name, img, e), 3)
+					raise rpiBaseClassError("%s::: jobRun(): File %s could not be deleted!\n%s" % (self.name, img, e), ERRLEV2)
 				
 				except:
-					raise rpiBaseClassError("%s::: jobRun(): Unhandled Exception:\n%s" % (self.name, str(sys.exc_info())), 4)
+					raise rpiBaseClassError("%s::: jobRun(): Unhandled Exception:\n%s" % (self.name, str(sys.exc_info())), ERRCRIT)
 				
 				finally:		
 					self._imageFIFO.releaseSemaphore()
 			
 			raise rpiBaseClassError("%s::: jobRun(): Test crash!" % self.name, 4)	
 				
-			### Update REST feed
-			self.restUpdate(len(self.imagelist))
+			### Update status
+			self.statusUpdate("imageDir", len(self.imagelist))
 		
 			### Update image list in the current local sub-folder
 			self._imagelist_ref = sorted(glob.glob(self._image_names))

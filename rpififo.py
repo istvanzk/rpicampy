@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 4.0 for Python 3.4+
+    Time-lapse with Rasberry Pi controlled camera - VER 4.5 for Python 3.4+
     Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -26,11 +26,11 @@ from collections import deque
 class rpiFIFOClass(deque):
 	"""
 	Implements the a Deque with BoundedSemaphore.
-	Used as a FIFO buffer for the image file names (full path).
+	Used as a FIFO buffer for the image file names (including the full path).
 	Stores also the name of the current sub-folder.
 	"""
 	def __init__(self, *args):
-		deque.__init__(self, *args)
+		super(rpiFIFOClass,self).__init__(*args)
 		self.FIFOSema  = BoundedSemaphore()
 		self.crtSubDir = '/'
 		

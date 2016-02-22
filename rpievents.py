@@ -22,9 +22,9 @@ Implements the Events class as group of events to be used in the rpi job.
 from threading import Event
 from threading import BoundedSemaphore
 
-class rpiEventsClass():
+class rpiEventsClass:
 	"""
-	Implements the Events class (group of events to be used in the rpi threads).
+	Implements the Events class: events and variables to be used in all rpi jobs/threads.
 	"""
 	def __init__(self, event_ids):
 		self.event_ids    = event_ids

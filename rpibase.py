@@ -252,7 +252,7 @@ class rpiBaseClass:
 			str, val  = self._statusmsg.pop()
 			return str, val
 		except IndexError as e:
-			return '', ERRNONE
+			return None, ERRNONE
 		
 		
 	@statusUpdate.setter

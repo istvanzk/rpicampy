@@ -112,7 +112,7 @@ class rpiBaseClass:
 		aps_filter = NoRunningFilter()
 		aps_filter.set_string(self._cmdname)
 		aps_logger = logging.getLogger("apscheduler.scheduler")
-		if aps_logger.getEffectiveLevel() <= INFO: 
+		if aps_logger.getEffectiveLevel() <= logging.INFO 
 			aps_logger.addFilter(aps_filter)
 
 		

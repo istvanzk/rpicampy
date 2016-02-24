@@ -52,10 +52,10 @@ class NoRunningFilter(logging.Filter):
     	self.filterstr = filter_str
     
     def filter(self, record):
-		if record.msg.startswith(self.filterstr):
-			return False
-		else:
-			return True
+    	if record.msg.startswith(self.filterstr):
+    		return False
+    	else:
+    		return True
 
 class rpiBaseClassError(Exception):
 	"""

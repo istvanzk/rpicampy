@@ -46,6 +46,17 @@ ERRLEV1 = 2 #Non critical error, pass
 ERRLEV0	= 1 #Non critical error, pass
 ERRNONE	= 0 #No error
 
+class NoRunningFilter(logging.Filter):
+    
+    def set_string(self, filter_str):
+    	self.filterstr = filter_str
+    	
+    def filter(self, record):
+        if record.msg.startswith(self.filterstr):
+        	return False
+        else:
+			return True
+
 class rpiBaseClassError(Exception):
 	"""
 	Exception to be raised by a class derived from rpiBaseClass.
@@ -96,6 +107,14 @@ class rpiBaseClass:
 		self._cmds = Queue(10)
 		self._proccmd_interval_sec = 11
 		self._cmdname = "%s_Cmd%d" % (self.name, self._proccmd_interval_sec) 
+
+		# Filter out log messages from the cmd job		
+		aps_filter = NoRunningFilter()
+		aps_filter.set_string(self._cmdname)
+		aps_logger = logging.getLogger("apscheduler.scheduler")
+		if aps_logger.getEffectiveLevel() <= INFO: 
+			aps_logger.addFilter(aps_filter)
+
 		
 		# The state flags and state/cmd value codes
 		self._state			 = {}		

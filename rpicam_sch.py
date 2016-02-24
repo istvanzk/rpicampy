@@ -236,7 +236,7 @@ def jobListener(event):
 		logging.warning("Unhandled event.code = %s" % e_code)
 	 
 	# Update timer status message 	
-	timerConfig['status']= status_str
+	timerConfig['status'] = status_str
 
 
 
@@ -404,8 +404,8 @@ def main():
 		logging.info("Scheduler was not started! Bye!")
 		print("Scheduler was not started! Bye!")
 		
-		# Update REST feed (now) 
-		restUpdate('NoStart')
+		# Update status 
+		timerConfig['status'] = 'NoStart'
 		timerJob()
 		time.sleep( 60 )
 		
@@ -421,8 +421,8 @@ def main():
 	logging.info("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
 	print("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
 
-	# Update REST feed (now) 
-	restUpdate('SchStart')
+	# Update status 
+	timerConfig['status'] = 'SchStart'
 	timerJob()
 
 	# Main loop
@@ -432,7 +432,7 @@ def main():
 		while not timerConfig['enabled']: 
 			# Wait until timer is enabled		
 			time.sleep( timerConfig['interval_sec'][1] )
-			restUpdate('Waiting')			
+			timerConfig['status'] ='Waiting'			
 			MainRun = False	
 			continue 
 			
@@ -546,8 +546,9 @@ def main():
 	logging.debug("Scheduler stop on: %s" % time.ctime(time.time()))
 
 	# Update REST feed (now) 
-	restUpdate('SchStop')
+	timerConfig['status'] = 'SchStop'
 	timerJob()
+	logging.shutdown()
 	time.sleep( 60 )
 
 if __name__ == "__main__":

@@ -167,15 +167,16 @@ def restUpdate(status_str=None, stream_value=None):
 								
 def jobListener(event):
 	"""
-	The Job(Execution) Event listener for the APschedRPiuler jobs.
+	The Job(Execution) Event listener for the APscheduler jobs.
+	Process only the main rpi jobs listed in eventsRPi.event_ids.
 	"""
 	
 	#e_exception = getattr(event, 'exception', None)
 	e_code = getattr(event, 'code', None)	
 	e_jobid = getattr(event, 'job_id', None)
-	
-	#job = None
-	#if e_jobid is not None:
+
+	if e_jobid not in eventsRPi.event_ids:	
+		return
 	
 	#print("%s, %d, %s" % (e_exception, e_code, e_jobid))
 	#print(eventsRPi)

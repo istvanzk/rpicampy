@@ -322,30 +322,30 @@ def timerJob():
 	procStateVal()
 
 	### Collect and combine the status messages
+	# status_message too long?
 	(status_message2, message_value2) = imgCam.statusUpdate()
 	(status_message3, message_value3) = imgDir.statusUpdate()
 	(status_message4, message_value4) = imgDbx.statusUpdate()
+	
 	status_message = None
-	if message_value2 < ERRNONE:
-		status_message  = "[" + status_message2 + "]"
-
-	if message_value3 < ERRNONE:
-		status_message += "[" + status_message3 + "]"
-
-	if message_value4 < ERRNONE:
-		status_message += "[" + status_message4 + "]"
-		
+	messages = []
+	for st in [status_message2, status_message3, status_message4]:
+		if st is not None:
+			messages.append(st) 
+	if not messages==[]:
+		status_message = '/'.join(messages)
+				
 	### Update REST feed	
 	if RESTfeed is not None:					
 		RESTfeed.setfield('field1', timerConfig['stateval'])			
 
-		if message_value2 > ERRNONE:
+		if message_value2 > ERRNONE or (message_value2 == ERRNONE and  status_message2 is None):
 			RESTfeed.setfield('field2', message_value2) 
 			
-		if message_value3 > ERRNONE:
+		if message_value3 > ERRNONE or (message_value3 == ERRNONE and  status_message3 is None):
 			RESTfeed.setfield('field3', message_value3) 
 	
-		if message_value4 > ERRNONE:
+		if message_value4 > ERRNONE or (message_value4 == ERRNONE and  status_message4 is None):
 			RESTfeed.setfield('field4', message_value4) 
 
 		if status_message is not None:
@@ -448,36 +448,27 @@ def main():
 			for tper in range(len(timerConfig['start_hour'])):
 
 				try:
-					# Re-initialize (but do not add) the jobs when they are not run the first time
-					if not MainRun:
-						imgCam.setInit()
-						imgDir.setInit()
-						imgDbx.setInit()
 
 					# Run only the valid day periods
 					if not bValidDayPer[tper]:
 						continue # next period/day
 
-					# Set the current day period start/stop; the jobs will be run only between tstart_per and tstop_per 
-					tstart_per = datetime(tcrt.year, tcrt.month, tcrt.day, timerConfig['start_hour'][tper], timerConfig['start_min'][tper], 0, 0)
-					tstop_per  = datetime(tcrt.year, tcrt.month, tcrt.day, timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper], 59, 0)
-
-					imgCam.timePeriodIntv((tstart_per, tstop_per, camConfig['interval_sec'][tper]))
-					imgDir.timePeriodIntv((tstart_per, tstop_per, dirConfig['interval_sec'][tper]))
-					imgDbx.timePeriodIntv((tstart_per, tstop_per, dbxConfig['interval_sec'][tper]))
-					
-					# Clear events and set the eventErrdelay for each job
+					# Clear events and set the error delay (grace period) for each job
 					eventsRPi.clearEvents()
 					imgCam.errorDelay = 3*camConfig['interval_sec'][tper]
 					imgDir.errorDelay = 3*dirConfig['interval_sec'][tper]
 					imgDbx.errorDelay = 3*dbxConfig['interval_sec'][tper]
-					
-					# Add the jobs to the scheduler
-					imgCam.addJob()
-					imgDir.addJob()
-					imgDbx.addJob()
 
+					# Set the current day period start/stop; the jobs will be run only between tstart_per and tstop_per 
+					tstart_per = datetime(tcrt.year, tcrt.month, tcrt.day, timerConfig['start_hour'][tper], timerConfig['start_min'][tper], 0, 0)
+					tstop_per  = datetime(tcrt.year, tcrt.month, tcrt.day, timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper], 59, 0)
 
+					# Re-initialize start/stop/interval configuration and add the jobs to the scheduler
+					imgCam.setRun((tstart_per, tstop_per, camConfig['interval_sec'][tper]))
+					imgDir.setRun((tstart_per, tstop_per, dirConfig['interval_sec'][tper]))
+					imgDbx.setRun((tstart_per, tstop_per, dbxConfig['interval_sec'][tper]))
+										
+										
 					# The eventsRPi.eventAllJobsEnd is set when all jobs have been removed/finished
 					while timerConfig['enabled'] and not eventsRPi.eventAllJobsEnd.is_set():		 	
 

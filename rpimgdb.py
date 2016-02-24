@@ -105,11 +105,11 @@ class rpiImageDbxClass(rpiBaseClass):
 						logging.info("Uploaded %s" % img )
 
 				### Update status
-				self.statusUpdate("imageUpld", self.numImgUpdDb)
+				self.statusUpdate(self.name, self.numImgUpdDb)
 																		
 			else:
 				### Update status
-				self.statusUpdate("imageUpld", ERRNONE)
+				self.statusUpdate(self.name, ERRNONE)
 	
 				logging.info('Nothing to upload')							
 			

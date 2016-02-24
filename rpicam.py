@@ -268,7 +268,7 @@ class rpiCamClass(rpiBaseClass):
 			self.imageFIFO.releaseSemaphore()
 		
 			### Update status
-			self.statusUpdate("imageFIFO", self.crtlenFIFO)
+			self.statusUpdate(self.name, self.crtlenFIFO)
 			
 			### Close the picamera
 			if RPICAM:

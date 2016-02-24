@@ -28,7 +28,9 @@ from threading import RLock
 
 __all__ = ('CMDRUN', 'CMDSTOP', 'CMDPAUSE', 'CMDINIT', 'CMDRESCH', 
 			'ERRCRIT', 'ERRLEV2', 'ERRLEV1', 'ERRLEV0', 'ERRNONE', 
-			'rpiBaseClassError', 'rpiBaseClass')
+			'rpiBaseClassError', 'rpiBaseClass',
+			'addJob', 'queueCmd', 'setInit', 'setRun', 'setStop', 'setPause', 'setResch',
+			'statusUpdate', 'errorDelay', 'timerPeriodIntv', 'errorTime', 'errorCount', 'errorDelay', 'stateValue')
 
 # Command and state values (remote job control)
 CMDRUN   = 3
@@ -162,12 +164,6 @@ class rpiBaseClass:
 	# Subclass interface methods to be used externally.
 	#	
 
-	def addJob(self):
-		"""
-		Add the self._run() method as a job in the APScheduler.
-		"""
-		self._add_run()
-		
 	def queueCmd(self, cmdrx_tuple):
 		"""
 		Puts a remote command (tuple) in the cmd queue.
@@ -185,7 +181,7 @@ class rpiBaseClass:
 
 	def setInit(self):
 		"""
-		Run Init mode and set flags.
+		Run Init mode and set flags. 
 		Return boolean to indicate state change.
 		"""
 		if self._state['init']:
@@ -194,15 +190,21 @@ class rpiBaseClass:
 			self._initclass()
 			return True
 								
-	def setRun(self):
+	def setRun(self, tstartstopintv=None):
 		"""
-		run Run mode and set flags.
+		Run Run mode and set flags.
+		When the tstartstopintv=(start, stop, interval) tuple is specified (re)configure and add self._run() job to the scheduler.		
 		Return boolean to indicate state change.
 		"""
 		if self._state['run']:
 			return False
 		else:
-			self._resume_run()
+			if tstartstopintv is not None:
+				self.timePeriodIntv(tstartstopintv)
+				self._remove_run()
+				self._add_run()
+			else:
+				self._resume_run()
 			return True
 
 	def setStop(self):
@@ -253,36 +255,11 @@ class rpiBaseClass:
 		
 		
 	@statusUpdate.setter
-	def statusUpdate(self, message_str, message_value=0):
+	def statusUpdate(self, message_str=None, message_value=ERRNONE):
 		"""
 		Update status message (tuple) in the deque.
 		"""
-		msgstr = message_str or None
-		if msgstr is None:
-			msgstr = self.name
-				
-		if message_value < ERRNONE:
-			status_message = "%s: Error %d at %s" % (msgstr, message_value, time.ctime(self._eventErrtime)))
-			
-		else:
-			status_message = "%s: (%d)" % (msgstr, message_value)
-			
-
-		self._statusmsg.append((status_message, message_value))
-					
-	@property
-	def errorDelay(self, delay_sec):
-		"""
-		Return the allowed time delay before re-initializing the class after a fatal error.
-		"""
-		return self._eventErrdelay
-
-	@errorDelay.setter
-	def errorDelay(self, delay_sec):
-		"""
-		Set the allowed time delay before re-initializing the class after a fatal error.
-		"""
-		self._eventErrdelay = delay_sec
+		self._statusmsg.append((message_str, message_value))
 
 	@property
 	def timePeriodIntv(self):
@@ -299,6 +276,20 @@ class rpiBaseClass:
 		self._dtstart    = tstartstopintv[0]		
 		self._dtstop     = tstartstopintv[1]
 		self._interval_sec  = tstartstopintv[2]
+					
+	@property
+	def errorDelay(self, delay_sec):
+		"""
+		Return the allowed time delay (grace period) before re-initializing the class after a fatal error.
+		"""
+		return self._eventErrdelay
+
+	@errorDelay.setter
+	def errorDelay(self, delay_sec):
+		"""
+		Set the allowed time delay (grace period) before re-initializing the class after a fatal error.
+		"""
+		self._eventErrdelay = delay_sec
 
 	@property
 	def errorTime(self):
@@ -529,23 +520,23 @@ class rpiBaseClass:
 		Set eventErr, set the error value (ERRLEV0, ERRLEV1, ERRLEV2 or ERRCRIT) and store timestamp.
 		"""	
 		if err_val > ERRNONE:
+			self.statusUpdate("%s: %s SetError %d" % (self.name, str_func, err_val), -1*err_val)
+			logging.debug("%s::: Set eventErr %d in %s at %s!" % (self.name, str_func, err_val, time.ctime(self._eventErrtime)))
 			self._eventErr.set()
 			self._eventErrtime = time.time()		
 			self._state['errval'] = err_val
 			self._setstateval()
-			self.statusUpdate("%s: %s" % (self.name, str_func), -1*err_val)
-			logging.debug("%s::: Set eventErr in %s at %s!" % (self.name, str_func, time.ctime(self._eventErrtime)))
 	
 	def _cleareventerr(self,str_func):
 		"""
 		Clear eventErr and reset error value and reset timestamp.
 		"""	
+		self.statusUpdate("%s: %s ClrError %d" % (self.name, str_func, self._state['errval']), ERRNONE)
+		logging.debug("%s::: Clear eventErr %d in %s!" % (self.name, str_func, self._state['errval']))
 		self._eventErr.clear()
 		self._eventErrtime = 0
 		self._state['errval'] = ERRNONE
 		self._setstateval()		
-		self.statusUpdate("%s: %s" % (self.name, str_func), ERRNONE)
-		logging.debug("%s::: Clear eventErr in %s!" % (self.name, str_func))
 	
 
 	def _add_run(self):
@@ -556,7 +547,8 @@ class rpiBaseClass:
 			if self._sched is not None:
 				if self._sched.get_job(self.name) is None:	
 					self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, misfire_grace_time=10 )
-			
+				else:
+					self._reschedule_run(self.name)
 		
 	def _init_state(self):
 		"""

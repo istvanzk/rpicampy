@@ -106,7 +106,7 @@ class rpiImageDirClass(rpiBaseClass):
 			raise rpiBaseClassError("%s::: jobRun(): Test crash!" % self.name, 4)	
 				
 			### Update status
-			self.statusUpdate("imageDir", len(self.imagelist))
+			self.statusUpdate(self.name, len(self.imagelist))
 		
 			### Update image list in the current local sub-folder
 			self._imagelist_ref = sorted(glob.glob(self._image_names))

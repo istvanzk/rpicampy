@@ -64,9 +64,9 @@ import yaml
 import subprocess
 
 # APScheduler
-#from apschedRPiuler.schedRPiulers.blocking import BlockingScheduler
-from apschedRPiuler.schedRPiulers.background import BackgroundScheduler
-from apschedRPiuler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_ADDED, EVENT_JOB_REMOVED
+#from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_ADDED, EVENT_JOB_REMOVED
 
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 import rpimgdir
@@ -113,6 +113,7 @@ try:
 	timerConfig['enabled'] = True
 	timerConfig['cmd_run'] = False	
 	timerConfig['stateval']= 0
+	timerConfig['status']  = ''
 
 	logging.info("Configuration file read.")
 				
@@ -191,7 +192,7 @@ def jobListener(event):
 		eventsRPi.eventRuncountList[e_jobid] += 1
 				
 		logging.error("%s: The job crashed %d times (%s)!" % (e_jobid, eventsRPi.eventErrcountList[e_jobid], time.ctime(eventsRPi.eventErrtimeList[e_jobid])))
-		restUpdate("%s: Crash %d" % (e_jobid, eventsRPi.eventErrcountList[e_jobid]))
+		status_str = "%s: Crash %d" % (e_jobid, eventsRPi.eventErrcountList[e_jobid])
 	
 	elif e_code == EVENT_JOB_EXECUTED:
 
@@ -228,8 +229,8 @@ def jobListener(event):
 	else:
 		logging.warning("Unhandled event.code = %s" % e_code)
 	 
-	# Update REST status feed 	
-	restUpdate(status_str)
+	# Update timer status message 	
+	timerConfig['status']= status_str
 
 
 
@@ -323,13 +324,14 @@ def timerJob():
 
 	### Collect and combine the status messages
 	# status_message too long?
+	status_message1 = timerConfig['status']
 	(status_message2, message_value2) = imgCam.statusUpdate()
 	(status_message3, message_value3) = imgDir.statusUpdate()
 	(status_message4, message_value4) = imgDbx.statusUpdate()
 	
 	status_message = None
 	messages = []
-	for st in [status_message2, status_message3, status_message4]:
+	for st in [status_message1, status_message2, status_message3, status_message4]:
 		if st is not None:
 			messages.append(st) 
 	if not messages==[]:
@@ -364,7 +366,7 @@ schedRPi.add_listener(jobListener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_
 
 		
 ### The events
-eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob', 'RESTJob'])
+eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob', 'TIMERJob'])
 logging.info(eventsRPi)
 
 ### Instantiate the job classes	
@@ -403,8 +405,8 @@ def main():
 		
 		return
 	
-	### Add REST client job; run every preset (long) interval
-	schedRPi.add_job(restJob, 'interval', id="RESTJob", seconds=timerConfig['interval_sec'][0], misfire_grace_time=10, name='REST' )
+	### Add the main timer client job; run every preset (long) interval
+	schedRPi.add_job(timerJob, 'interval', id="TIMERJob", seconds=timerConfig['interval_sec'][0], misfire_grace_time=10, name='TIMER' )
 			
 	### Start background scheduler
 	logging.debug("Scheduler started on: %s" % (time.ctime(time.time())))

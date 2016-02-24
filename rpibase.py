@@ -107,6 +107,7 @@ class rpiBaseClass:
 		self._state['cmdval'] = -1
 		self._state['errval'] = 0
 		self._stateVal 		 = 0
+		self._state_lock = self._create_lock()
 		
 		# The last 10 status messages	
 		self._statusmsg = deque([],10)
@@ -278,7 +279,7 @@ class rpiBaseClass:
 		self._interval_sec  = tstartstopintv[2]
 					
 	@property
-	def errorDelay(self, delay_sec):
+	def errorDelay(self):
 		"""
 		Return the allowed time delay (grace period) before re-initializing the class after a fatal error.
 		"""
@@ -512,7 +513,8 @@ class rpiBaseClass:
 		"""
 		Set the combined/encoded state value corresponding to the cmd and err states.
 		"""
-		self._stateVal = self._state['errval'] + 8*self._state['cmdval']
+		with self._state_lock:
+			self._stateVal = self._state['errval'] + 8*self._state['cmdval']
 		
 		
 	def _seteventerr(self,str_func,err_val=ERRLEV0):

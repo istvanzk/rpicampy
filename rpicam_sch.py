@@ -175,12 +175,20 @@ def jobListener(event):
 	e_code = getattr(event, 'code', None)	
 	e_jobid = getattr(event, 'job_id', None)
 
-	if e_jobid not in eventsRPi.event_ids:	
-		return
-	
 	#print("%s, %d, %s" % (e_exception, e_code, e_jobid))
 	#print(eventsRPi)
 		
+
+	# Collect and process only the main rpi jobs
+	if e_jobid not in eventsRPi.event_ids:	
+		return
+	
+	all_sch_jobs = schedRPi.get_jobs()
+	sch_jobs=[]
+	for jb in all_sch_jobs:
+		if jb in eventsRPi.event_ids:
+			sch_jobs.append(jb)
+	
 	status_str = None	
 	if e_code == EVENT_JOB_ERROR:
 	
@@ -205,7 +213,6 @@ def jobListener(event):
 			status_str = "%s: Run %d" % (e_jobid, eventsRPi.eventRuncountList[e_jobid])
 		
 	elif e_code == EVENT_JOB_ADDED: 
-		sch_jobs = schedRPi.get_jobs()
 		if len(sch_jobs):
 			for jb in sch_jobs:
 				if not (jb.id == e_jobid):
@@ -217,9 +224,7 @@ def jobListener(event):
 						status_str = "%s: Pen (%d)" % (jb.name, len(sch_jobs))
 						
 	elif e_code == EVENT_JOB_REMOVED:	
-		sch_jobs = schedRPi.get_jobs()		
-		if ((RESTTalkB is not None) and (len(sch_jobs) == 1)) or \
-			((RESTTalkB is None) and (len(sch_jobs) == 0)):
+		if len(sch_jobs) == 1:
 			logging.info("All rpi jobs have been removed!")
 			eventsRPi.eventAllJobsEnd.set()
 			status_str = "NoRPIJobs"
@@ -248,7 +253,7 @@ def procStateVal():
 	timerConfig['stateval'] = eventsRPi.stateValList[imgCam.name] + 64*eventsRPi.stateValList[imgDir.name] + 64*64*eventsRPi.stateValList[imgDbx.name]
 
 	# Add state value for the timer
-	timerConfig['stateval'] += 64*64*64*0
+	#timerConfig['stateval'] += 64*64*64*0
 
 		
 def timerJob():

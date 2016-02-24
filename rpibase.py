@@ -48,11 +48,11 @@ ERRNONE	= 0 #No error
 
 class NoRunningFilter(logging.Filter):
     
-    def set_string(self, filter_str):
-    	self.filterstr = filter_str
+    #def set_string(self, filter_str):
+    #	self.filterstr = filter_str
     
     def filter(self, record):
-    	if record.msg.find(self.filterstr) > 0:
+    	if record.msg.find("CAMJob_Cmd11") > 0:
     		return False
     	else:
     		return True
@@ -110,7 +110,7 @@ class rpiBaseClass:
 
 		# Filter out log messages from the cmd job		
 		aps_filter = NoRunningFilter()
-		aps_filter.set_string(self._cmdname)
+		#aps_filter.set_string(self._cmdname)
 		aps_logger = logging.getLogger("apscheduler.scheduler")
 		if aps_logger.getEffectiveLevel() <= logging.INFO:
 			aps_logger.addFilter(aps_filter)

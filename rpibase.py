@@ -255,12 +255,12 @@ class rpiBaseClass:
 			return '', ERRNONE
 		
 		
-	@statusUpdate.setter
-	def statusUpdate(self, message_str=None, message_value=ERRNONE):
-		"""
-		Update status message (tuple) in the deque.
-		"""
-		self._statusmsg.append((message_str, message_value))
+#	@statusUpdate.setter
+#	def statusUpdate(self, message_str=None, message_value=ERRNONE):
+#		"""
+#		Update status message (tuple) in the deque.
+#		"""
+#		self._statusmsg.append((message_str, message_value))
 
 	@property
 	def timePeriodIntv(self):

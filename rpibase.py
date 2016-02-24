@@ -49,9 +49,9 @@ ERRNONE	= 0 #No error
 class NoRunningFilter(logging.Filter):
     
     def set_string(self, filter_str):
-		self.filterstr = filter_str
-    	
-	def filter(self, record):
+    	self.filterstr = filter_str
+    
+    def filter(self, record):
 		if record.msg.startswith(self.filterstr):
 			return False
 		else:

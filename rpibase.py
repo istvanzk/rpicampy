@@ -421,7 +421,7 @@ class rpiBaseClass:
 		### Add the self._proccmd() job to the scheduler
 		with self._sched_lock:
 			if self._sched is not None:
-				self._sched.add_job(self._proccmd, trigger='interval', id=self._cmdname , seconds=self._proccmd_interval_sec, misfire_grace_time=5 )
+				self._sched.add_job(self._proccmd, trigger='interval', id=self._cmdname , seconds=self._proccmd_interval_sec, misfire_grace_time=5, name=self._cmdname )
 
 		### Set Init state
 		self._init_state()
@@ -552,7 +552,7 @@ class rpiBaseClass:
 		with self._sched_lock:		
 			if self._sched is not None:
 				if self._sched.get_job(self.name) is None:	
-					self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, misfire_grace_time=10 )
+					self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
 				else:
 					self._reschedule_run(self.name)
 		
@@ -655,7 +655,7 @@ class rpiBaseClass:
 			with self._sched_lock:
 				if self._sched is not None:	
 					if self._sched.get_job(self.name) is not None:	
-						self._sched.reschedule_job(job_id=self.name, trigger='interval', seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop)
+						self._sched.reschedule_job(job_id=self.name, trigger='interval', seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, name=self.name)
 
 		self._state['run']   = False
 		self._state['stop']  = False

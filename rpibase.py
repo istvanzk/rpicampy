@@ -249,10 +249,10 @@ class rpiBaseClass:
 		Get the last status message (tuple) in the deque.
 		"""
 		try:
-			(str, val)  = self._statusmsg.pop()
-			return (str, val)
+			str, val  = self._statusmsg.pop()
+			return str, val
 		except IndexError as e:
-			return ('', ERRNONE)
+			return '', ERRNONE
 		
 		
 	@statusUpdate.setter

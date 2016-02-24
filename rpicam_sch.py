@@ -325,9 +325,9 @@ def timerJob():
 	### Collect and combine the status messages
 	# status_message too long?
 	status_message1 = timerConfig['status']
-	(status_message2, message_value2) = imgCam.statusUpdate()
-	(status_message3, message_value3) = imgDir.statusUpdate()
-	(status_message4, message_value4) = imgDbx.statusUpdate()
+	status_message2, message_value2 = imgCam.statusUpdate()
+	status_message3, message_value3 = imgDir.statusUpdate()
+	status_message4, message_value4 = imgDbx.statusUpdate()
 	
 	status_message = None
 	messages = []

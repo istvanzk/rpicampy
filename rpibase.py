@@ -555,6 +555,8 @@ class rpiBaseClass:
 					self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
 				else:
 					self._reschedule_run(self.name)
+					
+		self._run_state()			
 		
 	def _init_state(self):
 		"""

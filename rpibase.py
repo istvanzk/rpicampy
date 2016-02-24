@@ -111,7 +111,7 @@ class rpiBaseClass:
 		# Filter out log messages from the cmd job		
 		aps_filter = NoRunningFilter()
 		#aps_filter.set_string(self._cmdname)
-		aps_logger = logging.getLogger('')
+		aps_logger = logging.getLogger()
 		if aps_logger.getEffectiveLevel() <= logging.INFO:
 			aps_logger.addFilter(aps_filter)
 

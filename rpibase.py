@@ -410,7 +410,7 @@ class rpiBaseClass:
 		self._statusmsg.clear()
 			
 		### Init error event and state
-		self._cleareventerr("%s::: initClass()" % self.name)
+		self._cleareventerr('_initclass()')
 		self._state['errval'] = ERRNONE		
 
 																
@@ -522,7 +522,8 @@ class rpiBaseClass:
 		Set eventErr, set the error value (ERRLEV0, ERRLEV1, ERRLEV2 or ERRCRIT) and store timestamp.
 		"""	
 		if err_val > ERRNONE:
-			self.statusUpdate("%s: %s SetError %d" % (self.name, str_func, err_val), -1*err_val)
+			str = "%s: %s SetError %d" % (self.name, str_func, err_val)
+			self.statusUpdate(str, -1*err_val)
 			logging.debug("%s::: Set eventErr %d in %s at %s!" % (self.name, str_func, err_val, time.ctime(self._eventErrtime)))
 			self._eventErr.set()
 			self._eventErrtime = time.time()		
@@ -533,7 +534,8 @@ class rpiBaseClass:
 		"""
 		Clear eventErr and reset error value and reset timestamp.
 		"""	
-		self.statusUpdate("%s: %s ClrError %d" % (self.name, str_func, self._state['errval']), ERRNONE)
+		str = "%s: %s ClrError %d" % (self.name, str_func, self._state['errval'])
+		self.statusUpdate(str, ERRNONE)
 		logging.debug("%s::: Clear eventErr %d in %s!" % (self.name, str_func, self._state['errval']))
 		self._eventErr.clear()
 		self._eventErrtime = 0

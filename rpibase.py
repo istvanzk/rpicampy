@@ -131,7 +131,7 @@ class rpiBaseClass:
 					self._sched.remove_job(self.name)
 					
 		logging.debug("%s::: Deleted!" % self.name)			
-		self.statusUpdate("%s Deleted" % self.name)
+		self._statusmsg.append(("%s Deleted" % self.name, ERRNONE))
 
 	#
 	# Subclass interface methods to be overriden by user defined methods.
@@ -441,19 +441,19 @@ class rpiBaseClass:
 		
 		# Process the command
 		if cmdval==CMDRUN and self.setRun():
-			statusUpdate("%s run" % self.name)
+			self._statusmsg.append(("%s run" % self.name, ERRNONE))
 
 		elif cmdval==CMDSTOP and self.setStop():
-			statusUpdate("%s stop" % self.name)
+			self._statusmsg.append(("%s stop" % self.name, ERRNONE))
 
 		elif cmdval==CMDPAUSE and self.setPause():
-			statusUpdate("%s pause" % self.name)
+			self._statusmsg.append(("%s pause" % self.name, ERRNONE))
 
 		elif cmdval==CMDINIT and self.setInit():
-			statusUpdate("%s init" % self.name)
+			self._statusmsg.append(("%s init" % self.name, ERRNONE))
 
 		elif cmdval==CMDRESCH and self.setResch():
-			statusUpdate("%s init" % self.name)
+			self._statusmsg.append(("%s init" % self.name, ERRNONE))
 		
 		self._cmds.task_done()
 
@@ -481,6 +481,7 @@ class rpiBaseClass:
 			self.endDayOAM()																				
 			
 			
+			self._statusmsg.append(("%s: endDayOAM()" % self.name, ERRNONE))
 			logging.info("%s::: endDayOAM(): Maintenance sequence run" % self.name) 
 			
 		else:
@@ -502,6 +503,7 @@ class rpiBaseClass:
 			### Stop and remove the self._run() job from the scheduler
 			self._remove_run()
 			
+			self._statusmsg.append(("%s: endOAM()" % self.name, ERRNONE))
 			logging.info("%s::: endOAM(): Maintenance sequence run" % self.name) 
 			
 		else:
@@ -524,7 +526,7 @@ class rpiBaseClass:
 		if err_val > ERRNONE:
 			str = "%s: %s SetError %d" % (self.name, str_func, err_val)
 			self._statusmsg.append((str, -1*err_val))
-			logging.debug("%s::: Set eventErr %d in %s at %s!" % (self.name, str_func, err_val, time.ctime(self._eventErrtime)))
+			logging.debug("%s::: Set eventErr %d in %s at %s!" % (self.name, err_val, str_func, time.ctime(self._eventErrtime)))
 			self._eventErr.set()
 			self._eventErrtime = time.time()		
 			self._state['errval'] = err_val
@@ -536,7 +538,7 @@ class rpiBaseClass:
 		"""	
 		str = "%s: %s ClrError %d" % (self.name, str_func, self._state['errval'])
 		self._statusmsg.append((str, ERRNONE))
-		logging.debug("%s::: Clear eventErr %d in %s!" % (self.name, str_func, self._state['errval']))
+		logging.debug("%s::: Clear eventErr %d in %s!" % (self.name, self._state['errval'], str_func))
 		self._eventErr.clear()
 		self._eventErrtime = 0
 		self._state['errval'] = ERRNONE

@@ -103,7 +103,7 @@ class rpiImageDirClass(rpiBaseClass):
 				finally:		
 					self._imageFIFO.releaseSemaphore()
 			
-			raise rpiBaseClassError("%s::: jobRun(): Test crash!" % self.name, 4)	
+			#raise rpiBaseClassError("%s::: jobRun(): Test crash!" % self.name, 4)	
 				
 			### Update status
 			self.statusUpdate = (self.name, len(self.imagelist))

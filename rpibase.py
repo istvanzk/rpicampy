@@ -52,7 +52,7 @@ class NoRunningFilter(logging.Filter):
     	self.filterstr = filter_str
     
     def filter(self, record):
-    	if record.msg.startswith(self.filterstr):
+    	if record.msg.find(self.filterstr) > 0:
     		return False
     	else:
     		return True

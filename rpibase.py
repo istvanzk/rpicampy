@@ -592,7 +592,7 @@ class rpiBaseClass:
 				if self._sched is not None:	
 					if self._sched.get_job(self.name) is not None:		
 						self._sched.resume_job(self.name)
-					else		
+					else:		
 						self._add_run()
 						
 		self._run_state()

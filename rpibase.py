@@ -113,8 +113,8 @@ class rpiBaseClass:
 		aps_filter = NoRunningFilter()
 		#aps_filter.set_string(self._cmdname)
 		aps_logger = logging.getLogger('apscheduler.schedulers')
-		if aps_logger.getEffectiveLevel() <= logging.INFO:
-			aps_logger.addFilter(aps_filter)
+		#if aps_logger.getEffectiveLevel() <= logging.INFO:
+		aps_logger.addFilter(aps_filter)
 
 		
 		# The state flags and state/cmd value codes

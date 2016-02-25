@@ -60,7 +60,6 @@ import time
 from datetime import datetime, timedelta
 import logging
 import logging.handlers
-import logging.Formatter
 from collections import deque
 import yaml
 import subprocess

@@ -89,6 +89,7 @@ TSPKTBUSE   = True
 class NoRunningFilter(logging.Filter):
     
     def __init__(self, filter_str):
+    	logging.Filter.__init__(self)
     	self.filterstr = filter_str
     
     def filter(self, record):
@@ -100,21 +101,23 @@ class NoRunningFilter(logging.Filter):
 
 # logging.config.fileConfig('logging.conf')
     		
-#logging.basicConfig(filename='rpicam.log', filemode='w',
-#					level=logging.INFO,
-#                    format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
-#                    )
+logging.basicConfig(filename='rpicam.log', filemode='w',
+					level=logging.INFO,
+                    format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
+                    )
+
+rootLogger = logging.getLogger()
+logging.getLogger().addFilter(NoRunningFilter('Running'))
+#rootLogger.setLevel(logging.INFO)
 
 #hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)
-hndl = logging.FileHandler(filename='rpicam.log', mode='w')
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
-filter = NoRunningFilter('Running')
-hndl.setFormatter(formatter)
-hndl.setLevel(logging.INFO)
-hndl.addFilter(filter)
-rootLogger = logging.getLogger()
-rootLogger.addHandler(hndl)
-rootLogger.setLevel(logging.INFO)
+#hndl = logging.FileHandler(filename='rpicam.log', mode='w')
+#formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
+#hndl.setLevel(logging.INFO)
+#hndl.setFormatter(formatter)
+#filter = NoRunningFilter('Running')
+#hndl.addFilter(filter)
+#rootLogger.addHandler(hndl)
 
 ### Python version
 PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] == 4)

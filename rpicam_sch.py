@@ -94,7 +94,8 @@ if subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8')
 
 
 ### Set up the logging and a filter
-LOGLEVEL = logging.DEBUG
+LOGLEVEL = logging.INFO
+LOGFILEBYTES = 102400
 
 class NoRunningFilter(logging.Filter):
     
@@ -118,7 +119,7 @@ rpiLogger = logging.getLogger()
 rpiLogger.setLevel(logging.DEBUG)
 
 #hndl = logging.FileHandler(filename='rpicam.log', mode='w')
-hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)
+hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=LOGFILEBYTES, backupCount=5)
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
 hndl.setLevel(LOGLEVEL)
 hndl.setFormatter(formatter)
@@ -130,6 +131,7 @@ hndl.addFilter(filter)
 #rpiLogger.addFilter(filter)
 rpiLogger.addHandler(hndl)
 
+rpiLogger.info("\n======== Start ========\n")
 
 ### Read the parameters
 try:
@@ -148,7 +150,7 @@ try:
 	timerConfig['stateval']= 0
 	timerConfig['status']  = ''
 
-	rpiLogger.info("===== Configuration file read. =====")
+	rpiLogger.info("Configuration file read.")
 				
 except yaml.YAMLError as e:
 	rpiLogger.error("Error in configuration file:" % e)

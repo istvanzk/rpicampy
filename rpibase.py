@@ -111,7 +111,7 @@ class rpiBaseClass:
 		# Filter out log messages from the cmd job		
 		aps_filter = NoRunningFilter()
 		#aps_filter.set_string(self._cmdname)
-		aps_logger = logging.getLogger(None)
+		aps_logger = logging.getLogger("apscheduler")
 		if aps_logger.getEffectiveLevel() <= logging.INFO:
 			aps_logger.addFilter(aps_filter)
 
@@ -346,8 +346,8 @@ class rpiBaseClass:
 		###	Run the internal functionalities first then the user defined method	(self.jobRun)	
 		try:
 
-			if self._state['stop'] or self._state['pause']:
-				return
+			#if self._state['stop'] or self._state['pause']:
+			#	return
 
 
 			if self._eventEnd.is_set():
@@ -574,7 +574,8 @@ class rpiBaseClass:
 					self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
 				else:
 					self._reschedule_run(self.name)
-					
+		
+		# Why is it needed?			
 		self._run_state()			
 		
 	def _init_state(self):

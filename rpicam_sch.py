@@ -96,7 +96,7 @@ class NoRunningFilter(logging.Filter):
     	#print(rec.msg)
     	#print(rec.args)
     	#msg = rec.msg % rec.args
-    	if rec.msg.find(self.filterstr) > 0:
+    	if self.filterstr in rec.getMessage():
     		return False
     	else:
     		return True

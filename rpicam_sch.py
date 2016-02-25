@@ -106,8 +106,8 @@ logging.basicConfig(filename='rpicam.log', filemode='w',
                     format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
                     )
 
-rootLogger = logging.getLogger()
-#logging.getLogger().addFilter(NoRunningFilter('Running'))
+#rootLogger = logging.getLogger()
+logging.getLogger("aspcheduler.schedulers").addFilter(NoRunningFilter('Running'))
 #rootLogger.setLevel(logging.INFO)
 
 #hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)

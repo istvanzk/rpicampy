@@ -287,12 +287,12 @@ def timerJob():
 		if cmdval==1 and not timerConfig['enabled']:
 			timerConfig['enabled'] = True
 			logging.debug("JobSch enabled.")
-			restUpdate("JobSch enabled")
+			timerConfig['status'] = "JobSch enabled"
 
 		elif cmdval==0 and timerConfig['enabled']:
 			timerConfig['enabled'] = False
 			logging.debug("JobSch disabled.")
-			restUpdate("JobSch disabled")
+			timerConfig['status'] = "JobSch disabled"
 
 	# Cmd mode	
 	elif cmdstr==u'cmd': 
@@ -300,13 +300,13 @@ def timerJob():
 			timerConfig['cmd_run'] = True
 			schedRPi.reschedule_job(job_id="RESTJob", trigger='interval', seconds=timerConfig['interval_sec'][1])
 			logging.debug("TBCmd fast mode enabled.")
-			restUpdate("TBCmd activated")
+			timerConfig['status'] = "TBCmd activated"
 
 		elif cmdval==0 and timerConfig['cmd_run']:
 			timerConfig['cmd_run'] = False
 			schedRPi.reschedule_job(job_id="RESTob", trigger='interval', seconds=timerConfig['interval_sec'][0])
 			logging.debug("TBCmd fast mode disabled.")
-			restUpdate("TBCmd standby")
+			timerConfig['status'] = "TBCmd standby"
 
 	
 	# These commands are active only in cmd mode
@@ -340,8 +340,12 @@ def timerJob():
 	for st in [status_message1, status_message2, status_message3, status_message4]:
 		if st is not None:
 			messages.append(st) 
-	if not messages==[]:
-		status_message = '/'.join(messages)
+	try:
+		if not messages==[]:
+			status_message = '||'.join(messages)
+	except:
+		print(messages)
+		raise
 				
 	### Update REST feed	
 	if RESTfeed is not None:					

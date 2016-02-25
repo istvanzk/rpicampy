@@ -84,48 +84,6 @@ TSPK_FILE   = 'tspk_keys.txt'
 TSPKFEEDUSE = True
 TSPKTBUSE   = True
 
-
-### Set up the logging
-class NoRunningFilter(logging.Filter):
-    
-    def __init__(self, filter_str=""):
-    	logging.Filter.__init__(self, filter_str)
-    	self.filterstr = filter_str
-    
-    def filter(self, rec):
-    	#print(rec.msg)
-    	#print(rec.args)
-    	#msg = rec.msg % rec.args
-    	if self.filterstr in rec.getMessage():
-    		return False
-    	else:
-    		return True
-
-# logging.config.fileConfig('logging.conf')
-    		
-# logging.basicConfig(filename='rpicam.log', filemode='w',
-# 					level=logging.INFO,
-#                     format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
-#                     )
-
-myLogger = logging.getLogger()
-myLogger.setLevel(logging.INFO)
-
-filter = NoRunningFilter('Job_Cmd')
-#myLogger.addFilter(filter)
-
-#rootLogger = logging.getLogger()
-#logging.getLogger().addFilter(NoRunningFilter('Running'))
-#rootLogger.setLevel(logging.INFO)
-
-#hndl = logging.FileHandler(filename='rpicam.log', mode='w')
-hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
-hndl.setLevel(logging.INFO)
-hndl.setFormatter(formatter)
-hndl.addFilter(filter)
-myLogger.addHandler(hndl)
-
 ### Python version
 PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] == 4)
 
@@ -133,6 +91,45 @@ PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] == 4)
 CAMID = 'CAM1'
 if subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8').find('pi2') > 0:
 	CAMID = 'CAM2'
+
+
+### Set up the logging and a filter
+LOGLEVEL = logging.INFO
+
+class NoRunningFilter(logging.Filter):
+    
+    def __init__(self, filter_str=""):
+    	logging.Filter.__init__(self, filter_str)
+    	self.filterstr = filter_str
+    
+    def filter(self, rec):
+    	if self.filterstr in rec.getMessage():
+    		return False
+    	else:
+    		return True
+
+### Does not work with logger/handler filter!
+# logging.basicConfig(filename='rpicam.log', filemode='w',
+# 					level=logging.INFO,
+#                     format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
+#                     )
+
+myLogger = logging.getLogger()
+myLogger.setLevel(logging.DEBUG)
+
+#hndl = logging.FileHandler(filename='rpicam.log', mode='w')
+hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
+hndl.setLevel(LOGLEVEL)
+hndl.setFormatter(formatter)
+
+# Filter out all messages which are not from the main Jobs
+filter = NoRunningFilter('Job_Cmd')
+hndl.addFilter(filter)
+
+#myLogger.addFilter(filter)
+myLogger.addHandler(hndl)
+
 
 ### Read the parameters
 try:
@@ -157,11 +154,10 @@ except yaml.YAMLError as e:
 	logging.error("Error in configuration file:" % e)
 	os._exit()
 	
-finally:			
-	logging.debug("timerConfig: %s" % timerConfig)
-	logging.debug("camConfig: %s" % camConfig)
-	logging.debug("dirConfig: %s" % dirConfig)
-	logging.debug("dbxConfig: %s" % dbxConfig)
+logging.debug("timerConfig: %s" % timerConfig)
+logging.debug("camConfig: %s" % camConfig)
+logging.debug("dirConfig: %s" % dirConfig)
+logging.debug("dbxConfig: %s" % dbxConfig)
 
 ### ThingSpeak feed
 if TSPKFEEDUSE:
@@ -190,17 +186,7 @@ else:
 ###	
 ### Methods
 ###
-def restUpdate(status_str=None, stream_value=None):
-	"""
-	REST API wrapper method to update feed/status value.
-	The actual REST call is performed in restPost()! 			
-	"""
-	if RESTfeed is not None:
-		if status_str is not None: 
-			RESTfeed.setfield('status',status_str)
-		if stream_value is not None:
-			RESTfeed.setfield('field1', stream_value)	
-								
+
 def jobListener(event):
 	"""
 	The Job(Execution) Event listener for the APscheduler jobs.

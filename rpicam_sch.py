@@ -119,8 +119,8 @@ formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %
 #hndl.setLevel(logging.INFO)
 hndl.setFormatter(formatter)
 
-#filter = NoRunningFilter('Running')
-hndl.addFilter(filter)
+filter = NoRunningFilter('Running')
+#hndl.addFilter(filter)
 
 rootLogger.addHandler(hndl)
 

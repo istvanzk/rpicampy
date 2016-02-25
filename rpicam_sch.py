@@ -108,6 +108,7 @@ class NoRunningFilter(logging.Filter):
 #                     )
 
 myLogger = logging.getLogger()
+myLogger.setLevel(logging.INFO)
 
 #filter = NoRunningFilter('CAMJob')
 #myLogger.addFilter(filter)

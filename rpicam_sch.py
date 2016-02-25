@@ -122,7 +122,7 @@ hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', max
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
 hndl.setLevel(logging.INFO)
 hndl.setFormatter(formatter)
-#hndl.addFilter(filter)
+hndl.addFilter(filter)
 myLogger.addHandler(hndl)
 
 ### Python version

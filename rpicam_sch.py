@@ -97,7 +97,7 @@ class NoRunningFilter(logging.Filter):
     	if record.getMessage().find(self.filterstr) > 0:
     		return False
     	else:
-    		return False
+    		return True
 
 # logging.config.fileConfig('logging.conf')
     		
@@ -119,7 +119,7 @@ formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %
 #hndl.setLevel(logging.INFO)
 hndl.setFormatter(formatter)
 
-filter = NoRunningFilter('Running')
+#filter = NoRunningFilter('Running')
 hndl.addFilter(filter)
 
 rootLogger.addHandler(hndl)

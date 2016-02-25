@@ -112,10 +112,9 @@ filter = NoRunningFilter('Running')
 hndl.setFormatter(formatter)
 hndl.setLevel(logging.INFO)
 hndl.addFilter(filter)
-rootLogger = logging.getLogger(__name__)
+rootLogger = logging.getLogger()
 rootLogger.addHandler(hndl)
-
-#rootLogger.setLevel(logging.INFO)
+rootLogger.setLevel(logging.INFO)
 
 ### Python version
 PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] == 4)

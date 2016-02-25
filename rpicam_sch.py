@@ -121,6 +121,7 @@ hndl.setFormatter(formatter)
 
 filter = NoRunningFilter('Running')
 #hndl.addFilter(filter)
+rootLogger.addFilter(filter)
 
 rootLogger.addHandler(hndl)
 

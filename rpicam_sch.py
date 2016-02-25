@@ -101,13 +101,13 @@ class NoRunningFilter(logging.Filter):
 
 # logging.config.fileConfig('logging.conf')
     		
-# logging.basicConfig(filename='rpicam.log', filemode='w',
-# 					level=logging.INFO,
-#                     format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
-#                     )
+logging.basicConfig(filename='rpicam.log', filemode='w',
+					level=logging.INFO,
+                    format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
+                    )
 
 #rootLogger = logging.getLogger()
-logging.getLogger("aspcheduler.schedulers").addFilter(NoRunningFilter('Running'))
+logging.getLogger().addFilter(NoRunningFilter('Running'))
 #rootLogger.setLevel(logging.INFO)
 
 #hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)

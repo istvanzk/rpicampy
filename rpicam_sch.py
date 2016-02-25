@@ -105,7 +105,7 @@ class NoRunningFilter(logging.Filter):
 # logging.config.fileConfig('logging.conf')
 
 #hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)
-hndl = logging.handlers.FileHandler(filename='rpicam.log', mode='w')
+hndl = logging.FileHandler(filename='rpicam.log', mode='w')
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
 filter = NoRunningFilter('Running')
 hndl.setFormatter(formatter)

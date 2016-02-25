@@ -93,8 +93,8 @@ class NoRunningFilter(logging.Filter):
     	self.filterstr = filter_str
     
     def filter(self, record):
-    	print(record.message)
-    	if record.message.find(self.filterstr) > 0:
+    	print(record.getMessage())
+    	if record.getMessage().find(self.filterstr) > 0:
     		return False
     	else:
     		return True
@@ -119,8 +119,8 @@ formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %
 #hndl.setLevel(logging.INFO)
 hndl.setFormatter(formatter)
 
-#filter = NoRunningFilter('Running')
-#hndl.addFilter(filter)
+filter = NoRunningFilter('Running')
+hndl.addFilter(filter)
 
 rootLogger.addHandler(hndl)
 

@@ -330,7 +330,7 @@ def timerJob():
 
 	### Collect and combine the status messages
 	# status_message too long?
-	status_message1 = timerConfig['status']
+	status_message1 = timerConfig['status'] #has to be changed to use a deque
 	status_message2, message_value2 = imgCam.statusUpdate
 	status_message3, message_value3 = imgDir.statusUpdate
 	status_message4, message_value4 = imgDbx.statusUpdate
@@ -340,12 +340,8 @@ def timerJob():
 	for st in [status_message1, status_message2, status_message3, status_message4]:
 		if st is not None:
 			messages.append(st) 
-	try:
-		if not messages==[]:
-			status_message = '||'.join(messages)
-	except:
-		print(messages)
-		raise
+	if not messages==[]:
+		status_message = '||'.join(messages)
 				
 	### Update REST feed	
 	if RESTfeed is not None:					

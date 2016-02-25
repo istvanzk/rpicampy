@@ -107,7 +107,7 @@ class NoRunningFilter(logging.Filter):
 #                     format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
 #                     )
 
-myLogger = logging.getLogger(__name__)
+myLogger = logging.getLogger()
 
 #filter = NoRunningFilter('CAMJob')
 #myLogger.addFilter(filter)
@@ -116,8 +116,8 @@ myLogger = logging.getLogger(__name__)
 #logging.getLogger().addFilter(NoRunningFilter('Running'))
 #rootLogger.setLevel(logging.INFO)
 
-hndl = logging.FileHandler(filename='rpicam.log', mode='w')
-#hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)
+#hndl = logging.FileHandler(filename='rpicam.log', mode='w')
+hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
 hndl.setLevel(logging.INFO)
 hndl.setFormatter(formatter)

@@ -91,7 +91,7 @@ class rpiCamClass(rpiBaseClass):
 		super().__init__(name, rpi_apscheduler, rpi_events)
 	
 	def __repr__(self):
-		return super().__str__()
+		return "<%s (name=%s, rpi_apscheduler=%s, rpi_events=dict(), rpi_config=%s, dbuff_rpififo=%s)>" % (self.__class__.__name__, self.name, self._sched, self._config, self.imageFIFO)
 												
 	def __str__(self):
 		msg = super().__str__()

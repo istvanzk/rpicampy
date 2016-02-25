@@ -75,7 +75,7 @@ class rpiEventsClass:
 			self.stateValList[id]      = 0
 
 	def __repr__(self):
-		return "%s(event_ids)" % self.name
+		return "<%s (event_ids=%s)>" % (self.__class__.__name__, self.event_ids)
 		
 	def __str__(self):
 		ret_str = "Events: "

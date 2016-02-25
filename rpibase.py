@@ -117,7 +117,7 @@ class rpiBaseClass:
 		self._initclass()
 
 	def __repr__(self):
-		return "<%s (name=%s, rpi_apscheduler=APScheduler(), rpi_events=dict())>" % (self.__class__.__name__, self.name)
+		return "<%s (name=%s, rpi_apscheduler=%s, rpi_events=dict())>" % (self.__class__.__name__, self._sched, self.name)
 												
 	def __str__(self):
 		return "%s::: tstart_per:%s, tstop_per:%s, interval_sec=%d, eventErrcount: %d, eventErrtime: %s, eventErrdelay: %s, state: %s, stateVal: %d, cmds: %s, statusmsg: %s" % \

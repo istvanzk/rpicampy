@@ -93,10 +93,10 @@ class NoRunningFilter(logging.Filter):
     	self.filterstr = filter_str
     
     def filter(self, rec):
-    	print(rec.msg)
-    	print(rec.args)
-    	msg = rec.msg % rec.args
-    	if msg.find(self.filterstr) > 0:
+    	#print(rec.msg)
+    	#print(rec.args)
+    	#msg = rec.msg % rec.args
+    	if rec.msg.find(self.filterstr) > 0:
     		return False
     	else:
     		return True

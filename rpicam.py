@@ -91,7 +91,7 @@ class rpiCamClass(rpiBaseClass):
 		super().__init__(name, rpi_apscheduler, rpi_events)
 	
 	def __repr__(self):
-		msg = super().__str__()
+		return super().__str__()
 												
 	def __str__(self):
 		msg = super().__str__()

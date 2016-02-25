@@ -73,7 +73,10 @@ class rpiEventsClass:
 			self.eventErrcountList[id] = 0 
 			self.eventRuncountList[id] = 0 
 			self.stateValList[id]      = 0
-	
+
+	def __repr__(self):
+		return "%s(event_ids)" % self.name
+		
 	def __str__(self):
 		ret_str = "Events: "
 		for id in self.event_ids:

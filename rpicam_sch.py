@@ -88,42 +88,40 @@ TSPKTBUSE   = True
 ### Set up the logging
 class NoRunningFilter(logging.Filter):
     
-    def __init__(self, filter_str):
-    	logging.Filter.__init__(self)
+    def __init__(self, filter_str=""):
+    	logging.Filter.__init__(self, filter_str)
     	self.filterstr = filter_str
     
-    def filter(self, record):
-    	print(record.getMessage())
-    	if record.getMessage().find(self.filterstr) > 0:
+    def filter(self, rec):
+    	msg = rec.msg % rec.args
+    	print(msg)
+    	if msg.find(self.filterstr) > 0:
     		return False
     	else:
     		return True
 
 # logging.config.fileConfig('logging.conf')
     		
-logging.basicConfig(filename='rpicam.log', filemode='w',
-					level=logging.INFO,
-                    format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
-                    )
+# logging.basicConfig(filename='rpicam.log', filemode='w',
+# 					level=logging.INFO,
+#                     format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
+#                     )
 
 myLogger = logging.getLogger(__name__)
 
-#filter = NoRunningFilter('Running')
+filter = NoRunningFilter('CAMJob')
 #myLogger.addFilter(filter)
 
 #rootLogger = logging.getLogger()
 #logging.getLogger().addFilter(NoRunningFilter('Running'))
 #rootLogger.setLevel(logging.INFO)
 
-#hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)
-#hndl = logging.FileHandler(filename='rpicam.log', mode='w')
-#formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
-#hndl.setLevel(logging.INFO)
-#hndl.setFormatter(formatter)
-
-#hndl.addFilter(filter)
-
-#rootLogger.addHandler(hndl)
+hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
+hndl.setLevel(logging.INFO)
+hndl.setFormatter(formatter)
+hndl.addFilter(filter)
+myLogger.addHandler(hndl)
 
 ### Python version
 PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] == 4)

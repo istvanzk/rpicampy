@@ -97,14 +97,13 @@ class NoRunningFilter(logging.Filter):
     		return False
     	else:
     		return True
+
+# logging.config.fileConfig('logging.conf')
     		
 #logging.basicConfig(filename='rpicam.log', filemode='w',
 #					level=logging.INFO,
 #                    format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
 #                    )
-# logging.config.fileConfig('logging.conf')
-
-logging.basicConfig()
 
 #hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)
 hndl = logging.FileHandler(filename='rpicam.log', mode='w')
@@ -113,7 +112,7 @@ filter = NoRunningFilter('Running')
 hndl.setFormatter(formatter)
 hndl.setLevel(logging.INFO)
 hndl.addFilter(filter)
-rootLogger = logging.getLogger()
+rootLogger = logging.getLogger(__name__)
 rootLogger.addHandler(hndl)
 
 #rootLogger.setLevel(logging.INFO)

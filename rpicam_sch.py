@@ -97,7 +97,7 @@ class NoRunningFilter(logging.Filter):
     	if record.getMessage().find(self.filterstr) > 0:
     		return False
     	else:
-    		return True
+    		return False
 
 # logging.config.fileConfig('logging.conf')
     		

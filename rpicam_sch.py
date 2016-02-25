@@ -109,7 +109,7 @@ class NoRunningFilter(logging.Filter):
 
 myLogger = logging.getLogger(__name__)
 
-filter = NoRunningFilter('CAMJob')
+#filter = NoRunningFilter('CAMJob')
 #myLogger.addFilter(filter)
 
 #rootLogger = logging.getLogger()

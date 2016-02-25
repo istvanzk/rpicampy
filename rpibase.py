@@ -52,7 +52,7 @@ class NoRunningFilter(logging.Filter):
     #	self.filterstr = filter_str
     
     def filter(self, record):
-    	if record.msg.find("CAMJob_Cmd11") > 0:
+    	if record.message.find("CAMJob_Cmd11") > 0:
     		return False
     	else:
     		return True

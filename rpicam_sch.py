@@ -107,7 +107,7 @@ logging.basicConfig(filename='rpicam.log', filemode='w',
                     )
 
 rootLogger = logging.getLogger()
-logging.getLogger().addFilter(NoRunningFilter('Running'))
+#logging.getLogger().addFilter(NoRunningFilter('Running'))
 #rootLogger.setLevel(logging.INFO)
 
 #hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)
@@ -525,7 +525,6 @@ def main():
 
 
 				except (KeyboardInterrupt, SystemExit):
-					hndl.close()
 					pass
 
 				except RuntimeError as e:

@@ -85,10 +85,34 @@ TSPKTBUSE   = True
 
 
 ### Set up the logging
-logging.basicConfig(filename='rpicam.log', filemode='w',
-					level=logging.INFO,
-                    format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
-                    )
+class NoRunningFilter(logging.Filter):
+    
+    def __init__(self, filter_str):
+    	self.filterstr = filter_str
+    
+    def filter(self, record):
+    	print(record.getMessage())
+    	if record.getMessage().find(self.filterstr) > 0:
+    		return False
+    	else:
+    		return True
+    		
+#logging.basicConfig(filename='rpicam.log', filemode='w',
+#					level=logging.INFO,
+#                    format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
+#                    )
+# logging.config.fileConfig('logging.conf')
+
+hndl = logging.RotatingFileHandler(filename='rpicam.log', filemode='w', maxBytes=102400, backupCount=5)
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
+filter = NoRunningFilter('Running')
+hndl.setFormatter(formatter)
+hndl.setLevel(logging.INFO)
+hndl.addFilter(filter)
+rootLogger = logging.getLogger()
+rootLogger.addHandler(hndl)
+
+#rootLogger.setLevel(logging.INFO)
 
 ### Python version
 PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] == 4)

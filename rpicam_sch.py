@@ -522,6 +522,7 @@ def main():
 
 
 				except (KeyboardInterrupt, SystemExit):
+					hndl.close()
 					pass
 
 				except RuntimeError as e:

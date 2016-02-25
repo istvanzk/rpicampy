@@ -93,18 +93,18 @@ class NoRunningFilter(logging.Filter):
     	self.filterstr = filter_str
     
     def filter(self, record):
-    	print(record.getMessage())
-    	if record.getMessage().find(self.filterstr) > 0:
+    	print(record.msg)
+    	if record.msg.find(self.filterstr) > 0:
     		return False
     	else:
     		return True
 
 # logging.config.fileConfig('logging.conf')
     		
-logging.basicConfig(filename='rpicam.log', filemode='w',
-					level=logging.INFO,
-                    format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
-                    )
+# logging.basicConfig(filename='rpicam.log', filemode='w',
+# 					level=logging.INFO,
+#                     format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
+#                     )
 
 #rootLogger = logging.getLogger()
 logging.getLogger("aspcheduler.schedulers").addFilter(NoRunningFilter('Running'))

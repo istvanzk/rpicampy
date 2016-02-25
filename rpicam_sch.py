@@ -94,7 +94,7 @@ if subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8')
 
 
 ### Set up the logging and a filter
-LOGLEVEL = logging.INFO
+LOGLEVEL = logging.DEBUG
 
 class NoRunningFilter(logging.Filter):
     
@@ -114,8 +114,8 @@ class NoRunningFilter(logging.Filter):
 #                     format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
 #                     )
 
-myLogger = logging.getLogger()
-myLogger.setLevel(logging.DEBUG)
+rpiLogger = logging.getLogger()
+rpiLogger.setLevel(logging.DEBUG)
 
 #hndl = logging.FileHandler(filename='rpicam.log', mode='w')
 hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=102400, backupCount=5)
@@ -127,8 +127,8 @@ hndl.setFormatter(formatter)
 filter = NoRunningFilter('Job_Cmd')
 hndl.addFilter(filter)
 
-#myLogger.addFilter(filter)
-myLogger.addHandler(hndl)
+#rpiLogger.addFilter(filter)
+rpiLogger.addHandler(hndl)
 
 
 ### Read the parameters
@@ -148,21 +148,21 @@ try:
 	timerConfig['stateval']= 0
 	timerConfig['status']  = ''
 
-	myLogger.info("Configuration file read.")
+	rpiLogger.info("===== Configuration file read. =====")
 				
 except yaml.YAMLError as e:
-	logging.error("Error in configuration file:" % e)
+	rpiLogger.error("Error in configuration file:" % e)
 	os._exit()
 	
-logging.debug("timerConfig: %s" % timerConfig)
-logging.debug("camConfig: %s" % camConfig)
-logging.debug("dirConfig: %s" % dirConfig)
-logging.debug("dbxConfig: %s" % dbxConfig)
+rpiLogger.debug("timerConfig: %s" % timerConfig)
+rpiLogger.debug("camConfig: %s" % camConfig)
+rpiLogger.debug("dirConfig: %s" % dirConfig)
+rpiLogger.debug("dbxConfig: %s" % dbxConfig)
 
 ### ThingSpeak feed
 if TSPKFEEDUSE:
 	RESTfeed = thingspk.ThingSpeakAPIClient(TSPK_FILE)
-	myLogger.info("ThingSpeak Channel ID %d initialized" % RESTfeed.channel_id)
+	rpiLogger.info("ThingSpeak Channel ID %d initialized" % RESTfeed.channel_id)
 else:
 	RESTfeed = None
 
@@ -176,7 +176,7 @@ if TSPKFEEDUSE and (RESTfeed is not None):
 ### ThingSpeak TalkBack 
 if TSPKTBUSE:
 	RESTTalkB = thingspk.ThingSpeakTBClient(TSPK_FILE)
-	myLogger.info("ThingSpeak TalkBack ID %d initialized" % RESTTalkB.talkback_id)
+	rpiLogger.info("ThingSpeak TalkBack ID %d initialized" % RESTTalkB.talkback_id)
 else:
 	RESTTalkB = None
 	
@@ -222,7 +222,7 @@ def jobListener(event):
 		eventsRPi.eventErrcountList[e_jobid] += 1 
 		eventsRPi.eventRuncountList[e_jobid] += 1
 				
-		logging.error("%s: The job crashed %d times (%s)!" % (e_jobid, eventsRPi.eventErrcountList[e_jobid], time.ctime(eventsRPi.eventErrtimeList[e_jobid])))
+		rpiLogger.error("%s: The job crashed %d times (%s)!" % (e_jobid, eventsRPi.eventErrcountList[e_jobid], time.ctime(eventsRPi.eventErrtimeList[e_jobid])))
 		status_str = "%s: Crash %d" % (e_jobid, eventsRPi.eventErrcountList[e_jobid])
 	
 	elif e_code == EVENT_JOB_EXECUTED:
@@ -239,15 +239,15 @@ def jobListener(event):
 			for jb in sch_jobs:
 				if not (jb.id == e_jobid):
 					if not jb.pending:
-						logging.debug("%s (%s): %s" % (jb.id, jb.name, jb.next_run_time))
+						rpiLogger.debug("%s (%s): %s" % (jb.id, jb.name, jb.next_run_time))
 						status_str = "%s: Add (%d)" % (jb.name, len(sch_jobs))
 					else:
-						logging.debug("%s (%s): waiting to be added" % (jb.id, jb.name))
+						rpiLogger.debug("%s (%s): waiting to be added" % (jb.id, jb.name))
 						status_str = "%s: Pen (%d)" % (jb.name, len(sch_jobs))
 						
 	elif e_code == EVENT_JOB_REMOVED:	
 		if len(sch_jobs) == 1:
-			myLogger.info("All rpi jobs have been removed!")
+			rpiLogger.info("All rpi jobs have been removed!")
 			eventsRPi.eventAllJobsEnd.set()
 			status_str = "NoRPIJobs"
 			
@@ -294,7 +294,7 @@ def timerJob():
 		RESTTalkB.talkback.execcmd()
 		res = RESTTalkB.talkback.response
 		if res:
-			logging.debug("TB response: %s" % RESTTalkB.talkback.response)
+			rpiLogger.debug("TB response: %s" % RESTTalkB.talkback.response)
 			cmdrx = res.get('command_string')
 
 			# Get cmd string and value
@@ -308,12 +308,12 @@ def timerJob():
 	if cmdstr==u'sch': 
 		if cmdval==1 and not timerConfig['enabled']:
 			timerConfig['enabled'] = True
-			logging.debug("JobSch enabled.")
+			rpiLogger.debug("JobSch enabled.")
 			timerConfig['status'] = "JobSch enabled"
 
 		elif cmdval==0 and timerConfig['enabled']:
 			timerConfig['enabled'] = False
-			logging.debug("JobSch disabled.")
+			rpiLogger.debug("JobSch disabled.")
 			timerConfig['status'] = "JobSch disabled"
 
 	# Cmd mode	
@@ -321,13 +321,13 @@ def timerJob():
 		if cmdval==1 and not timerConfig['cmd_run']:
 			timerConfig['cmd_run'] = True
 			schedRPi.reschedule_job(job_id="RESTJob", trigger='interval', seconds=timerConfig['interval_sec'][1])
-			logging.debug("TBCmd fast mode enabled.")
+			rpiLogger.debug("TBCmd fast mode enabled.")
 			timerConfig['status'] = "TBCmd activated"
 
 		elif cmdval==0 and timerConfig['cmd_run']:
 			timerConfig['cmd_run'] = False
 			schedRPi.reschedule_job(job_id="RESTob", trigger='interval', seconds=timerConfig['interval_sec'][0])
-			logging.debug("TBCmd fast mode disabled.")
+			rpiLogger.debug("TBCmd fast mode disabled.")
 			timerConfig['status'] = "TBCmd standby"
 
 	
@@ -395,17 +395,17 @@ schedRPi.add_listener(jobListener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_
 		
 ### The events
 eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob', 'TIMERJob'])
-myLogger.info(eventsRPi)
+rpiLogger.info(eventsRPi)
 
 ### Instantiate the job classes	
 imgCam = rpicam.rpiCamClass("CAMJob", schedRPi, eventsRPi, camConfig) 
-myLogger.info(imgCam)
+rpiLogger.info(imgCam)
 
 imgDir = rpimgdir.rpiImageDirClass("DIRJob", schedRPi, eventsRPi, dirConfig, imgCam.imageFIFO)
-myLogger.info(imgDir)
+rpiLogger.info(imgDir)
 
 imgDbx = rpimgdb.rpiImageDbxClass("DBXJob", schedRPi, eventsRPi, dbxConfig, imgCam.imageFIFO)
-myLogger.info(imgDbx)
+rpiLogger.info(imgDbx)
 
 
 ### Main 		
@@ -423,7 +423,7 @@ def main():
 	tnow = datetime.now()
 	if tnow >= tstop_all:
 		logging.warning("Current time (%s) is after the end of schedRPiuler activity period (%s)!" % (tnow, tstop_all))
-		myLogger.info("Scheduler was not started! Bye!")
+		rpiLogger.info("Scheduler was not started! Bye!")
 		print("Scheduler was not started! Bye!")
 		
 		# Update status 
@@ -437,10 +437,10 @@ def main():
 	schedRPi.add_job(timerJob, 'interval', id="TIMERJob", seconds=timerConfig['interval_sec'][0], misfire_grace_time=10, name='TIMER' )
 			
 	### Start background scheduler
-	logging.debug("Scheduler started on: %s" % (time.ctime(time.time())))
+	rpiLogger.debug("Scheduler started on: %s" % (time.ctime(time.time())))
 	schedRPi.start()
 
-	myLogger.info("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
+	rpiLogger.info("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
 	print("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
 
 	# Update status 
@@ -469,7 +469,7 @@ def main():
 			for tper in range(len(timerConfig['start_hour'])):
 				if (60*tcrt.hour + tcrt.minute) >= (60*timerConfig['stop_hour'][tper] + timerConfig['stop_min'][tper]): 
 					bValidDayPer[tper] = False	
-					myLogger.info("The daily period %02d:%02d - %02d:%02d was skipped." % (timerConfig['start_hour'][tper], timerConfig['start_min'][tper], timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper]))
+					rpiLogger.info("The daily period %02d:%02d - %02d:%02d was skipped." % (timerConfig['start_hour'][tper], timerConfig['start_min'][tper], timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper]))
 			
 		# The schedRPiuling period: every day in the given time periods
 		while tcrt < tstop_all:
@@ -522,12 +522,12 @@ def main():
 
 				except RuntimeError as e:
 					eventsRPi.eventEnd.set()
-					logging.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
+					rpiLogger.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
 					raise
 
 				except:
 					eventsRPi.eventEnd.set()
-					logging.error("Exception: %s! Exiting!" %  str(sys.exc_info()), exc_info=True)
+					rpiLogger.error("Exception: %s! Exiting!" %  str(sys.exc_info()), exc_info=True)
 					raise
 
 				finally:
@@ -560,12 +560,12 @@ def main():
 			MainRun = False
 			
 		else:
-			myLogger.info("Job schedRPiules were ended. Enter waiting loop.")
+			rpiLogger.info("Job schedRPiules were ended. Enter waiting loop.")
 
 	# End schedRPiuler	
 	timerConfig['enabled'] = False	
 	schedRPi.shutdown(wait=True)
-	logging.debug("Scheduler stop on: %s" % time.ctime(time.time()))
+	rpiLogger.debug("Scheduler stop on: %s" % time.ctime(time.time()))
 
 	# Update REST feed (now) 
 	timerConfig['status'] = 'SchStop'

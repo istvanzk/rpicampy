@@ -106,6 +106,9 @@ class NoRunningFilter(logging.Filter):
 #                     format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
 #                     )
 
+
+myLogger = logging.getLogger(__name__)
+
 rootLogger = logging.getLogger()
 #logging.getLogger().addFilter(NoRunningFilter('Running'))
 rootLogger.setLevel(logging.INFO)
@@ -145,7 +148,7 @@ try:
 	timerConfig['stateval']= 0
 	timerConfig['status']  = ''
 
-	logging.info("Configuration file read.")
+	myLogger.info("Configuration file read.")
 				
 except yaml.YAMLError as e:
 	logging.error("Error in configuration file:" % e)
@@ -160,7 +163,7 @@ finally:
 ### ThingSpeak feed
 if TSPKFEEDUSE:
 	RESTfeed = thingspk.ThingSpeakAPIClient(TSPK_FILE)
-	logging.info("ThingSpeak Channel ID %d initialized" % RESTfeed.channel_id)
+	myLogger.info("ThingSpeak Channel ID %d initialized" % RESTfeed.channel_id)
 else:
 	RESTfeed = None
 
@@ -174,7 +177,7 @@ if TSPKFEEDUSE and (RESTfeed is not None):
 ### ThingSpeak TalkBack 
 if TSPKTBUSE:
 	RESTTalkB = thingspk.ThingSpeakTBClient(TSPK_FILE)
-	logging.info("ThingSpeak TalkBack ID %d initialized" % RESTTalkB.talkback_id)
+	myLogger.info("ThingSpeak TalkBack ID %d initialized" % RESTTalkB.talkback_id)
 else:
 	RESTTalkB = None
 	
@@ -255,7 +258,7 @@ def jobListener(event):
 						
 	elif e_code == EVENT_JOB_REMOVED:	
 		if len(sch_jobs) == 1:
-			logging.info("All rpi jobs have been removed!")
+			myLogger.info("All rpi jobs have been removed!")
 			eventsRPi.eventAllJobsEnd.set()
 			status_str = "NoRPIJobs"
 			
@@ -403,17 +406,17 @@ schedRPi.add_listener(jobListener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_
 		
 ### The events
 eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob', 'TIMERJob'])
-logging.info(eventsRPi)
+myLogger.info(eventsRPi)
 
 ### Instantiate the job classes	
 imgCam = rpicam.rpiCamClass("CAMJob", schedRPi, eventsRPi, camConfig) 
-logging.info(imgCam)
+myLogger.info(imgCam)
 
 imgDir = rpimgdir.rpiImageDirClass("DIRJob", schedRPi, eventsRPi, dirConfig, imgCam.imageFIFO)
-logging.info(imgDir)
+myLogger.info(imgDir)
 
 imgDbx = rpimgdb.rpiImageDbxClass("DBXJob", schedRPi, eventsRPi, dbxConfig, imgCam.imageFIFO)
-logging.info(imgDbx)
+myLogger.info(imgDbx)
 
 
 ### Main 		
@@ -431,7 +434,7 @@ def main():
 	tnow = datetime.now()
 	if tnow >= tstop_all:
 		logging.warning("Current time (%s) is after the end of schedRPiuler activity period (%s)!" % (tnow, tstop_all))
-		logging.info("Scheduler was not started! Bye!")
+		myLogger.info("Scheduler was not started! Bye!")
 		print("Scheduler was not started! Bye!")
 		
 		# Update status 
@@ -448,7 +451,7 @@ def main():
 	logging.debug("Scheduler started on: %s" % (time.ctime(time.time())))
 	schedRPi.start()
 
-	logging.info("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
+	myLogger.info("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
 	print("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
 
 	# Update status 
@@ -477,7 +480,7 @@ def main():
 			for tper in range(len(timerConfig['start_hour'])):
 				if (60*tcrt.hour + tcrt.minute) >= (60*timerConfig['stop_hour'][tper] + timerConfig['stop_min'][tper]): 
 					bValidDayPer[tper] = False	
-					logging.info("The daily period %02d:%02d - %02d:%02d was skipped." % (timerConfig['start_hour'][tper], timerConfig['start_min'][tper], timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper]))
+					myLogger.info("The daily period %02d:%02d - %02d:%02d was skipped." % (timerConfig['start_hour'][tper], timerConfig['start_min'][tper], timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper]))
 			
 		# The schedRPiuling period: every day in the given time periods
 		while tcrt < tstop_all:
@@ -568,7 +571,7 @@ def main():
 			MainRun = False
 			
 		else:
-			logging.info("Job schedRPiules were ended. Enter waiting loop.")
+			myLogger.info("Job schedRPiules were ended. Enter waiting loop.")
 
 	# End schedRPiuler	
 	timerConfig['enabled'] = False	

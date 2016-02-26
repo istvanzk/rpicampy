@@ -120,7 +120,7 @@ class rpiBaseClass:
 		return "<%s (name=%s, rpi_apscheduler=%s, rpi_events=dict())>" % (self.__class__.__name__, self._sched, self.name)
 												
 	def __str__(self):
-		return "%s::: tstart_per:%s, tstop_per:%s, interval_sec=%d, eventErrcount: %d, eventErrtime: %s, eventErrdelay: %s, state: %s, stateVal: %d, cmds: %s, statusmsg: %s" % \
+		return "%s::: Cmd(tstart_per:%s, tstop_per:%s, interval_sec=%d), eventErr(count: %d, time: %s, delay: %s), state: %s, stateVal: %d, cmds: %s, statusmsg: %s" % \
 			(self.name, self._dtstart, self._dtstop, self._interval_sec, self._eventErrcount, time.ctime(self._eventErrtime), self._eventErrdelay, self._state, self._stateVal, self._cmds, self._statusmsg)
 		
 	def __del__(self):
@@ -432,33 +432,40 @@ class rpiBaseClass:
 		
 	def _proccmd(self):
 		"""
+		Set the Stop state if the Job is not scheduled
 		Process and act upon received commands.
 		Check events self._eventEnd and self._eventdayEnd.
 		"""
 
+		# Set the Stop state if the Job is not scheduled
+		if self._sched is not None:	
+			if self._sched.get_job(self.name) is None:		
+				self._remove_run()
+		
+		# Process and act upon received commands.			
 		if self._cmds.empty():
 			logging.debug("%s::: Cmd queue is empty!" % self.name)
-			return
 			
-		(cmdstr,cmdval) = self._cmds.get()
+		else:	
+			(cmdstr,cmdval) = self._cmds.get()
 		
-		# Process the command
-		if cmdval==CMDRUN and self.setRun():
-			self._statusmsg.append(("%s run" % self.name, ERRNONE))
+			# Process the command
+			if cmdval==CMDRUN and self.setRun():
+				self._statusmsg.append(("%s run" % self.name, ERRNONE))
 
-		elif cmdval==CMDSTOP and self.setStop():
-			self._statusmsg.append(("%s stop" % self.name, ERRNONE))
+			elif cmdval==CMDSTOP and self.setStop():
+				self._statusmsg.append(("%s stop" % self.name, ERRNONE))
 
-		elif cmdval==CMDPAUSE and self.setPause():
-			self._statusmsg.append(("%s pause" % self.name, ERRNONE))
+			elif cmdval==CMDPAUSE and self.setPause():
+				self._statusmsg.append(("%s pause" % self.name, ERRNONE))
 
-		elif cmdval==CMDINIT and self.setInit():
-			self._statusmsg.append(("%s init" % self.name, ERRNONE))
+			elif cmdval==CMDINIT and self.setInit():
+				self._statusmsg.append(("%s init" % self.name, ERRNONE))
 
-		elif cmdval==CMDRESCH and self.setResch():
-			self._statusmsg.append(("%s init" % self.name, ERRNONE))
+			elif cmdval==CMDRESCH and self.setResch():
+				self._statusmsg.append(("%s init" % self.name, ERRNONE))
 		
-		self._cmds.task_done()
+			self._cmds.task_done()
 
 
 		# Check events				

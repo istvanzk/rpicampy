@@ -76,13 +76,22 @@ import rpimgdb
 import rpievents
 import thingspk
 
-### DB API keys
+### Configuration file
+YAMLCFG_FILE = 'rpiconfig.yaml'
+
+### DB API token file
 DBTOKEN_FILE = 'token_key.txt'
 
 ### ThingSpeak API feed and TalkBack app
 TSPK_FILE   = 'tspk_keys.txt'
 TSPKFEEDUSE = True
 TSPKTBUSE   = True
+
+### Logging
+LOGLEVEL = logging.INFO
+LOGFILEBYTES = 102400
+
+
 
 ### Python version
 PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] == 4)
@@ -92,11 +101,7 @@ CAMID = 'CAM1'
 if subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8').find('pi2') > 0:
 	CAMID = 'CAM2'
 
-
 ### Set up the logging and a filter
-LOGLEVEL = logging.INFO
-LOGFILEBYTES = 102400
-
 class NoRunningFilter(logging.Filter):
     
     def __init__(self, filter_str=""):
@@ -131,11 +136,11 @@ hndl.addFilter(filter)
 #rpiLogger.addFilter(filter)
 rpiLogger.addHandler(hndl)
 
-rpiLogger.info("\n======== Start ========\n")
+rpiLogger.info("\n\n======== Start ========\n")
 
 ### Read the parameters
 try:
-	with open('rpiconfig.yaml', 'r') as stream:
+	with open(YAMLCFG_FILE, 'r') as stream:
 		timerConfig, camConfig, dirConfig, dbxConfig = yaml.load_all(stream)
 			
 	# Add config keys
@@ -150,7 +155,7 @@ try:
 	timerConfig['stateval']= 0
 	timerConfig['status']  = ''
 
-	rpiLogger.info("Configuration file read.")
+	rpiLogger.info("Configuration file read")
 				
 except yaml.YAMLError as e:
 	rpiLogger.error("Error in configuration file:" % e)
@@ -365,7 +370,7 @@ def timerJob():
 		if st is not None:
 			messages.append(st) 
 	if not messages==[]:
-		status_message = '||'.join(messages)
+		status_message = ' || '.join(messages)
 				
 	### Update REST feed	
 	if RESTfeed is not None:					
@@ -562,7 +567,7 @@ def main():
 			MainRun = False
 			
 		else:
-			rpiLogger.info("Job schedRPiules were ended. Enter waiting loop.")
+			rpiLogger.info("All job schedules were ended. Enter waiting loop.")
 
 	# End schedRPiuler	
 	timerConfig['enabled'] = False	

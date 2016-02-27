@@ -27,20 +27,23 @@ from threading import Event
 from collections import deque
 from threading import RLock
 
-__all__ = ('CMDRUN', 'CMDSTOP', 'CMDPAUSE', 'CMDINIT', 'CMDRESCH', 
+__all__ = ('CMDRUN', 'CMDSTOP', 'CMDPAUSE', 'CMDINIT', 'CMDRESCH', 'CMDEOD', 'CMDEND, 
 			'ERRCRIT', 'ERRLEV2', 'ERRLEV1', 'ERRLEV0', 'ERRNONE', 
 			'rpiBaseClassError', 'rpiBaseClass',
-			'addJob', 'queueCmd', 'setInit', 'setRun', 'setStop', 'setPause', 'setResch',
+			'initClass', 'jobRun', 'endDayOAM', 'endOAM',
+			'queueCmd', 'setInit', 'setRun', 'setStop', 'setPause', 'setResch', 'setEndDayOAM', 'setEndOAM',
 			'statusUpdate', 'errorDelay', 'timerPeriodIntv', 'errorTime', 'errorCount', 'errorDelay', 'stateValue')
 
-# Command and state values (remote job control)
+# Command and state values (remote job control, 4 bits)
 CMDRUN   = 3
 CMDSTOP  = 0
 CMDPAUSE = 1
 CMDINIT  = 2
 CMDRESCH = 4
+CMDEOD   = 5
+CMDEND   = 6
 
-# Error values (levels)
+# Error values (levels, 4 bits)
 ERRCRIT = 4 #Critical error, raise & exit
 ERRLEV2 = 3 #Non critical error, pass
 ERRLEV1 = 2 #Non critical error, pass

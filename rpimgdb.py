@@ -320,7 +320,7 @@ class rpiImageDbxClass(rpiBaseClass):
 		try:
 			self._dbx.files_create_folder('/' + os.path.normpath(path))
 
-			logging.info("%s::: Remote output folder /%s created." % (self.name, path))
+			logging.debug("%s::: Remote output folder /%s created." % (self.name, path))
 
 		except ApiError as e:
 			noerr = False

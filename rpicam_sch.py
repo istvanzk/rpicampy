@@ -278,11 +278,11 @@ def procStateVal():
 	eventsRPi.stateValList[imgDir.name] = imgDir.stateValue
 	eventsRPi.stateValList[imgDbx.name] = imgDbx.stateValue
 	
-	# The combined state (cmd and err) values for all jobs (6 bits each)
-	timerConfig['stateval'] = eventsRPi.stateValList[imgCam.name] + 64*eventsRPi.stateValList[imgDir.name] + 64*64*eventsRPi.stateValList[imgDbx.name]
+	# The combined state (cmd 4bits + err 4bits) values for all jobs
+	timerConfig['stateval'] = eventsRPi.stateValList[imgCam.name] + 256*eventsRPi.stateValList[imgDir.name] + 256*256*eventsRPi.stateValList[imgDbx.name]
 
 	# Add state value for the timer
-	#timerConfig['stateval'] += 64*64*64*0
+	#timerConfig['stateval'] += 256*256*256*0
 
 		
 def timerJob():
@@ -327,13 +327,13 @@ def timerJob():
 	elif cmdstr==u'cmd': 
 		if cmdval==1 and not timerConfig['cmd_run']:
 			timerConfig['cmd_run'] = True
-			schedRPi.reschedule_job(job_id="RESTJob", trigger='interval', seconds=timerConfig['interval_sec'][1])
+			schedRPi.reschedule_job(job_id="TIMERJob", trigger='interval', seconds=timerConfig['interval_sec'][1])
 			rpiLogger.debug("TBCmd fast mode enabled.")
 			timerConfig['status'] = "TBCmd activated"
 
 		elif cmdval==0 and timerConfig['cmd_run']:
 			timerConfig['cmd_run'] = False
-			schedRPi.reschedule_job(job_id="RESTob", trigger='interval', seconds=timerConfig['interval_sec'][0])
+			schedRPi.reschedule_job(job_id="TIMERJob", trigger='interval', seconds=timerConfig['interval_sec'][0])
 			rpiLogger.debug("TBCmd fast mode disabled.")
 			timerConfig['status'] = "TBCmd standby"
 
@@ -480,7 +480,12 @@ def main():
 			
 		# The schedRPiuling period: every day in the given time periods
 		while tcrt < tstop_all:
-
+		
+			# Initialize jobs (will run only after EoD, when not initialized already)
+			imgCam.setInit()
+			imgDir.setInit()
+			imgDbx.setInit()
+			
 			# Loop over the defined day periods	
 			for tper in range(len(timerConfig['start_hour'])):
 
@@ -550,8 +555,9 @@ def main():
 				bValidDayPer[tper] = True
 
 			# Perform the End-of-Day maintenance
-			#eventsRPi.eventDayEnd.set()
-			#restUpdate('EoD-OAM')
+			imgCam.setEndDayOAM()
+			imgDir.setEndDayOAM()
+			imgDbx.setEndDayOAM()
 		
 			# Go to next day only if timer is still enabled
 			if not timerConfig['enabled']:		
@@ -559,8 +565,9 @@ def main():
 			
 			
 		# Perform the End maintenance
-		#eventsRPi.eventEnd.set()
-		#restUpdate('End-OAM')
+		imgCam.setEndOAM()
+		imgDir.setEndOAM()
+		imgDbx.setEndOAM()
 
 		# Normal end of the schedRPiuling period (exit) or enter wait loop
 		if timerConfig['enabled']:

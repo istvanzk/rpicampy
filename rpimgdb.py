@@ -235,9 +235,6 @@ class rpiImageDbxClass(rpiBaseClass):
 		except IOError:
 			raise rpiBaseClassError("endDayOAM(): Local log file %s was not found." % self.logfile,  ERRCRIT)
 
-		self.eventDayEnd.clear()
-		logging.debug("%s::: Reset eventEndDay" % self.name)
-
 	
 #	def endOAM(self):
 #		"""

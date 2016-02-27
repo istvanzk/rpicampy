@@ -64,7 +64,7 @@ class rpiEventsClass:
 	def __str__(self):
 		ret_str = "Events: %s, " % self.eventAllJobsEnd.is_set()
 		for id in self.event_ids:
-			ret_str = ret_str + "%s:(%d,%d,%d), " % (id, self.eventErrList[id].is_set(), self.eventRuncountList[id], self.eventErrcountList[id]))
+			ret_str = ret_str + "%s:(%d,%d,%d), " % (id, self.eventErrList[id].is_set(), self.eventRuncountList[id], self.eventErrcountList[id])
 					
 		return ret_str	
 			

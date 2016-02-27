@@ -23,6 +23,7 @@ import sys
 import time
 import logging
 from queue import Queue
+from threading import Event
 from collections import deque
 from threading import RLock
 

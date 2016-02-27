@@ -256,7 +256,7 @@ class rpiBaseClass:
 		Return boolean to indicate state change.
 		"""
 		if self._state['run'] or self._state['pause'] or self._state['resch'] or \
-			or self.eventDayEnd.is_set() or self.eventEnd.is_set():
+			self.eventDayEnd.is_set() or self.eventEnd.is_set():
 			return False
 		else:
 			self._enddayoam_run()
@@ -268,7 +268,7 @@ class rpiBaseClass:
 		Return boolean to indicate state change.
 		"""
 		if self._state['run'] or self._state['pause'] or self._state['resch'] or \
-			or self.eventDayEnd.is_set() or self.eventEnd.is_set():
+			self.eventDayEnd.is_set() or self.eventEnd.is_set():
 			return False
 		else:
 			self._endoam_run()

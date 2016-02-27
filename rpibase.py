@@ -71,27 +71,35 @@ class rpiBaseClass:
 		
 	def __init__(self, name, rpi_apscheduler, rpi_events):
 	
+		# Public
+
 		# Custom name
 		self.name 	 = name or "Job"
 		
-		# Privat but can be changed via the dict_config
+		# EoD and End OAM events
+		self.eventDayEnd = Event()
+		self.eventDayEnd.clear()
+		self.eventEnd    = Event()				
+		self.eventEnd.clear()	
+		
+		# Private
+		 
+		# Reference to the APScheduler
 		self._sched  = rpi_apscheduler or None
 		self._sched_lock = self._create_lock()		
 		
-		# Privat events but can be changed via the rpi_events 
-		self._eventDayEnd 	= rpi_events.eventDayEnd				
-		self._eventEnd 		= rpi_events.eventEnd
+		# Reference to eventErr (can be accessed via the rpi_events) 
 		self._eventErr 		= rpi_events.eventErrList[self.name]
-
-		# Job start/stop and interval times		
-		self._dtstart = None
-		self._dtstop  = None
-		self._interval_sec = 13
 
 		# Error event related 
 		self._eventErrdelay = 0				
 		self._eventErrcount = 0
 		self._eventErrtime 	= 0
+
+		# Job start/stop and interval times		
+		self._dtstart = None
+		self._dtstop  = None
+		self._interval_sec = 13
 		
 		# The commands queue, check/process interval, job name				
 		self._cmds = Queue(10)
@@ -186,7 +194,7 @@ class rpiBaseClass:
 		Run Init mode and set flags. 
 		Return boolean to indicate state change.
 		"""
-		if self._state['init']:
+		if self._state['init'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
 			return False
 		else:
 			self._initclass()
@@ -198,7 +206,7 @@ class rpiBaseClass:
 		When the tstartstopintv=(start, stop, interval) tuple is specified (re)configure and add self._run() job to the scheduler.		
 		Return boolean to indicate state change.
 		"""
-		if self._state['run']:
+		if self._state['run'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
 			return False
 		else:
 			if tstartstopintv is not None:
@@ -214,7 +222,7 @@ class rpiBaseClass:
 		Run Stop mode and set flags.
 		Return boolean to indicate state change.
 		"""		
-		if self._state['stop']:		
+		if self._state['stop'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():		
 			return False
 		else:
 			self._remove_run()
@@ -225,7 +233,7 @@ class rpiBaseClass:
 		Run Pause mode and set flags.
 		Return boolean to indicate state change.
 		"""
-		if self._state['pause']:
+		if self._state['pause'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
 			return False
 		else:
 			self._pause_run()
@@ -236,14 +244,36 @@ class rpiBaseClass:
 		Run Re-schedule mode and set flags.
 		Return boolean to indicate state change.
 		"""
-		if self._state['resch']:
+		if self._state['resch'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
 			return False
 		else:
 			self._reschedule_run()
 			return True		
 	
+	def setEndDayOAM(self):
+		"""
+		Run End-of-Day OAM mode and set flags.
+		Return boolean to indicate state change.
+		"""
+		if self._state['run'] or self._state['pause'] or self._state['resch'] or \
+			or self.eventDayEnd.is_set() or self.eventEnd.is_set():
+			return False
+		else:
+			self._enddayoam_run()
+			return True		
 	
-	
+	def setEndOAM(self):
+		"""
+		Run End OAM mode and set flags.
+		Return boolean to indicate state change.
+		"""
+		if self._state['run'] or self._state['pause'] or self._state['resch'] or \
+			or self.eventDayEnd.is_set() or self.eventEnd.is_set():
+			return False
+		else:
+			self._endoam_run()
+			return True		
+		
 	@property
 	def statusUpdate(self):
 		"""
@@ -324,24 +354,11 @@ class rpiBaseClass:
 				
 	def _run(self):
 		"""
-		Run first the internal functionalities, and then calls the user defined runJob method.
+		Run first the internal functionalities, and then call the user defined runJob method.
 		"""
 		
 		###	Run the internal functionalities first then the user defined method	(self.jobRun)	
 		try:
-
-			#if self._state['stop'] or self._state['pause']:
-			#	return
-
-
-			if self._eventEnd.is_set():
-				self._endoam()
-				return
-
-			if self._eventDayEnd.is_set():
-				self._enddayoam()
-				return
-
 
 			if self._eventErr.is_set():	
 				logging.info("%s::: eventErr is set (%d)!" % (self.name, self._eventErrcount))
@@ -416,6 +433,9 @@ class rpiBaseClass:
 		self._cleareventerr('_initclass()')
 		self._state['errval'] = ERRNONE		
 
+		### Clear other events
+		self.eventDayEnd.clear()
+		self.eventEnd.clear()	
 																
 		### User defined init method	
 		self.initClass()		
@@ -434,7 +454,6 @@ class rpiBaseClass:
 		"""
 		Set the Stop state if the Job is not scheduled
 		Process and act upon received commands.
-		Check events self._eventEnd and self._eventdayEnd.
 		"""
 
 		# Set the Stop state if the Job is not scheduled
@@ -447,10 +466,11 @@ class rpiBaseClass:
 		if self._cmds.empty():
 			logging.debug("%s::: Cmd queue is empty!" % self.name)
 			
-		else:	
-			(cmdstr,cmdval) = self._cmds.get()
+		elif (not self.eventDayEnd.is_set()) and (not self.eventEnd.is_set()):
 		
 			# Process the command
+			(cmdstr,cmdval) = self._cmds.get()
+
 			if cmdval==CMDRUN and self.setRun():
 				self._statusmsg.append(("%s run" % self.name, ERRNONE))
 
@@ -465,62 +485,16 @@ class rpiBaseClass:
 
 			elif cmdval==CMDRESCH and self.setResch():
 				self._statusmsg.append(("%s init" % self.name, ERRNONE))
+
+			elif cmdval==CMDEOD and self.setEndDayOAM():
+				self._statusmsg.append(("%s eod" % self.name, ERRNONE))
+
+			elif cmdval==CMDEND and self.setEndOAM():
+				self._statusmsg.append(("%s end" % self.name, ERRNONE))
 		
 			self._cmds.task_done()
 
 
-		# Check events				
-		if self._eventEnd.is_set():
-			self._endoam()
-			return
-
-		if self._eventDayEnd.is_set():
-			self._enddayoam()
-			return
-
-						
-	def _enddayoam(self):
-		"""
-		End-of-Day OAM procedure.
-		"""	
-		logging.debug("%s::: _enddayoam(): eventDayEnd is set" % self.name)
-		
-		### Execute only if eventErr is not set	
-		if not self._eventErr.is_set():	
-		
-			### User defined EoD	
-			self.endDayOAM()																				
-			
-			
-			self._statusmsg.append(("%s: endDayOAM()" % self.name, ERRNONE))
-			logging.info("%s::: endDayOAM(): Maintenance sequence run" % self.name) 
-			
-		else:
-			logging.debug("%s::: _enddayoam(): eventErr is set" % self.name)	
-	
-	
-	def _endoam(self):
-		"""
-		End OAM procedure.
-		"""			
-		logging.debug("%s::: _endoam(): eventEnd is set" % self.name)
-		
-		### Execute only if eventErr is not set	
-		if not self._eventErr.is_set():	
-
-			### User defined EoD	
-			self.endOAM()																				
-		
-			### Stop and remove the self._run() job from the scheduler
-			self._remove_run()
-			
-			self._statusmsg.append(("%s: endOAM()" % self.name, ERRNONE))
-			logging.info("%s::: endOAM(): Maintenance sequence run" % self.name) 
-			
-		else:
-			logging.debug("%s::: _endoam(): eventErr is set" % self.name)	
-		
-		
 		
 	def _setstateval(self):
 		"""
@@ -690,6 +664,54 @@ class rpiBaseClass:
 		self._setstateval()
 		
 		logging.debug("%s::: Rescheduled state." % self.name)		
+
+	def _enddayoam_run(self):
+		"""
+		End-of-Day OAM procedure.
+		"""	
+		logging.debug("%s::: _enddayoam(): eventDayEnd is set" % self.name)
+		
+		### Execute only if eventErr is not set	
+		if not self._eventErr.is_set():	
+			
+			### Set the event
+			self.eventDayEnd.set()
+			
+			### User defined EoD	
+			self.endDayOAM()																				
+					
+			logging.info("%s::: endDayOAM(): Maintenance sequence run" % self.name) 
+			
+			### Clear the event
+			self.eventDayEnd.clear()
+			
+		else:
+			logging.debug("%s::: _enddayoam(): eventErr is set" % self.name)	
+	
+	
+	def _endoam_run(self):
+		"""
+		End OAM procedure.
+		"""			
+		logging.debug("%s::: _endoam(): eventEnd is set" % self.name)
+		
+		### Execute only if eventErr is not set	
+		if not self._eventErr.is_set():	
+
+			### Set the event
+			self.eventEnd.set()
+
+			### User defined EoD	
+			self.endOAM()																				
+		
+			logging.info("%s::: endOAM(): Maintenance sequence run" % self.name) 
+			
+			### Clear the event
+			self.eventEnd.clear()
+			
+		else:
+			logging.debug("%s::: _endoam(): eventErr is set" % self.name)	
+	
 				
 	def _create_lock(self):
 		"""

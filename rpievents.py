@@ -36,33 +36,17 @@ class rpiEventsClass:
 		self.stateValList		= {}
 		for id in self.event_ids:
 			self.eventErrList[id] = Event() 
-			self.eventErrList[id].clear()			
+			self.eventErrList[id].clear()	
 			self.eventErrtimeList[id]  = 0 
 			self.eventErrcountList[id] = 0 
-			self.eventRuncountList[id] = 0 
+			self.eventRuncountList[id] = 0 			
 			self.stateValList[id]      = 0
 			
 		self.jobRuncount = 0
-			
-		self.eventDayEnd 	 = Event()
-		self.eventEnd    	 = Event()
 		self.eventAllJobsEnd = Event()
-		
-		self.eventDayEnd.clear()
-		self.eventEnd.clear()
 		self.eventAllJobsEnd.clear()
-				
-		self.EventSema = BoundedSemaphore()
-				
-	def acquireSemaphore(self):
-		self.SemaEvent.acquire()
-		
-	def releaseSemaphore(self):
-		self.SemaEvent.release()		
-
+								
 	def clearEvents(self):
-		self.eventDayEnd.clear()
-		self.eventEnd.clear()
 		self.eventAllJobsEnd.clear()
 	
 	def resetEventsLists(self):
@@ -78,20 +62,9 @@ class rpiEventsClass:
 		return "<%s (event_ids=%s)>" % (self.__class__.__name__, self.event_ids)
 		
 	def __str__(self):
-		ret_str = "Events: "
+		ret_str = "Events: %s, " % self.eventAllJobsEnd.is_set()
 		for id in self.event_ids:
-			ret_str = ret_str + ("%s:%d,%d,%d " % (id, self.eventErrList[id].is_set(), self.eventRuncountList[id], self.eventErrcountList[id]))
-		
-		ret_str = ret_str + ("DayEnd:%d, End:%d" % (self.eventDayEnd.is_set(), self.eventEnd.is_set()))	
-			
+			ret_str = ret_str + "%s:(%d,%d,%d), " % (id, self.eventErrList[id].is_set(), self.eventRuncountList[id], self.eventErrcountList[id]))
+					
 		return ret_str	
-			
-	def __del__(self):
-		for id in self.event_ids:
-			self.eventErrList[id].clear()	
-			self.stateValList[id] = 0		
-	
-		self.eventDayEnd.set()
-		self.eventEnd.set()
-		
 			

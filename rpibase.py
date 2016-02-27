@@ -439,8 +439,9 @@ class rpiBaseClass:
 
 		# Set the Stop state if the Job is not scheduled
 		if self._sched is not None:	
-			if self._sched.get_job(self.name) is None:		
-				self._remove_run()
+			with self._sched_lock:
+				if self._sched.get_job(self.name) is None:		
+					self._stop_state()
 		
 		# Process and act upon received commands.			
 		if self._cmds.empty():
@@ -523,10 +524,10 @@ class rpiBaseClass:
 		
 	def _setstateval(self):
 		"""
-		Set the combined/encoded state value corresponding to the cmd and err states.
+		Set the combined/encoded state value corresponding to the cmd and err states (4 bits each).
 		"""
 		with self._state_lock:
-			self._stateVal = self._state['errval'] + 8*self._state['cmdval']
+			self._stateVal = self._state['errval'] + 16*self._state['cmdval']
 		
 		
 	def _seteventerr(self,str_func,err_val=ERRLEV0):
@@ -598,13 +599,41 @@ class rpiBaseClass:
 		self._setstateval()
 		
 		logging.debug("%s::: Run state." % self.name)	
+
+	def _pause_state(self):
+
+		self._state['run']   = False
+		self._state['stop']  = False
+		self._state['pause'] = True
+		self._state['init']  = False
+		self._state['resch'] = False				
+		self._state['cmdval'] = CMDPAUSE
+			
+		self._setstateval()
 		
+		logging.debug("%s::: Pause state." % self.name)				
+		
+	def _stop_state(self):
+		"""
+		Set Run state for the scheduled self._run() job.		
+		"""
+		self._state['run']   = False
+		self._state['stop']  = True
+		self._state['pause'] = False
+		self._state['init']  = False
+		self._state['resch'] = False				
+		self._state['cmdval'] = CMDSTOP
+		
+		self._setstateval()
+		
+		logging.debug("%s::: Stop state." % self.name)	
+				
 	def _resume_run(self):
 		"""
-		Resume/add the paused self._run() job.
+		Resume/add the paused or stopped self._run() job.
 		Set the Run state.		
 		"""
-		if not (self._state['run'] or self._state['init'] or self._state['resch']): 
+		if self._state['stop'] or self._state['pause']: 
 			with self._sched_lock:
 				if self._sched is not None:	
 					if self._sched.get_job(self.name) is not None:		
@@ -624,18 +653,9 @@ class rpiBaseClass:
 				if self._sched is not None:
 					if self._sched.get_job(self.name) is not None:					
 						self._sched.pause_job(self.name)	
+	
+		self._pause_state()
 			
-		self._state['run']   = False
-		self._state['stop']  = False
-		self._state['pause'] = True
-		self._state['init']  = False
-		self._state['resch'] = False				
-		self._state['cmdval'] = CMDPAUSE
-			
-		self._setstateval()
-		
-		logging.debug("%s::: Pause state." % self.name)				
-
 	def _remove_run(self):
 		"""
 		Remove the scheduled self._run() job.
@@ -647,18 +667,8 @@ class rpiBaseClass:
 					if self._sched.get_job(self.name) is not None:	
 						self._sched.remove_job(self.name)	
 
-		self._state['run']   = False
-		self._state['stop']  = True
-		self._state['pause'] = False
-		self._state['init']  = False
-		self._state['resch'] = False		
-		self._state['cmdval'] = CMDSTOP
-		
-		self._setstateval()
-
-		logging.debug("%s::: Stop state." % self.name)						
-		
-
+		self._stop_state()
+				
 	def _reschedule_run(self):
 		"""
 		Re-schedule the self._run() job.

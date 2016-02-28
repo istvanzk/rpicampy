@@ -199,6 +199,7 @@ class rpiBaseClass:
 		Return boolean to indicate state change.
 		"""
 		if self._state['init'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
+			logging.debug("%s::: %s: _initclass not run" % (sys._getframe().f_code.co_filename, self.name))
 			return False
 		else:
 			self._initclass()
@@ -211,6 +212,7 @@ class rpiBaseClass:
 		Return boolean to indicate state change.
 		"""
 		if self._state['run'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
+			logging.debug("%s::: %s: _add/resume_run not run" % (sys._getframe().f_code.co_filename, self.name))
 			return False
 		else:
 			if tstartstopintv is not None:
@@ -227,6 +229,7 @@ class rpiBaseClass:
 		Return boolean to indicate state change.
 		"""		
 		if self._state['stop'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():		
+			logging.debug("%s::: %s: _remove_run not run" % (sys._getframe().f_code.co_filename, self.name))
 			return False
 		else:
 			self._remove_run()
@@ -238,6 +241,7 @@ class rpiBaseClass:
 		Return boolean to indicate state change.
 		"""
 		if self._state['pause'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
+			logging.debug("%s::: %s: _pause_run not run" % (sys._getframe().f_code.co_filename, self.name))
 			return False
 		else:
 			self._pause_run()
@@ -261,6 +265,7 @@ class rpiBaseClass:
 		"""
 		if self._state['run'] or self._state['pause'] or self._state['resch'] or \
 			self.eventDayEnd.is_set() or self.eventEnd.is_set():
+			logging.debug("%s::: %s: _enddayoam_run not run" % (sys._getframe().f_code.co_filename, self.name))
 			return False
 		else:
 			self._enddayoam_run()
@@ -273,6 +278,7 @@ class rpiBaseClass:
 		"""
 		if self._state['run'] or self._state['pause'] or self._state['resch'] or \
 			self.eventDayEnd.is_set() or self.eventEnd.is_set():
+			logging.debug("%s::: %s: _endoam_run not run" % (sys._getframe().f_code.co_filename, self.name))
 			return False
 		else:
 			self._endoam_run()
@@ -463,18 +469,20 @@ class rpiBaseClass:
 		# Set the Stop state if the Job is not scheduled
 		if self._sched is not None:	
 			with self._sched_lock:
-				if self._sched.get_job(self.name) is None:		
+				if not self._state['stop'] and self._sched.get_job(self.name) is None:		
 					self._stop_state()
 		
 		# Process and act upon received commands.			
 		if self._cmds.empty():
-			logging.debug("%s::: Cmd queue is empty!" % self.name)
+			logging.debug("%s::: _proccmd: Cmd queue is empty!" % self.name)
 			
 		elif (not self.eventDayEnd.is_set()) and (not self.eventEnd.is_set()):
 		
 			# Process the command
-			(cmdstr,cmdval) = self._cmds.get()
+			(cmdstr, cmdval) = self._cmds.get()
 
+			logging.debug("%s::: _proccmd: Get cmdstr:%s, cmdval:%d" % (self.name, cmdstr, cmdval))
+			
 			if cmdval==CMDRUN and self.setRun():
 				self._statusmsg.append(("%s run" % self.name, ERRNONE))
 
@@ -632,7 +640,7 @@ class rpiBaseClass:
 					if self._sched.get_job(self.name) is not None:					
 						self._sched.pause_job(self.name)	
 	
-		self._pause_state()
+			self._pause_state()
 			
 	def _remove_run(self):
 		"""
@@ -645,7 +653,7 @@ class rpiBaseClass:
 					if self._sched.get_job(self.name) is not None:	
 						self._sched.remove_job(self.name)	
 
-		self._stop_state()
+			self._stop_state()
 				
 	def _reschedule_run(self):
 		"""

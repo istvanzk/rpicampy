@@ -216,7 +216,7 @@ def jobListener(event):
 	sch_jobs=[]
 	for jb in all_sch_jobs:
 		if jb.id in eventsRPi.event_ids:
-			sch_jobs.append(jb.id)
+			sch_jobs.append(jb)
 	
 	status_str = None	
 	if e_code == EVENT_JOB_ERROR:

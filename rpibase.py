@@ -365,28 +365,27 @@ class rpiBaseClass:
 	def _run(self):
 		"""
 		Run first the internal functionalities, and then call the user defined runJob method.
+		Catch all rpiBaseClassError exceptions.
 		"""
 		
 		###	Run the internal functionalities first then the user defined method	(self.jobRun)	
 		try:
-
+			# Apply re-initialization grace period after a fatal error (ERRCRIT level)
+			# Re-initialize the self._run() method 
+			# after self._eventErrdelay seconds from the last failed access/run attempt
 			if self._eventErr.is_set():	
-				logging.info("%s::: eventErr is set (%d)!" % (self.name, self._eventErrcount))
-	
-				# Re-initialize the self._run() method 
-				# after self._eventErrdelay seconds from the last failed access/run attempt
-				if (time.time() - self._eventErrtime) > self._eventErrdelay:
-					self._initclass()	
-				else:	
-					self._eventErrcount += 1
-					logging.debug("%s::: eventErr was set at %s (%d)!" % (self.name, time.ctime(self._eventErrtime), self._eventErrcount))
-				
-				return
-	
-			### Set Run state
+				self._eventErrcount += 1				
+				logging.info("%s::: eventErr is set (run %d)!" % (self.name, self._eventErrcount))
+				if (time.time() - self._eventErrtime) < self._eventErrdelay:
+					logging.debug("%s::: eventErr was set at %s (run %d)!" % (self.name, time.ctime(self._eventErrtime), self._eventErrcount))
+					return
+			
+				self._initclass()	
+
+			# Set Run state
 			self._run_state()
 				
-			### Run the user defined method						
+			# Run the user defined method						
 			self.jobRun()
 			
 		except rpiBaseClassError as e:

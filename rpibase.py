@@ -199,7 +199,7 @@ class rpiBaseClass:
 		Return boolean to indicate state change.
 		"""
 		if self._state['init'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
-			logging.debug("%s::: %s: _initclass not run" % (sys._getframe().f_code.co_filename, self.name))
+			logging.debug("%s::: %s: _initclass not run" % (self.name, sys._getframe().f_code.co_filename))
 			return False
 		else:
 			self._initclass()
@@ -212,7 +212,7 @@ class rpiBaseClass:
 		Return boolean to indicate state change.
 		"""
 		if self._state['run'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
-			logging.debug("%s::: %s: _add/resume_run not run" % (sys._getframe().f_code.co_filename, self.name))
+			logging.debug("%s::: %s: _add/resume_run not run" % (self.name, sys._getframe().f_code.co_filename))
 			return False
 		else:
 			if tstartstopintv is not None:
@@ -229,7 +229,7 @@ class rpiBaseClass:
 		Return boolean to indicate state change.
 		"""		
 		if self._state['stop'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():		
-			logging.debug("%s::: %s: _remove_run not run" % (sys._getframe().f_code.co_filename, self.name))
+			logging.debug("%s::: %s: _remove_run not run" % (self.name, sys._getframe().f_code.co_filename))
 			return False
 		else:
 			self._remove_run()
@@ -241,7 +241,7 @@ class rpiBaseClass:
 		Return boolean to indicate state change.
 		"""
 		if self._state['pause'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
-			logging.debug("%s::: %s: _pause_run not run" % (sys._getframe().f_code.co_filename, self.name))
+			logging.debug("%s::: %s: _pause_run not run" % (self.name, sys._getframe().f_code.co_filename))
 			return False
 		else:
 			self._pause_run()
@@ -265,7 +265,7 @@ class rpiBaseClass:
 		"""
 		if self._state['run'] or self._state['pause'] or self._state['resch'] or \
 			self.eventDayEnd.is_set() or self.eventEnd.is_set():
-			logging.debug("%s::: %s: _enddayoam_run not run" % (sys._getframe().f_code.co_filename, self.name))
+			logging.debug("%s::: %s: _enddayoam_run not run" % (self.name, sys._getframe().f_code.co_filename))
 			return False
 		else:
 			self._enddayoam_run()
@@ -278,7 +278,7 @@ class rpiBaseClass:
 		"""
 		if self._state['run'] or self._state['pause'] or self._state['resch'] or \
 			self.eventDayEnd.is_set() or self.eventEnd.is_set():
-			logging.debug("%s::: %s: _endoam_run not run" % (sys._getframe().f_code.co_filename, self.name))
+			logging.debug("%s::: %s: _endoam_run not run" % (self.name, sys._getframe().f_code.co_filename))
 			return False
 		else:
 			self._endoam_run()
@@ -681,7 +681,6 @@ class rpiBaseClass:
 		"""
 		End-of-Day OAM procedure.
 		"""	
-		logging.debug("%s::: _enddayoam(): eventDayEnd is set" % self.name)
 		
 		### Execute only if eventErr is not set	
 		if not self._eventErr.is_set():	
@@ -705,7 +704,6 @@ class rpiBaseClass:
 		"""
 		End OAM procedure.
 		"""			
-		logging.debug("%s::: _endoam(): eventEnd is set" % self.name)
 		
 		### Execute only if eventErr is not set	
 		if not self._eventErr.is_set():	

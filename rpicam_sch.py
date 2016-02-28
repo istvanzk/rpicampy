@@ -88,7 +88,7 @@ TSPKFEEDUSE = True
 TSPKTBUSE   = True
 
 ### Logging
-LOGLEVEL = logging.DEBUG
+LOGLEVEL = logging.INFO
 LOGFILEBYTES = 3*102400
 
 
@@ -254,7 +254,7 @@ def jobListener(event):
 						
 	elif e_code == EVENT_JOB_REMOVED:	
 		if len(sch_jobs) == 1:
-			rpiLogger.info("All rpi jobs have been removed!")
+			rpiLogger.info("All % jobs have been removed!" % eventsRPi.event_ids)
 			eventsRPi.eventAllJobsEnd.set()
 			status_str = "NoRPIJobs"
 			

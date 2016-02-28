@@ -88,8 +88,8 @@ TSPKFEEDUSE = True
 TSPKTBUSE   = True
 
 ### Logging
-LOGLEVEL = logging.INFO
-LOGFILEBYTES = 102400
+LOGLEVEL = logging.DEBUG
+LOGFILEBYTES = 3*102400
 
 
 
@@ -136,7 +136,7 @@ hndl.addFilter(filter)
 #rpiLogger.addFilter(filter)
 rpiLogger.addHandler(hndl)
 
-rpiLogger.info("\n\n======== Start ========\n")
+rpiLogger.info("\n\n======== Start (loglevel:%d) ========\n" % LOGLEVEL)
 
 ### Read the parameters
 try:
@@ -215,8 +215,8 @@ def jobListener(event):
 	all_sch_jobs = schedRPi.get_jobs()
 	sch_jobs=[]
 	for jb in all_sch_jobs:
-		if jb in eventsRPi.event_ids:
-			sch_jobs.append(jb)
+		if jb.id in eventsRPi.event_ids:
+			sch_jobs.append(jb.id)
 	
 	status_str = None	
 	if e_code == EVENT_JOB_ERROR:
@@ -358,7 +358,6 @@ def timerJob():
 	procStateVal()
 
 	### Collect and combine the status messages
-	# status_message too long?
 	status_message1 = timerConfig['status'] #has to be changed to use a deque
 	status_message2, message_value2 = imgCam.statusUpdate
 	status_message3, message_value3 = imgDir.statusUpdate

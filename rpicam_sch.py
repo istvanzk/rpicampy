@@ -254,7 +254,7 @@ def jobListener(event):
 						
 	elif e_code == EVENT_JOB_REMOVED:	
 		if len(sch_jobs) == 1:
-			rpiLogger.info("All % jobs have been removed!" % eventsRPi.event_ids)
+			rpiLogger.info("All %s jobs have been removed!" % eventsRPi.event_ids)
 			eventsRPi.eventAllJobsEnd.set()
 			status_str = "NoRPIJobs"
 			

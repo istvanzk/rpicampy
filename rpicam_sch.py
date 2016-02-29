@@ -506,8 +506,8 @@ def main():
 
 					# Re-initialize start/stop/interval configuration and add the jobs to the scheduler
 					imgCam.setRun((tstart_per, tstop_per, camConfig['interval_sec'][tper]))
-					imgDir.setRun((tstart_per, tstop_per, dirConfig['interval_sec'][tper]))
-					imgDbx.setRun((tstart_per, tstop_per, dbxConfig['interval_sec'][tper]))
+					imgDir.setRun((tstart_per + timedelta(minutes=1), tstop_per, dirConfig['interval_sec'][tper]))
+					imgDbx.setRun((tstart_per + timedelta(minutes=3), tstop_per, dbxConfig['interval_sec'][tper]))
 										
 										
 					# The eventsRPi.eventAllJobsEnd is set when all jobs have been removed/finished

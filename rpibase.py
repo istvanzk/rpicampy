@@ -27,6 +27,7 @@ from threading import Event
 from collections import deque
 from threading import RLock
 
+
 __all__ = ('CMDRUN', 'CMDSTOP', 'CMDPAUSE', 'CMDINIT', 'CMDRESCH', 'CMDEOD', 'CMDEND', 
 			'ERRCRIT', 'ERRLEV2', 'ERRLEV1', 'ERRLEV0', 'ERRNONE', 
 			'rpiBaseClassError', 'rpiBaseClass',
@@ -124,7 +125,7 @@ class rpiBaseClass:
 		
 		# The last 10 status messages	
 		self._statusmsg = deque([],10)
-															
+																	
 		### Init class
 		self._initclass()
 

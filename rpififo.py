@@ -33,6 +33,7 @@ class rpiFIFOClass(deque):
 		super(rpiFIFOClass,self).__init__(*args)
 		self.FIFOSema  = BoundedSemaphore()
 		self.crtSubDir = '/'
+		self.camID     = ''
 		
 	def acquireSemaphore(self):
 		self.FIFOSema.acquire()

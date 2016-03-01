@@ -143,123 +143,125 @@ class rpiCamClass(rpiBaseClass):
 			self.image_path = os.path.join(self._locdir, self.image_name) 
 			
 
-
-		### Take a new snapshot and save the image locally 	
+		### Take a new snapshot and save the image locally 						
 		try:
-			if FAKESNAP:
+			# Lock the buffer
+			self.imageFIFO.acquireSemaphore()
+
+			if FAKESNAP:				
 				logging.debug('Faking snapshot: ' + self.image_name) 
 				self._grab_cam = subprocess.Popen("touch " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 			
 			
-				### Check return/errors				
+				# Check return/errors				
 				self._camoutput, self._camerrors = self._grab_cam.communicate()
 			
-			else:	
-				if RASPISTILL:
-					# Use raspistill -n -vf -hf -awb auto -q 95
-					self._grab_cam = subprocess.Popen("raspistill -n -vf -hf -q 95 -co 30 -w 640 -h 480 -o " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
-				
-					### Check return/errors				
-					#self.grab_cam.wait()
-					self._camoutput, self._camerrors = self._grab_cam.communicate()
-				
-				elif RPICAM:
-					### Init the camera
-					self._TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 16)
-
-					#with picamera.PiCamera() as self._camera:
-					self._camera = picamera.PiCamera()
-					self._camera.resolution = (1024, 768)
-					self._camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2016 Istvan Z. Kovacs'
-					#self._camera.hflip = True
-					#self._camera.vflip = True
-					self._camera.rotation = 0
-					if self.camid == 'CAM1':
-						self._camera.rotation = 90
-
-					### Set camera exposure according to the 'dark' time threshold
-					self._setCamExp()
-
-					### Create the in-memory stream
-					stream = io.BytesIO()
-																
-					### Camera warm-up time and capture
-					#self._camera.capture( self.image_path, format='jpeg' )
-					self._camera.capture(stream, format='jpeg')
-					
-					### Read stream to a PIL image 
-					stream.seek(0)
-					image = Image.open(stream)
-											
-					### When in 'dark' time
-					### Calculate brightness and adjust shutter speed
-					sN = ': '
-					if self.bDarkExp:
-						sN = 'n' + sN
-
-						if self.camid == 'CAM1':
-					
-							### Calculate brightness
-							#self._grayscaleAverage(image)
-							self._averagePerceived(image)
-					
-							### Recapture image with new shutter speed if needed
-							if self.imgbr < 118 or \
-								self.imgbr > 138:
-						
-								logging.info('IMGbr: %d' % self.imgbr)							
-														
-								ss = self._camera.shutter_speed
-
-								logging.info('CAMss: %d' % ss)							
-
-								self._camera.shutter_speed = int(ss*(2 - float(self.imgbr)/128))
-
-								logging.info('CAMss: %d' % self._camera.shutter_speed)							
-															
-								time.sleep(2)
-								self._camera.capture(stream, format='jpeg')
-						
-								stream.seek(0)
-								image = Image.open(stream)
-							
-						#elif self.camid == 'CAM2':
-							# Do nothing ?
-								
-						#else:
-							# Do nothing ?
-						
-				
-					### Add overlay text to the final image
-					draw = ImageDraw.Draw(image,'RGBA')	
-					draw.rectangle([0,image.size[1]-20,image.size[0],image.size[1]], fill=(150,200,150,100))
-					draw.text((2,image.size[1]-18), self.camid + sN + time.strftime('%b %d %Y, %H:%M', time.localtime()), fill=(0,0,0,0), font=self._TXTfont)
-					#n_width, n_height = TXTfont.getsize('#XX')
-					#draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=self._TXTfont)	
-					del draw 
-				
-					### Save image and close
-					image.save( self.image_path, format='jpeg', quality=95 )
-					#image.close() 
-				
-					### Close BytesIO stream
-					stream.close()
-				
-					### Set output indicators
-					self._camoutput = self.image_path
-					self._camerrors = ''
-				
-				else:
-					# Use fswebcam -d /dev/video0 -s brightness=50% -s gain=32
-					self._grab_cam = subprocess.Popen("fswebcam -d /dev/video0 -q -r 640x480 --jpeg=95 " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
+			elif RASPISTILL:			
+				# Use raspistill -n -vf -hf -awb auto -q 95
+				self._grab_cam = subprocess.Popen("raspistill -n -vf -hf -q 95 -co 30 -w 640 -h 480 -o " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
 			
-					### Check return/errors
-					self._camoutput, self._camerrors = self._grab_cam.communicate()
-								
+				# Check return/errors				
+				#self.grab_cam.wait()
+				self._camoutput, self._camerrors = self._grab_cam.communicate()
+			
+			elif RPICAM:
+				# Init the camera
+				#with picamera.PiCamera() as self._camera:
+				self._camera = picamera.PiCamera()
+				self._camera.resolution = (1024, 768)
+				self._camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2016 Istvan Z. Kovacs'
+				#self._camera.hflip = True
+				#self._camera.vflip = True
+				self._camera.rotation = 0
+				if self.camid == 'CAM1':
+					self._camera.rotation = 90
+
+				# Set camera exposure according to the 'dark' time threshold
+				self._setCamExp()
+
+				# Create the in-memory stream
+				stream = io.BytesIO()
+															
+				# Camera warm-up time and capture
+				self._camera.capture(stream, format='jpeg')
+				
+				# Read stream to a PIL image 
+				stream.seek(0)
+				image = Image.open(stream)
+										
+				# When in 'dark' time
+				# Calculate brightness and adjust shutter speed
+				sN = ': '
+				if self.bDarkExp:
+					sN = 'n' + sN
+
+					if self.camid == 'CAM1':
+				
+						# Calculate brightness
+						#self._grayscaleAverage(image)
+						self._averagePerceived(image)
+				
+						# Recapture image with new shutter speed if needed
+						if self.imgbr < 118 or \
+							self.imgbr > 138:
+					
+							# Release the buffer (this capture could take a few seconds)
+							self.imageFIFO.releaseSemaphore()		
+									
+							# Shutter speed (micro seconds)															
+							ss = self._camera.shutter_speed
+							logging.debug('Before: Br=%d, Ss=%dus' % (self.imgbr, ss))							
+							
+							# Re-capture the picture							
+							time.sleep(3)
+							self._camera.shutter_speed = int(ss*(2 - float(self.imgbr)/128))
+							self._camera.capture(stream, format='jpeg')
+							stream.seek(0)
+							image = Image.open(stream)
+						
+							# Re-calculate brightness
+							self._averagePerceived(image)
+							logging.debug('After: Br=%d, Ss=%dus' % (self.imgbr, self._camera.shutter_speed))							
+						
+							# Lock the buffer
+							self.imageFIFO.acquireSemaphore()
+							
+					#elif self.camid == 'CAM2':
+						# Do nothing ?
+							
+					#else:
+						# Do nothing ?
+					
+			
+				# Add overlay text to the final image
+				draw = ImageDraw.Draw(image,'RGBA')	
+				draw.rectangle([0,image.size[1]-20,image.size[0],image.size[1]], fill=(150,200,150,100))
+				draw.text((2,image.size[1]-18), self.camid + sN + time.strftime('%b %d %Y, %H:%M', time.localtime()), fill=(0,0,0,0), font=self._TXTfont)
+				#n_width, n_height = TXTfont.getsize('#XX')
+				#draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=self._TXTfont)	
+				del draw 
+			
+				# Save image and close the stream				
+				image.save( self.image_path, format='jpeg', quality=95 )
+				#image.close() 
+			
+				# Close BytesIO stream
+				stream.close()
+			
+				# Set output indicators
+				self._camoutput = self.image_path
+				self._camerrors = ''
+			
+			else:
+				# Use fswebcam -d /dev/video0 -s brightness=50% -s gain=32
+				self._grab_cam = subprocess.Popen("fswebcam -d /dev/video0 -q -r 640x480 --jpeg=95 " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True) 
+		
+				### Check return/errors
+				self._camoutput, self._camerrors = self._grab_cam.communicate()
+						
+							
 			logging.info('Snapshot: ' + self.image_name) 
 			
-			### Add image to deque (FIFO)
-			self.imageFIFO.acquireSemaphore()
-		
+			### Add image to deque (FIFO)		
 			self.imageFIFO.append(self.image_path)
 			self.crtlenFIFO = len(self.imageFIFO)
 							
@@ -267,8 +269,6 @@ class rpiCamClass(rpiBaseClass):
 				logging.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
 			else:
 				logging.debug("imageFIFO[]: empty")
-		
-			self.imageFIFO.releaseSemaphore()
 		
 			### Update status
 			self.statusUpdate = (self.name, self.crtlenFIFO)
@@ -280,6 +280,10 @@ class rpiCamClass(rpiBaseClass):
 		except OSError as e:	
 			raise rpiBaseClassError("%s::: jobRun(): Snapshot %s could not be created!\n%s" % (self.name, self.image_path, e), ERRLEV2)
 	
+		finally:
+			# Release the buffer
+			self.imageFIFO.releaseSemaphore()
+		
 	
 	def initClass(self):
 		""""
@@ -293,6 +297,7 @@ class rpiCamClass(rpiBaseClass):
 			self.camid = 'CAM2'
 						
 		### Init the FIFO buffer		
+		self.imageFIFO.camID = self.camid
 		self.imageFIFO.clear()		
 		self.crtlenFIFO = 0
 
@@ -306,6 +311,9 @@ class rpiCamClass(rpiBaseClass):
 		GPIO.cleanup(self.IRport)
 		GPIO.setmode(GPIO.BCM) 
 		GPIO.setup(self.IRport, GPIO.OUT, initial=0)
+
+		### Init the font	
+		self._TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 16)
 										
 		### Create output folder
 		try:

@@ -72,7 +72,7 @@ class rpiImageDirClass(rpiBaseClass):
 								
 		### List all jpg files in the current local sub-folder
 		self._locdir = os.path.join(self._config['image_dir'], self._imageFIFO.crtSubDir)
-		self._image_names = os.path.join(self._locdir, self._imageFIFO.crtSubDir + '-*.jpg')
+		self._image_names = os.path.join(self._locdir, self._imageFIFO.crtSubDir + '-*' + self._imageFIFO.camID + '.jpg')
 		self.imagelist = sorted(glob.glob(self._image_names))
 		if len(self.imagelist) > 0:
 			logging.debug("imagelist: %s .. %s" % (self.imagelist[0], self.imagelist[-1]))
@@ -82,11 +82,11 @@ class rpiImageDirClass(rpiBaseClass):
 		### Run directory/file management only if no errors were detected when 
 		### updating to remote directory
 		if not self._eventDbErr.is_set():
-			### Process the new list only if it is changed and has at least max length
+			# Process the new list only if it is changed and has at least max length
 			if ( not (self._imagelist_ref == self.imagelist) ) and \
 				len(self.imagelist) > self._config['list_size']:
 	
-				### Remove all the images not in the imageFIFO
+				# Remove all the images not in the imageFIFO
 				try:
 					self._imageFIFO.acquireSemaphore()
 		
@@ -108,10 +108,10 @@ class rpiImageDirClass(rpiBaseClass):
 			
 			#raise rpiBaseClassError("%s::: jobRun(): Test crash!" % self.name, 4)	
 				
-			### Update status
+			# Update status
 			self.statusUpdate = (self.name, len(self.imagelist))
 		
-			### Update image list in the current local sub-folder
+			# Update image list in the current local sub-folder
 			self._imagelist_ref = sorted(glob.glob(self._image_names))
 			if len(self._imagelist_ref) > 0:
 				logging.debug("imagelist_ref: %s .. %s" % (self._imagelist_ref[0], self.imagelist[-1]))
@@ -131,7 +131,7 @@ class rpiImageDirClass(rpiBaseClass):
 
 		### Init reference img file list
 		self._locdir = os.path.join(self._config['image_dir'], self._imageFIFO.crtSubDir)
-		self._image_names = os.path.join(self._locdir, self._imageFIFO.crtSubDir + '-*.jpg')		
+		self._image_names = os.path.join(self._locdir, self._imageFIFO.crtSubDir + '-*' + self._imageFIFO.camID + '.jpg')		
 		self._imagelist_ref = sorted(glob.glob(self._image_names))
 
 		

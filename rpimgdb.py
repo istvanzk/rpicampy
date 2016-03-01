@@ -84,13 +84,14 @@ class rpiImageDbxClass(rpiBaseClass):
 	def jobRun(self):
 		
 		try:
-		
-			### Get the current images in the FIFO
-			### Refresh the last remote image when available
+			# Lock the buffer
 			self._imageFIFO.acquireSemaphore()
+			
+			# Get the current images in the FIFO
+			# Refresh the last remote image when available
 			if len(self._imageFIFO): 
 
-				### Update remote cam image with the current (last) image						
+				# Update remote cam image with the current (last) image						
 				if not (self._imageFIFO[-1] == self.crt_image_snap):
 					self._putImage(self._imageFIFO[-1], self._config['image_snap'], True)
 					self.crt_image_snap = self._imageFIFO[-1]
@@ -98,8 +99,8 @@ class rpiImageDbxClass(rpiBaseClass):
 					logging.info("Updated remote %s with %s" % (self._config['image_snap'], self._imageFIFO[-1]) )
 
 
-				### Upload all images in the FIFO which have not been uploaded yet
-				### Init the current remote upload sub-folder
+				# Upload all images in the FIFO which have not been uploaded yet
+				# Init the current remote upload sub-folder
 				for img in self._imageFIFO:
 					if img not in self.imageUpldList:
 						self.upldir = os.path.normpath(os.path.join(self._config['image_dir'], self._imageFIFO.crtSubDir))
@@ -107,11 +108,11 @@ class rpiImageDbxClass(rpiBaseClass):
 						self._putImage(img, os.path.join(self.upldir, os.path.basename(img)))
 						logging.info("Uploaded %s" % img )
 
-				### Update status
+				# Update status
 				self.statusUpdate = (self.name, self.numImgUpdDb)
 																		
 			else:
-				### Update status
+				# Update status
 				self.statusUpdate = (self.name, ERRNONE)
 	
 				logging.info('Nothing to upload')							
@@ -140,15 +141,20 @@ class rpiImageDbxClass(rpiBaseClass):
 # 				pass
 
 		except rpiBaseClassError as e:
+			if e.errval == ERRCRIT:
+				self.endDayOAM()
 			raise rpiBaseClassError("%s::: jobRun(): %s" % (self.name, e.errmsg), e.errval)
 		
 		except RuntimeError as e:
+			self.endDayOAM()
 			raise rpiBaseClassError("%s::: jobRun(): RuntimeError:\n%s" % (self.name, str(e)), ERRCRIT)
 					
 		except:
+			self.endDayOAM()
 			raise rpiBaseClassError("%s::: jobRun(): Unhandled Exception:\n%s" % (self.name, str(sys.exc_info())), ERRCRIT)
 					
 		finally:
+			# Release the buffer
 			self._imageFIFO.releaseSemaphore()
 					
 
@@ -164,6 +170,7 @@ class rpiImageDbxClass(rpiBaseClass):
 		self.numImgUpdDb = 0
 		
 		self.crt_image_snap = None
+		self.imgid = self._imageFIFO.camID + '.jpg'
 		self.upldir = os.path.normpath(os.path.join(self._config['image_dir'], self._imageFIFO.crtSubDir))
 		self.logfile = './upldlog.json'		
 		
@@ -204,18 +211,24 @@ class rpiImageDbxClass(rpiBaseClass):
 			self._mkdirImage(os.path.normpath(self._config['image_dir']))
 
 		except rpiBaseClassError as e:
+			if e.errval == ERRCRIT:
+				self.endDayOAM()
 			raise rpiBaseClassError("initClass(): %s" % e.errmsg, e.errval)
 					
 		except IOError:
+			self.endDayOAM()
 			raise rpiBaseClassError("initClass(): Token file ''%s'' could not be read." % (self.name, self._token_file), ERRCRIT)
 		
 		except AuthError as e:
+			self.endDayOAM()
 			raise rpiBaseClassError("initClass(): AuthError:\n%s" % e.error, ERRCRIT)
 				
 		except DropboxException as e: 
+			self.endDayOAM()
 			raise rpiBaseClassError("initClass(): DropboxException:\n%s" %  str(e), ERRCRIT)
 		
 		except InternalServerError as e:	
+			self.endDayOAM()
 			raise rpiBaseClassError("initClass(): InternalServerError:\n%s" % str(e.status_code),  ERRCRIT)
 			
 	
@@ -256,15 +269,16 @@ class rpiImageDbxClass(rpiBaseClass):
 				else:
 					self.ls_ref = new_ls
 			
-			
+			# Select only images and only the ones for the current imgid (camid)
 			foundImg = False
 			for f in self.ls_ref.entries:
 				if 'media_info' in f._all_field_names_ and \
 					f.media_info is not None:
-					img = '.%s' % f.path_lower
-					foundImg = True
-					if not img in self.imageDbList:
-						self.imageDbList.append(img)
+					if self.imgid in f.path_lower:
+						img = '.%s' % f.path_lower
+						foundImg = True
+						if not img in self.imageDbList:
+							self.imageDbList.append(img)
 		
 			
 			if not foundImg:

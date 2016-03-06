@@ -303,6 +303,7 @@ def getMessageVal():
 	"""
 	Retrieve the latest messages and message values from all rpi jobs.
 	"""
+	st_all = {}
 	st_all['timer'] = (timerConfig['status'], timerConfig['stateval']) #has to be changed to use a deque?
 	st_all[[k for k,v in RPIJOBNAMES.items() if v == imgCam.name][0]] = imgCam.statusUpdate
 	st_all[[k for k,v in RPIJOBNAMES.items() if v == imgDir.name][0]] = imgDir.statusUpdate

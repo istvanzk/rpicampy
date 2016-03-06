@@ -318,7 +318,7 @@ def getMessageVal():
 
 		if val > ERRNONE or \
 			( val == ERRNONE and msg is not None) :
-			message_values[k] = val  
+			message_values[TSPKFIELDNAMES[k]] = val  
 			 
 	if not messages==[]:
 		status_message = ' || '.join(messages)

@@ -146,7 +146,7 @@ hndl.addFilter(filter)
 #rpiLogger.addFilter(filter)
 rpiLogger.addHandler(hndl)
 
-rpiLogger.info("\n\n======== Start (loglevel:%d) ========\n" % LOGLEVEL)
+rpiLogger.info("\n\n======== Start %s (loglevel:%d) ========\n" % (CAMID, LOGLEVEL))
 
 ### Read the parameters
 try:
@@ -217,13 +217,13 @@ def jobListener(event):
 		
 
 	# Collect and process only the main rpi jobs
-	if e_jobid not in eventsRPi.event_ids:	
+	if e_jobid not in eventsRPi.event_ids.values():	
 		return
 	
 	all_sch_jobs = schedRPi.get_jobs()
 	sch_jobs=[]
 	for jb in all_sch_jobs:
-		if jb.id in eventsRPi.event_ids:
+		if jb.id in eventsRPi.event_ids.values():
 			sch_jobs.append(jb)
 	
 	status_str = None	
@@ -260,7 +260,7 @@ def jobListener(event):
 						
 	elif e_code == EVENT_JOB_REMOVED:	
 		if len(sch_jobs) == 1:
-			rpiLogger.info("All %s jobs have been removed!" % eventsRPi.event_ids)
+			rpiLogger.info("All %s jobs have been removed!" % eventsRPi.event_ids.values())
 			eventsRPi.eventAllJobsEnd.set()
 			status_str = "NoRPIJobs"
 			

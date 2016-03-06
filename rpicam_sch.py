@@ -76,21 +76,31 @@ import rpimgdb
 import rpievents
 import thingspk
 
-### Configuration file
+### Configuration
+
+# Configuration file
 YAMLCFG_FILE = 'rpiconfig.yaml'
 
-### DB API token file
+# DB API token file
 DBTOKEN_FILE = 'token_key.txt'
 
-### ThingSpeak API feed and TalkBack app
+# ThingSpeak API feed and TalkBack app
 TSPK_FILE   = 'tspk_keys.txt'
 TSPKFEEDUSE = True
 TSPKTBUSE   = True
 
-### Logging
+# Logging parameters
 LOGLEVEL = logging.INFO
 LOGFILEBYTES = 3*102400
 
+# RPi Job names
+RPIJOBNAMES = {'timer':'TIMERJob', 'cam':'CAMJob', 'dir':'DIRJob', 'dbx':'DBXJob'}
+
+# ThingSpeak feed field names mapping
+TSPKFIELDNAMES = {'timer':'field1', 'cam':'field2', 'dir':'field3', 'dbx':'field4'}
+
+
+### End of Configuration
 
 
 ### Python version
@@ -169,16 +179,14 @@ rpiLogger.debug("dbxConfig: %s" % dbxConfig)
 ### ThingSpeak feed
 if TSPKFEEDUSE:
 	RESTfeed = thingspk.ThingSpeakAPIClient(TSPK_FILE)
-	rpiLogger.info("ThingSpeak Channel ID %d initialized" % RESTfeed.channel_id)
+	if RESTfeed is not None:
+		rpiLogger.info("ThingSpeak Channel ID %d initialized" % RESTfeed.channel_id)
+		for tsf in TSPKFIELDNAMES.values():
+			RESTfeed.setfield(tsf, 0)
+		RESTfeed.setfield('status', '---')	 
 else:
 	RESTfeed = None
 
-### Init the ThingSpeak REST feed data
-if TSPKFEEDUSE and (RESTfeed is not None):
-	RESTfeed.setfield('field1', 0) 
-	RESTfeed.setfield('field2', 0) 
-	RESTfeed.setfield('field3', 0)
-	RESTfeed.setfield('field4', 0)		
 						
 ### ThingSpeak TalkBack 
 if TSPKTBUSE:
@@ -223,8 +231,6 @@ def jobListener(event):
 	
 		# Set job error flag and start counter
 		eventsRPi.eventErrList[e_jobid].set()
-		eventsRPi.stateValList[e_jobid] = 3
-
 		eventsRPi.eventErrtimeList[e_jobid]  = time.time() 
 		eventsRPi.eventErrcountList[e_jobid] += 1 
 		eventsRPi.eventRuncountList[e_jobid] += 1
@@ -271,19 +277,52 @@ def jobListener(event):
 
 def procStateVal():
 	"""
-	Calculate the combined state (cmd and err) values for all jobs
+	Calculate the combined state (cmd and err) values for all rpi jobs.
 	"""
+	timer_stateval = 0
+	# Add the timer job error state (lower 4 bits)
+	
+	# Add the timer job cmd state (upper 4 bits)
+	if timerConfig['enabled']:
+		timer_stateval += 16*1
+	if timerConfig['cmd_run']:
+		timer_stateval += 16*2
+
 	# Store state values
 	eventsRPi.stateValList[imgCam.name] = imgCam.stateValue
 	eventsRPi.stateValList[imgDir.name] = imgDir.stateValue
 	eventsRPi.stateValList[imgDbx.name] = imgDbx.stateValue
+	eventsRPi.stateValList['TIMERJob'] = timer_stateval
 	
 	# The combined state (cmd 4bits + err 4bits) values for all jobs
-	timerConfig['stateval'] = eventsRPi.stateValList[imgCam.name] + 256*eventsRPi.stateValList[imgDir.name] + 256*256*eventsRPi.stateValList[imgDbx.name]
+	timerConfig['stateval'] = 256*256*256*eventsRPi.stateValList['TIMERJob']
+	timerConfig['stateval'] += eventsRPi.stateValList[imgCam.name] + 256*eventsRPi.stateValList[imgDir.name] + 256*256*eventsRPi.stateValList[imgDbx.name]
+		
 
-	# Add state value for the timer
-	#timerConfig['stateval'] += 256*256*256*0
+def getMessageVal():
+	"""
+	Retrieve the latest messages and message values from all rpi jobs.
+	"""
+	st_all['timer'] = (timerConfig['status'], timerConfig['stateval']) #has to be changed to use a deque?
+	st_all[[k for k,v in RPIJOBNAMES.items() if v == imgCam.name][0]] = imgCam.statusUpdate
+	st_all[[k for k,v in RPIJOBNAMES.items() if v == imgDir.name][0]] = imgDir.statusUpdate
+	st_all[[k for k,v in RPIJOBNAMES.items() if v == imgDbx.name][0]] = imgDbx.statusUpdate
 
+	status_message = None
+	messages = []
+	message_values = {}
+	for k, (msg, val) in st_all.items():
+		if msg is not None:
+			messages.append(msg)
+
+		if val > ERRNONE or \
+			( val == ERRNONE and msg is not None) :
+			message_values[k] = val  
+			 
+	if not messages==[]:
+		status_message = ' || '.join(messages)
+		
+	return status_message, message_values	
 		
 def timerJob():
 	"""
@@ -354,36 +393,18 @@ def timerJob():
 			imgDbx.queueCmd((cmdstr,cmdval))
 
 
-	### Update state value
+	### Get the combined state value (all rpi jobs)
 	procStateVal()
-
-	### Collect and combine the status messages
-	status_message1 = timerConfig['status'] #has to be changed to use a deque
-	status_message2, message_value2 = imgCam.statusUpdate
-	status_message3, message_value3 = imgDir.statusUpdate
-	status_message4, message_value4 = imgDbx.statusUpdate
 	
-	status_message = None
-	messages = []
-	for st in [status_message1, status_message2, status_message3, status_message4]:
-		if st is not None:
-			messages.append(st) 
-	if not messages==[]:
-		status_message = ' || '.join(messages)
-				
-	### Update REST feed	
-	if RESTfeed is not None:					
-		RESTfeed.setfield('field1', timerConfig['stateval'])			
-
-		if message_value2 > ERRNONE or (message_value2 == ERRNONE and  status_message2 is None):
-			RESTfeed.setfield('field2', message_value2) 
+	### Get status messages and message values (all rpi jobs)
+	status_message, message_values = getMessageVal()
+	
 			
-		if message_value3 > ERRNONE or (message_value3 == ERRNONE and  status_message3 is None):
-			RESTfeed.setfield('field3', message_value3) 
-	
-		if message_value4 > ERRNONE or (message_value4 == ERRNONE and  status_message4 is None):
-			RESTfeed.setfield('field4', message_value4) 
-
+	### Update ThingSpeak feed	
+	if RESTfeed is not None:		
+		for k in message_values:	
+			RESTfeed.setfield(k, message_values[k])
+			
 		if status_message is not None:
 			RESTfeed.setfield('status', status_message)
 
@@ -400,17 +421,17 @@ schedRPi.add_listener(jobListener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_
 
 		
 ### The events
-eventsRPi = rpievents.rpiEventsClass(['CAMJob', 'DIRJob', 'DBXJob', 'TIMERJob'])
+eventsRPi = rpievents.rpiEventsClass(RPIJOBNAMES)
 rpiLogger.info(eventsRPi)
 
 ### Instantiate the job classes	
-imgCam = rpicam.rpiCamClass("CAMJob", schedRPi, eventsRPi, camConfig) 
+imgCam = rpicam.rpiCamClass(RPIJOBNAMES['cam'], schedRPi, eventsRPi, camConfig) 
 rpiLogger.info(imgCam)
 
-imgDir = rpimgdir.rpiImageDirClass("DIRJob", schedRPi, eventsRPi, dirConfig, imgCam.imageFIFO)
+imgDir = rpimgdir.rpiImageDirClass(RPIJOBNAMES['dir'], schedRPi, eventsRPi, dirConfig, imgCam.imageFIFO)
 rpiLogger.info(imgDir)
 
-imgDbx = rpimgdb.rpiImageDbxClass("DBXJob", schedRPi, eventsRPi, dbxConfig, imgCam.imageFIFO)
+imgDbx = rpimgdb.rpiImageDbxClass(RPIJOBNAMES['dbx'], schedRPi, eventsRPi, dbxConfig, imgCam.imageFIFO)
 rpiLogger.info(imgDbx)
 
 
@@ -440,7 +461,7 @@ def main():
 		return
 	
 	### Add the main timer client job; run every preset (long) interval
-	schedRPi.add_job(timerJob, 'interval', id="TIMERJob", seconds=timerConfig['interval_sec'][0], misfire_grace_time=10, name='TIMER' )
+	schedRPi.add_job(timerJob, 'interval', id=RPIJOBNAMES['timer'], seconds=timerConfig['interval_sec'][0], misfire_grace_time=10, name='TIMER' )
 			
 	### Start background scheduler
 	rpiLogger.debug("Scheduler started on: %s" % (time.ctime(time.time())))

@@ -184,7 +184,8 @@ class rpiCamClass(rpiBaseClass):
 				if self.camid == 'CAM1':
 					self._camera.rotation = 90
 				elif self.camid == 'CAM2':
-					self._camera.vflip = True
+					self._camera.rotation = 180
+
 
 				# Set camera exposure according to the 'dark' time threshold
 				self._setCamExp()

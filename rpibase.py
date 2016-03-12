@@ -383,6 +383,7 @@ class rpiBaseClass:
 
 				self._initclass()
 				self._add_run()
+				#return
 
 			# Set Run state
 			self._run_state()
@@ -463,7 +464,7 @@ class rpiBaseClass:
 
 	def _proccmd(self):
 		"""
-		Set the Stop state if the Job is not scheduled
+		Set the Stop state if the Job is not scheduled.
 		Process and act upon received commands.
 		"""
 

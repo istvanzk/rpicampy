@@ -192,8 +192,14 @@ class rpiImageDbxClass(rpiBaseClass):
 		try:
 			if os.path.isfile(self.logfile):
 				with open(self.logfile,'r') as logf:
-					self.imageUpldFIFO = json.load(logf)
-					logging.info("%s::: Local log file %s found and loaded." % (self.name, self.logfile))
+					upldimg = json.load(logf)
+
+				for img in upldimg:
+					self.imageUpldFIFO.append(img)
+
+				del upldimg
+
+				logging.info("%s::: Local log file %s found and loaded." % (self.name, self.logfile))
 			else:
 				with open(self.logfile,'w') as logf:
 					json.dump([], logf)
@@ -258,9 +264,16 @@ class rpiImageDbxClass(rpiBaseClass):
 		self.imageUpldFIFO.acquireSemaphore()
 
 		try:
+			upldimg=[]
+			for img in self.imageUpldFIFO:
+				upldimg.append(img)
+
 			with open(self.logfile,'w') as logf:
-				json.dump(self.imageUpldFIFO, logf)
-				logging.info("%s::: Local log file %s updated." % (self.name, self.logfile))
+				json.dump(upldimg, logf)
+
+			del upldimg
+
+			logging.info("%s::: Local log file %s updated." % (self.name, self.logfile))
 
 		except IOError:
 			raise rpiBaseClassError("endDayOAM(): Local log file %s was not found." % self.logfile,  ERRCRIT)

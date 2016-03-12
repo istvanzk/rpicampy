@@ -93,6 +93,7 @@ class rpiImageDirClass(rpiBaseClass):
 				# not in the camera buffer and are in the uploaded images buffer
 				try:
 					self._imageFIFO.acquireSemaphore()
+					self._imageUpldFIFO.acquireSemaphore()
 
 					for img in self.imagelist:
 						if not img in self._imageFIFO and \
@@ -110,6 +111,7 @@ class rpiImageDirClass(rpiBaseClass):
 
 				finally:
 					self._imageFIFO.releaseSemaphore()
+					self._imageUpldFIFO.releaseSemaphore()
 
 			#raise rpiBaseClassError("%s::: jobRun(): Test crash!" % self.name, 4)
 

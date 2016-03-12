@@ -74,7 +74,7 @@ if RPICAM or RASPISTILL:
 		import RPi.GPIO as GPIO
 		# Since 0.6.0a3: uses /dev/gpiomem if available to avoid being run as root? Not working in 0.6.2!
 	else:
-		logging.warning("The RPi.GPIO module is not used!')
+		logging.warning("The RPi.GPIO module is not used!")
 
 class rpiCamClass(rpiBaseClass):
 	"""

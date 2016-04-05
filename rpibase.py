@@ -26,6 +26,7 @@ from queue import Queue
 from threading import Event
 from collections import deque
 from threading import RLock
+import atexit
 
 
 __all__ = ('CMDRUN', 'CMDSTOP', 'CMDPAUSE', 'CMDINIT', 'CMDRESCH', 'CMDEOD', 'CMDEND',
@@ -126,7 +127,10 @@ class rpiBaseClass:
 		# The last 10 status messages
 		self._statusmsg = deque([],10)
 
-		### Init class
+		# ATExit handler
+		atexit.register(self._clean_exit)
+		
+		# Init class
 		self._initclass()
 
 	def __repr__(self):
@@ -730,3 +734,19 @@ class rpiBaseClass:
 		Creates a reentrant lock object.
 		"""
 		return RLock()
+
+	def _clean_exit(self):
+		"""
+		An atexit handler for the current job.
+		Stop and remove the self._run()  and self._proccmd() jobs from the scheduler.
+		"""
+		logging.warning("The %s job is exiting!" % self.name)
+		
+		self._remove_run()
+		with self._sched_lock:
+			if self._sched is not None:
+				if self._sched.get_job(self._cmdname) is not None:
+					self._sched.remove_job(self._cmdname)
+
+		logging.debug("%s::: Exit!" % self.name)
+		self._statusmsg.append(("%s Exit" % self.name, ERRNONE))		

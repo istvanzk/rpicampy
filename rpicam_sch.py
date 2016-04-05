@@ -46,11 +46,12 @@ The REST client implementation follows the model of the official python Xively A
 The tool can be launched as an init.d Linux service with the rpicamtest.sh
 
 TODOs:
-1) Implement Job crash recovery mechanism.
-2) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
+1) Implement gracefull exit (http://stackoverflow.com/questions/18499497/how-to-process-sigterm-signal-gracefully)
+2) Implement Job crash recovery mechanism and
+3) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
 and pyinotify module, http://www.saltycrane.com/blog/2010/04/monitoring-filesystem-python-and-pyinotify/
-3) Integrate with RasPiConnectServer
-4) Use configurable logging (http://victorlin.me/posts/2012/08/26/good-logging-practice-in-python)
+4) Integrate with RasPiConnectServer
+5) Use configurable logging (http://victorlin.me/posts/2012/08/26/good-logging-practice-in-python)
 
 """
 

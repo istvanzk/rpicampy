@@ -29,6 +29,7 @@ import time
 import datetime
 import posixpath
 import logging
+import atexit
 
 from dropbox import Dropbox
 from dropbox.files import WriteMode, SearchMode, FileMetadata, FolderMetadata
@@ -63,7 +64,7 @@ class rpiImageDbxClass(rpiBaseClass):
 
 		### The FIFO buffer for the uploaded images (deque)
 		self.imageUpldFIFO = rpififo.rpiFIFOClass([], 576)
-		#Not used: self.imageUpldFIFO.crtSubDir
+		self.imageUpldFIFO.crtSubDir = ''
 
 		### Init base class
 		super().__init__(name, rpi_apscheduler, rpi_events)
@@ -107,12 +108,15 @@ class rpiImageDbxClass(rpiBaseClass):
 				# Lock the upload buffer
 				self.imageUpldFIFO.acquireSemaphore()
 
-				# Upload all images in the FIFO which have not been uploaded yet
-				# Init the current remote upload sub-folder
+				# Check if a new upload sub-folder has to be used
+				if not (self.imageUpldFIFO.crtSubDir == self._imageFIFO.crtSubDir):
+					self.imageUpldFIFO.crtSubDir = self._imageFIFO.crtSubDir
+					self.upldir = os.path.normpath(os.path.join(self._config['image_dir'], self.imageUpldFIFO.crtSubDir))
+					self._mkdirImage(self.upldir)
+
+				# Upload only images in the FIFO which have not been uploaded yet
 				for img in self._imageFIFO:
-					if img not in self.imageUpldFIFO:
-						self.upldir = os.path.normpath(os.path.join(self._config['image_dir'], self._imageFIFO.crtSubDir))
-						self._mkdirImage(self.upldir)
+					if not img in self.imageUpldFIFO:
 						self._putImage(img, os.path.join(self.upldir, os.path.basename(img)))
 						logging.info("Uploaded %s" % img )
 
@@ -181,15 +185,16 @@ class rpiImageDbxClass(rpiBaseClass):
 
 		self.crt_image_snap = None
 		self.imgid = self._imageFIFO.camID + '.jpg'
-		self.upldir = os.path.normpath(os.path.join(self._config['image_dir'], self._imageFIFO.crtSubDir))
+		self.upldir = os.path.normpath(os.path.join(self._config['image_dir'], self.imageUpldFIFO.crtSubDir))
 		self.logfile = './upldlog.json'
 
 		### When there are already images listed in the upload log file, then
 		# make sure we don't upload them to the remote folder again
 		# Else, create the file with an empty list; to be updated in endDayOAM()
-		self.imageUpldFIFO.acquireSemaphore()
-		self.imageUpldFIFO.clear()
 		try:
+			self.imageUpldFIFO.acquireSemaphore()
+			self.imageUpldFIFO.clear()
+
 			if os.path.isfile(self.logfile):
 				with open(self.logfile,'r') as logf:
 					upldimg = json.load(logf)
@@ -286,6 +291,9 @@ class rpiImageDbxClass(rpiBaseClass):
 #		"""
 #		End OAM procedure.
 #		"""
+	@atexit.register
+	def atexitend():
+		self.endDayOAM()
 
 	def _lsImage(self,from_path):
 		"""
@@ -335,19 +343,18 @@ class rpiImageDbxClass(rpiBaseClass):
 		Stores the uploaded files names in self.imageUpldFIFO.
 
 		Examples:
-		_putImage('./path/test.jpg', './path/dropbox-upload-test.jpg')
+		_putImage('./path/test.jpg', '/path/dropbox-upload-test.jpg')
 		"""
 		try:
 			mode = (WriteMode.overwrite if overwrite else WriteMode.add)
 
 			with open(from_path, "rb") as from_file:
-				#self.api_client.put_file(to_path, from_file, overwrite)
 				self._dbx.files_upload( from_file, '/' + os.path.normpath(to_path), mode)
 
-				if not overwrite:
-					self.imageUpldFIFO.append(from_path)
+			if not overwrite:
+				self.imageUpldFIFO.append(from_path)
 
-				logging.debug("%s::: _putImage(): Uploaded file from %s to remote %s" % (self.name, from_path, to_path))
+			logging.debug("%s::: _putImage(): Uploaded file from %s to remote %s" % (self.name, from_path, to_path))
 
 		except IOError:
 			raise rpiBaseClassError("_putImage(): Local img file %s could not be opened." %  from_path, ERRCRIT)
@@ -361,7 +368,7 @@ class rpiImageDbxClass(rpiBaseClass):
 		Create a new remote directory.
 
 		Examples:
-		_mkdirImage('./dropbox_dir_test')
+		_mkdirImage('/dropbox_dir_test')
 		"""
 		try:
 			self._dbx.files_create_folder('/' + os.path.normpath(path))
@@ -393,7 +400,7 @@ class rpiImageDbxClass(rpiBaseClass):
 		Move/rename a remote file or directory.
 
 		Examples:
-		_mvImage('./path1/dropbox-move-test.jpg', './path2/dropbox-move-test.jpg')
+		_mvImage('./path1/dropbox-move-test.jpg', '/path2/dropbox-move-test.jpg')
 		"""
 		try:
 			self._dbx.files_move( '/' + os.path.normpath(from_path), '/' +  os.path.normpath(to_path) )

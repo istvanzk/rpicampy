@@ -27,7 +27,7 @@ import os
 from errno import EEXIST
 import glob
 import time
-import datetime
+from datetime import datetime
 import subprocess
 import logging
 import ephem

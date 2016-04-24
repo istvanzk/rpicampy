@@ -30,6 +30,7 @@ import time
 import datetime
 import subprocess
 import logging
+import ephem
 
 import rpififo
 from rpibase import rpiBaseClass, rpiBaseClassError
@@ -349,6 +350,14 @@ class rpiCamClass(rpiBaseClass):
 		#		self.imageFIFO.append(img)
 		#self.imageFIFO.releaseSemaphore()
 
+		# Ephem parameters
+		# The ephem.localtime() function converts a PyEphem date into a Python datetime object 
+		# expressed in your local time zone.
+		self._sun = ephem.Sun()
+		self._aal = ephem.Observer()
+		self._aal.lat = '57.0774992'
+		self._aal.lon = '9.9117876'
+		self._aal.pressure = 0
 
 #	def endDayOAM(self):
 #		"""
@@ -370,8 +379,12 @@ class rpiCamClass(rpiBaseClass):
 		'''
 
 		if RPICAM:
-			# Set the current 'dark' time threshold
-			self._tlocal = time.localtime()
+			# Set the current 'dark' time thresholds
+			self._tdark_start = ephem.localtime(self._aal.next_setting(self._sun))
+			self._tdark_stop = ephem.localtime(self._aal.next_rising(self._sun))
+			self._tlocal = datetime.now()
+			
+			self._tlocal = time.time()
 			self._tdark_start = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
 						self._config['dark_hours'][0], self._config['dark_mins'][0], 0,
 						self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
@@ -380,7 +393,8 @@ class rpiCamClass(rpiBaseClass):
 						self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
 
 			# Set the "dark" exposure parameters when needed
-			if (time.time() >= self._tdark_start) or (time.time() <= self._tdark_stop):
+			#if (self._tlocal >= self._tdark_start) or (self._tlocal <= self._tdark_stop):
+			if (self._tlocal >= self._tdark_start) or (self._tlocal <= self._tdark_stop):
 
 				if self.camid == 'CAM1':
 					self._camera.awb_mode = 'auto'

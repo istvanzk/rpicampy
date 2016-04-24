@@ -394,7 +394,7 @@ class rpiCamClass(rpiBaseClass):
 
 			# Set the "dark" exposure parameters when needed
 			#if (self._tlocal >= self._tdark_start) or (self._tlocal <= self._tdark_stop):
-			if (self._tlocal >= self._tdark_start) or (self._tlocal <= self._tdark_stop):
+			if (self._tlocal >= self._tdark_start) and (self._tlocal <= self._tdark_stop):
 
 				if self.camid == 'CAM1':
 					self._camera.awb_mode = 'auto'

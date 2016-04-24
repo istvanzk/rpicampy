@@ -384,13 +384,13 @@ class rpiCamClass(rpiBaseClass):
 			self._tdark_stop = ephem.localtime(self._aal.next_rising(self._sun))
 			self._tlocal = datetime.now()
 			
-			self._tlocal = time.time()
-			self._tdark_start = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
-						self._config['dark_hours'][0], self._config['dark_mins'][0], 0,
-						self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
-			self._tdark_stop = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
-						self._config['dark_hours'][1], self._config['dark_mins'][1], 0,
-						self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
+			#self._tlocal = time.time()
+			#self._tdark_start = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
+			#			self._config['dark_hours'][0], self._config['dark_mins'][0], 0,
+			#			self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
+			#self._tdark_stop = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
+			#			self._config['dark_hours'][1], self._config['dark_mins'][1], 0,
+			#			self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
 
 			# Set the "dark" exposure parameters when needed
 			#if (self._tlocal >= self._tdark_start) or (self._tlocal <= self._tdark_stop):

@@ -17,6 +17,7 @@
   image_dir: './webcam'
   dark_hours: [17, 8] 
   dark_mins: [0, 0]
+  dark_loc: ['57.0774992' , '9.9117876']
   interval_sec: [300]
 ---
 #dirImgConfig:

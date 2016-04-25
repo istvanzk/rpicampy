@@ -444,26 +444,28 @@ class rpiCamClass(rpiBaseClass):
 		Determine if current time is in the "dark" period.
 		'''
 
-		# Set the current 'dark' time thresholds
-		self._tdark_start = ephem.localtime(self._aal.previous_setting(self._sun))
-		self._tdark_stop = ephem.localtime(self._aal.previous_rising(self._sun))
+		# Check the current time against the (auto or manual) 'dark' time period 
+		if (self._config['dark_hours'][0] == 0) and (self._config['dark_hours'][-1] == 0):
+			self._tdark_start = self._aal.previous_setting(self._sun)
+			self._tdark_stop = self._aal.previous_rising(self._sun)
 		
-		if (self._tdark_start > self._tdark_stop):
-			return True
+			if (self._tdark_start > self._tdark_stop):
+				return True
+			else:
+				return False	
 		else:
-			return False	
-		
-		#self._tlocal = time.time()
-		#self._tdark_start = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
-		#			self._config['dark_hours'][0], self._config['dark_mins'][0], 0,
-		#			self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
-		#self._tdark_stop = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
-		#			self._config['dark_hours'][1], self._config['dark_mins'][1], 0,
-		#			self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
+			self._tlocal = time.time()
+			self._tdark_start = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
+						self._config['dark_hours'][0], self._config['dark_mins'][0], 0,
+						self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
+			self._tdark_stop = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
+						self._config['dark_hours'][1], self._config['dark_mins'][1], 0,
+						self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
 
-		#if (self._tlocal >= self._tdark_start) or (self._tlocal <= self._tdark_stop):
-		#:
-					
+			if (self._tlocal >= self._tdark_start) or (self._tlocal <= self._tdark_stop):
+				return True
+			else:
+				return False		
 		
 	
 	def _switchIR(self, bONOFF):

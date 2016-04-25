@@ -374,7 +374,7 @@ class rpiCamClass(rpiBaseClass):
 
 	def _setCamExp(self):
 		'''
-		Set amera exposure according to the 'dark' time threshold.
+		Set camera exposure according to the 'dark' time threshold.
 		Used only when RPICAM or RASPISTILL = True.
 		'''
 
@@ -445,7 +445,7 @@ class rpiCamClass(rpiBaseClass):
 		'''
 
 		# Check the current time against the (auto or manual) 'dark' time period 
-		if (self._config['dark_hours'][0] == 0) and (self._config['dark_hours'][-1] == 0):
+		if (self._config['dark_hours'][0] == 0) and (self._config['dark_hours'][1] == 0):
 			self._tdark_start = self._aal.previous_setting(self._sun)
 			self._tdark_stop = self._aal.previous_rising(self._sun)
 		

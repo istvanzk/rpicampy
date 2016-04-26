@@ -353,11 +353,11 @@ class rpiCamClass(rpiBaseClass):
 		# Ephem parameters
 		# The ephem.localtime() function converts a PyEphem date into a Python datetime object 
 		# expressed in your local time zone.
-		self._sun = ephem.Sun()
 		self._loc = ephem.Observer()
 		self._loc.lat = self._config['dark_loc'][0]
 		self._loc.lon = self._config['dark_loc'][1]
 		self._loc.pressure = 0
+		self._loc.horizon = '0:50'
 
 #	def endDayOAM(self):
 #		"""
@@ -446,8 +446,9 @@ class rpiCamClass(rpiBaseClass):
 
 		# Check the current time against the (auto or manual) 'dark' time period 
 		if (self._config['dark_hours'][0] == 0) and (self._config['dark_hours'][1] == 0):
-			self._tdark_start = self._loc.previous_setting(self._sun)
-			self._tdark_stop = self._loc.previous_rising(self._sun)
+			sun = ephem.Sun()
+			self._tdark_start = self._loc.previous_setting(sun)
+			self._tdark_stop = self._loc.previous_rising(sun)
 		
 			if (self._tdark_start > self._tdark_stop):
 				return True

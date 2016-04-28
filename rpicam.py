@@ -27,7 +27,7 @@ import os
 from errno import EEXIST
 import glob
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 import subprocess
 import logging
 import ephem
@@ -447,7 +447,7 @@ class rpiCamClass(rpiBaseClass):
 
 		# Check the current time against the (auto or manual) 'dark' time period 
 		if (self._config['dark_hours'][0] == 0) and (self._config['dark_hours'][1] == 0):
-			self._loc.date = datetime.now()
+			self._loc.date = datetime.now(timezone.utc)
 			self._tdark_start = self._loc.previous_setting(self._sun)
 			self._tdark_stop = self._loc.previous_rising(self._sun)
 		

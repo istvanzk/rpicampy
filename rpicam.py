@@ -353,12 +353,13 @@ class rpiCamClass(rpiBaseClass):
 		# Ephem parameters
 		# The ephem.localtime() function converts a PyEphem date into a Python datetime object 
 		# expressed in your local time zone.
+		# A negative value of horizon can be used when an observer is high off of the ground.
 		self._sun = ephem.Sun()
 		self._loc = ephem.Observer()
 		self._loc.lat = self._config['dark_loc'][0]
 		self._loc.lon = self._config['dark_loc'][1]
 		self._loc.pressure = 0
-		self._loc.horizon = '0:50'
+		self._loc.horizon = '-5:00'
 
 #	def endDayOAM(self):
 #		"""

@@ -359,7 +359,7 @@ class rpiCamClass(rpiBaseClass):
 		self._loc.lat = self._config['dark_loc'][0]
 		self._loc.lon = self._config['dark_loc'][1]
 		self._loc.pressure = 0
-		self._loc.horizon = '-3:00'
+		self._loc.horizon = '-2:30'
 
 #	def endDayOAM(self):
 #		"""

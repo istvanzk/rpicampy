@@ -345,23 +345,29 @@ class rpiImageDbxClass(rpiBaseClass):
 		Examples:
 		_putImage('./path/test.jpg', '/path/dropbox-upload-test.jpg')
 		"""
-		try:
-			mode = (WriteMode.overwrite if overwrite else WriteMode.add)
+		mode = (WriteMode.overwrite if overwrite else WriteMode.add)
 
-			with open(from_path, "rb") as from_file:
-				self._dbx.files_upload( from_file, '/' + os.path.normpath(to_path), mode)
+		with open(from_path, "rb") as from_file:
+			try:
+				self._dbx.files_upload( from_file.read(), '/' + os.path.normpath(to_path), mode)
 
-			if not overwrite:
-				self.imageUpldFIFO.append(from_path)
+				if not overwrite:
+					self.imageUpldFIFO.append(from_path)
 
-			logging.debug("%s::: _putImage(): Uploaded file from %s to remote %s" % (self.name, from_path, to_path))
+				logging.debug("%s::: _putImage(): Uploaded file from %s to remote %s" % (self.name, from_path, to_path))
 
-		except IOError:
-			raise rpiBaseClassError("_putImage(): Local img file %s could not be opened." %  from_path, ERRCRIT)
+			except ApiError as e:
+				# This checks for the specific error where a user doesn't have
+				# enough Dropbox space quota to upload this file
+				if (err.error.is_path() and err.error.get_path().error.is_insufficient_space()):
+					raise rpiBaseClassError("_putImage(): ERROR: Cannot back up; insufficient space.", ERRCRIT)
+				elif err.user_message_text:
+					raise rpiBaseClassError("_putImage(): %s" % e.user_message_text, ERRLEV2)
+				else:
+					raise rpiBaseClassError("_putImage(): %s" % e.error, ERRLEV2)
 
-		except ApiError as e:
-			raise rpiBaseClassError("_putImage(): %s" % e.error, ERRLEV2)
-
+			#except IOError:
+				#raise rpiBaseClassError("_putImage(): Local img file %s could not be opened." %  from_path, ERRCRIT)
 
 	def _mkdirImage(self, path):
 		"""

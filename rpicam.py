@@ -178,7 +178,7 @@ class rpiCamClass(rpiBaseClass):
 				#with picamera.PiCamera() as self._camera:
 				self._camera = picamera.PiCamera()
 				self._camera.resolution = (1024, 768)
-				self._camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2016 Istvan Z. Kovacs'
+				self._camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2017 Istvan Z. Kovacs'
 				#self._camera.hflip = True
 				#self._camera.vflip = True
 				self._camera.rotation = 0
@@ -186,7 +186,8 @@ class rpiCamClass(rpiBaseClass):
 					self._camera.rotation = 90
 				elif self.camid == 'CAM2':
 					self._camera.rotation = 180
-
+				elif self.camid == 'CAM3':
+					self._camera.rotation = 180
 
 				# Set camera exposure according to the 'dark' time threshold
 				self._setCamExp()
@@ -310,6 +311,8 @@ class rpiCamClass(rpiBaseClass):
 		self.camid = 'CAM1'
 		if subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8').find('pi2') > 0:
 			self.camid = 'CAM2'
+		elif subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8').find('pi3') > 0:
+			self.camid = 'CAM3'
 
 		### Init the FIFO buffer
 		self.imageFIFO.camID = self.camid

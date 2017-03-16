@@ -289,6 +289,8 @@ class rpiCamClass(rpiBaseClass):
 			### Close the picamera
 			if RPICAM:
 				self._camera.close()
+				if self.camid == 'CAM2' and self.bDarkExp:
+					self._switchIR(False)
 
 		except OSError as e:
 			raise rpiBaseClassError("%s::: jobRun(): Snapshot %s could not be created!\n%s" % (self.name, self.image_path, e), ERRLEV2)

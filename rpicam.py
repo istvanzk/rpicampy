@@ -462,7 +462,7 @@ class rpiCamClass(rpiBaseClass):
 			else:
 				return False	
 		else:
-			self._tlocal = time.time()
+			self._tlocal = time.localtime()
 			self._tdark_start = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
 						self._config['dark_hours'][0], self._config['dark_mins'][0], 0,
 						self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))

@@ -181,13 +181,7 @@ class rpiCamClass(rpiBaseClass):
 				self._camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2017 Istvan Z. Kovacs'
 				#self._camera.hflip = True
 				#self._camera.vflip = True
-				self._camera.rotation = 0
-				if self.camid == 'CAM1':
-					self._camera.rotation = 90
-				elif self.camid == 'CAM2':
-					self._camera.rotation = 180
-				elif self.camid == 'CAM3':
-					self._camera.rotation = 180
+				self._camera.rotation = self._config['image_rot']
 
 				# Set camera exposure according to the 'dark' time threshold
 				self._setCamExp()
@@ -208,7 +202,7 @@ class rpiCamClass(rpiBaseClass):
 				if self.bDarkExp:
 					sN = 'n' + sN
 
-					if self.camid == 'CAM1':
+					if self._config['use_ir'] == 1:
 
 						# Calculate brightness
 						#self._grayscaleAverage(image)
@@ -238,12 +232,6 @@ class rpiCamClass(rpiBaseClass):
 
 							# Lock the buffer
 							self.imageFIFO.acquireSemaphore()
-
-					#elif self.camid == 'CAM2':
-						# Do nothing ?
-
-					#else:
-						# Do nothing ?
 
 
 				# Add overlay text to the final image
@@ -290,7 +278,7 @@ class rpiCamClass(rpiBaseClass):
 			### Close the picamera
 			if RPICAM:
 				self._camera.close()
-				if self.camid == 'CAM2' and self.bDarkExp:
+				if self._config['use_ir'] == 1 and self.bDarkExp:
 					self._switchIR(False)
 
 		except OSError as e:
@@ -306,13 +294,9 @@ class rpiCamClass(rpiBaseClass):
 		(re)Initialize the class.
 		"""
 
-		### Host/cam ID
+		### Cam ID
 		self._camera = None
-		self.camid = 'CAM1'
-		if subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8').find('pi2') > 0:
-			self.camid = 'CAM2'
-		elif subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8').find('pi3') > 0:
-			self.camid = 'CAM3'
+		self.camid = self._config['cam_id']
 
 		### Init the FIFO buffer
 		self.imageFIFO.camID = self.camid
@@ -324,13 +308,15 @@ class rpiCamClass(rpiBaseClass):
 		self.bDarkExp = False
 		self.imgbr = 128
 
-		### Init GPIO ports
-		self.IRport = 19 # use GPIO19
-		if USEGPIO:
+		### Init GPIO port, BCMxx pin. NO CHECK!
+		self.IRport = self._config['bcm_irport'] 
+		if USEGPIO and self._config['use_ir'] == 1:
 			GPIO.cleanup(self.IRport)
 			GPIO.setmode(GPIO.BCM)
 			GPIO.setup(self.IRport, GPIO.OUT, initial=0)
-
+		else
+			USEGPIO = False
+			
 		### Init the font
 		self._TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 16)
 
@@ -390,18 +376,7 @@ class rpiCamClass(rpiBaseClass):
 			# Set the "dark" exposure parameters when needed
 			if self._isDark():
 			
-				if self.camid == 'CAM1':
-					self._camera.awb_mode = 'auto'
-					self._camera.iso = 800
-					self._camera.contrast = 30
-					self._camera.brightness = 70
-					self._camera.framerate = Fraction(1, 2)
-					self._camera.exposure_mode = 'off'
-					#self._camera.meter_mode = 'spot'
-					self._camera.shutter_speed = 5000000
-					time.sleep(5)
-
-				elif self.camid == 'CAM2':
+				if self._config['use_ir'] == 1:
 				 	# Switch ON IR
 					self._switchIR(True)
 
@@ -412,22 +387,22 @@ class rpiCamClass(rpiBaseClass):
 					self._camera.exposure_mode = 'auto'
 					time.sleep(2)
 
-				#else:
-					# Do nothing
+				else:
+					self._camera.awb_mode = 'auto'
+					self._camera.iso = 800
+					self._camera.contrast = 30
+					self._camera.brightness = 70
+					self._camera.framerate = Fraction(1, 2)
+					self._camera.exposure_mode = 'off'
+					#self._camera.meter_mode = 'spot'
+					self._camera.shutter_speed = 5000000
+					time.sleep(5)
 
 				self.bDarkExp = True
 
 			else:
 
-				if self.camid == 'CAM1':
-					self._camera.awb_mode = 'auto'
-					self._camera.iso = 0
-					self._camera.contrast = 30
-					self._camera.brightness = 50
-					self._camera.exposure_mode = 'auto'
-					time.sleep(2)
-
-				elif self.camid == 'CAM2':
+				if self._config['use_ir'] == 1:
 				 	# Switch OFF IR
 					self._switchIR(False)
 
@@ -438,8 +413,13 @@ class rpiCamClass(rpiBaseClass):
 					self._camera.exposure_mode = 'auto'
 					time.sleep(2)
 
-				#else:
-					# Do nothing
+				else:
+					self._camera.awb_mode = 'auto'
+					self._camera.iso = 0
+					self._camera.contrast = 30
+					self._camera.brightness = 50
+					self._camera.exposure_mode = 'auto'
+					time.sleep(2)
 
 				self.bDarkExp = False
 
@@ -496,7 +476,7 @@ class rpiCamClass(rpiBaseClass):
 		'''
 		Convert image to greyscale, return average pixel brightness.
 		'''
-		if self.camid == 'CAM1':
+		if self._config['use_ir'] == 0:
 			# Upper-right ~1/3 image is masked out (black), not used in the statistics
 			mask = Image.new('1', (image.size[0], image.size[1]))
 			draw = ImageDraw.Draw(mask,'1')
@@ -523,7 +503,7 @@ class rpiCamClass(rpiBaseClass):
 		'''
 		Average pixels, then transform to "perceived brightness".
 		'''
-		if self.camid == 'CAM1':
+		if self._config['use_ir'] == 0:
 			# Upper-right ~1/3 image is masked out (black), not used in the statistics
 			mask = Image.new('1', (image.size[0], image.size[1]))
 			draw = ImageDraw.Draw(mask,'1')

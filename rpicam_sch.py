@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Time-lapse with Rasberry Pi controlled camera - VER 4.5 for Python 3.4+
+Time-lapse with Rasberry Pi controlled camera - VER 4.55 for Python 3.4+
 Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -18,32 +18,6 @@ Copyright (C) 2016 Istvan Z. Kovacs
     You should have received a copy of the GNU General Public License along
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-Modules:
-
-rpibase:	Base class for rpicam, rpimgdir and rpimgdb
-rpicam:		Run and control a:
-			- Raspberry PI camera using using the picamera module, or
-			- Raspberry PI camera using the raspistill utility, or
-			- USB web camera using fswebcam utility
-rpimgdir:	Manage the set of saved images by rpiCam.
-rpimgdb:	Manage images in a remote directory (Dropbox SDK, API V2, Python 3.4).
-rpievents:	Implements the the set of events and counters to be used in the rpi job.
-rpififo:	Implements the a FIFO buffer for the image file names (full path) generated in the rpicam job.
-thingspk:	A simple REST request abstraction layer and a light ThingSpeak API and TalkBack App SDK.
-rpicam_sch:	The main method. Uses APScheduler (Advanced Python Scheduler: http://apschedRPiuler.readthedocs.org/en/latest/)
-			to background schedRPiule three interval jobs implemented in: rpicam, rpimgdir and rpimgdb.
-			An additional ThingSpeak TalkBack job is also schedRPiuled.
-rpiconfig.yaml:	The configuration parameters.
-
-The image file names are:  '%d%m%y-%H%M%S-CAMX.jpg', where CAMX is the camera identification (ID string).
-The images are saved locally and remotely in a sub-folder. The sub-folder name is the current date '%d%m%y'.
-
-The implementation of the thingspk module follows the ThingSpeak API documentation at https://www.mathworks.com/help/thingspeak/
-and the TalkBack API documentation at https://www.mathworks.com/help/thingspeak/talkback-app.html
-The REST client implementation follows the model of the official python Xively API client (SDK).
-
-The tool can be launched as an init.d Linux service with the rpicamtest.sh
 
 TODOs:
 1) Implement gracefull exit (http://stackoverflow.com/questions/18499497/how-to-process-sigterm-signal-gracefully)
@@ -105,12 +79,10 @@ TSPKFIELDNAMES = {'timer':'field1', 'cam':'field2', 'dir':'field3', 'dbx':'field
 
 
 ### Python version
-PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] == 4)
+PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 4)
 
-### Host/cam ID
-CAMID = 'CAM1'
-if subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8').find('pi2') > 0:
-	CAMID = 'CAM2'
+### Hostname
+HOST_NAME = subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8')
 
 ### Set up the logging and a filter
 class NoRunningFilter(logging.Filter):
@@ -147,7 +119,7 @@ hndl.addFilter(filter)
 #rpiLogger.addFilter(filter)
 rpiLogger.addHandler(hndl)
 
-rpiLogger.info("\n\n======== Start %s (loglevel:%d) ========\n" % (CAMID, LOGLEVEL))
+rpiLogger.info("\n\n======== Started on %s (loglevel:%d) ========\n" % (HOST_NAME, LOGLEVEL))
 
 ### Read the parameters
 try:

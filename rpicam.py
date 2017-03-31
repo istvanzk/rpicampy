@@ -65,17 +65,17 @@ if RPICAM:
 	import io
 
 ### Check for root/sudo (needed for GPIO)
-if (os.getenv("SUDO_USER") == None) and (os.geteuid() != 0):
-	USEGPIO = False
-else:
-	USEGPIO = True
+#if (os.getenv("SUDO_USER") == None) and (os.geteuid() != 0):
+#	USEGPIO = False
+#else:
+#	USEGPIO = True
 
-if RPICAM or RASPISTILL:
-	if USEGPIO:
-		import RPi.GPIO as GPIO
+#if RPICAM or RASPISTILL:
+#	if USEGPIO:
+#		import RPi.GPIO as GPIO
 		# Since 0.6.0a3: uses /dev/gpiomem if available to avoid being run as root? Not working in 0.6.2!
-	else:
-		logging.warning("The RPi.GPIO module is not used!")
+#	else:
+#		logging.warning("The RPi.GPIO module is not used!")
 
 class rpiCamClass(rpiBaseClass):
 	"""
@@ -310,12 +310,12 @@ class rpiCamClass(rpiBaseClass):
 
 		### Init GPIO port, BCMxx pin. NO CHECK!
 		self.IRport = self._config['bcm_irport'] 
-		if USEGPIO and self._config['use_ir'] == 1:
+		if self._config['use_ir'] == 1:
+#			USEGPIO = False
+#		if USEGPIO:
 			GPIO.cleanup(self.IRport)
 			GPIO.setmode(GPIO.BCM)
 			GPIO.setup(self.IRport, GPIO.OUT, initial=0)
-		else:
-			USEGPIO = False
 			
 		### Init the font
 		self._TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 16)
@@ -460,7 +460,7 @@ class rpiCamClass(rpiBaseClass):
 		'''
 		Switch ON/OFF the IR lights
 		'''
-		if USEGPIO:
+		if self._config['use_ir'] == 1:
 			if bONOFF:
 				GPIO.output(self.IRport,1)
 			else:

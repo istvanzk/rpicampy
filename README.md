@@ -1,7 +1,7 @@
 # rpicampy
 Time-lapse with Rasberry Pi controlled camera.
 
-Version 4.5 for Python 3.4+
+Version 4.51 for Python 3.4+
 
 
 rpibase:	Base class for rpicam, rpimgdir and rpimgdb
@@ -42,4 +42,9 @@ The implementation of the thingspk module follows the ThingSpeak API documentati
 and the TalkBack API documentation at https://www.mathworks.com/help/thingspeak/talkback-app.html
 The REST client implementation follows the model of the official python Xively API client (SDK).
 
-The tool can be launched as an init.d Linux service with the rpicamtest.sh
+The tool can be launched as an:
+
+- init.d service with the rpicamtest.sh, or
+
+- systemd service run with --user, using rpicamsch.service.user unit file (to be copied to $HOME/.config/systemd/user/rpicamsch.service)
+

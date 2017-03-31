@@ -64,18 +64,12 @@ if RPICAM:
 	from fractions import Fraction
 	import io
 
-### Check for root/sudo (needed for GPIO)
-#if (os.getenv("SUDO_USER") == None) and (os.geteuid() != 0):
-#	USEGPIO = False
-#else:
-#	USEGPIO = True
-
-#if RPICAM or RASPISTILL:
-#	if USEGPIO:
-#		import RPi.GPIO as GPIO
-		# Since 0.6.0a3: uses /dev/gpiomem if available to avoid being run as root? Not working in 0.6.2!
-#	else:
-#		logging.warning("The RPi.GPIO module is not used!")
+### GPIO
+if RPICAM or RASPISTILL:
+	import RPi.GPIO as GPIO
+	# Uses /dev/gpiomem if available to avoid being run as root
+else:
+	logging.warning("The RPi.GPIO module is not used!")
 
 class rpiCamClass(rpiBaseClass):
 	"""
@@ -202,7 +196,7 @@ class rpiCamClass(rpiBaseClass):
 				if self.bDarkExp:
 					sN = 'n' + sN
 
-					if self._config['use_ir'] == 1:
+					if self._config['use_ir'] == 0:
 
 						# Calculate brightness
 						#self._grayscaleAverage(image)
@@ -278,8 +272,7 @@ class rpiCamClass(rpiBaseClass):
 			### Close the picamera
 			if RPICAM:
 				self._camera.close()
-				if self._config['use_ir'] == 1 and self.bDarkExp:
-					self._switchIR(False)
+				self._switchIR(False)
 
 		except OSError as e:
 			raise rpiBaseClassError("%s::: jobRun(): Snapshot %s could not be created!\n%s" % (self.name, self.image_path, e), ERRLEV2)
@@ -311,8 +304,6 @@ class rpiCamClass(rpiBaseClass):
 		### Init GPIO port, BCMxx pin. NO CHECK!
 		self.IRport = self._config['bcm_irport'] 
 		if self._config['use_ir'] == 1:
-#			USEGPIO = False
-#		if USEGPIO:
 			GPIO.cleanup(self.IRport)
 			GPIO.setmode(GPIO.BCM)
 			GPIO.setup(self.IRport, GPIO.OUT, initial=0)

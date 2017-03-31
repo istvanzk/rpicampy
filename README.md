@@ -19,7 +19,7 @@ rpicam:		Run and control a:
 
 The image file names are:  '%d%m%y-%H%M%S-CAMID.jpg', where CAMID is the image/camera identification string image_id specified in the configuration file.
 The images are saved locally and remotely in a sub-folder. The sub-folders name is the current date '%d%m%y'.
-The images are automatically rotated with the image_rot angle (degrees) specified in the configuration file. 
+When using picamera module, the images are automatically rotated with the image_rot angle (degrees) specified in the configuration file. 
 
 The rpicam module implements a 'dark' time long exposure time or an infra-red (IR) light ON/OFF switch. 
 The 'dark' time period (start and stop) can be configured manually using the hour/min parameters set in the configuration file.

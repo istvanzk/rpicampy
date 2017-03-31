@@ -470,7 +470,7 @@ class rpiCamClass(rpiBaseClass):
 						self._config['dark_hours'][1], self._config['dark_mins'][1], 0,
 						self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
 
-			if (self._tlocal >= self._tdark_start) or (self._tlocal <= self._tdark_stop):
+			if (time.time() >= self._tdark_start) or (time.time() <= self._tdark_stop):
 				return True
 			else:
 				return False		

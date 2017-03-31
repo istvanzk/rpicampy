@@ -291,9 +291,9 @@ class rpiImageDbxClass(rpiBaseClass):
 #		"""
 #		End OAM procedure.
 #		"""
-	@atexit.register
-	def atexitend():
-		self.endDayOAM()
+#	@atexit.register
+#	def atexitend():
+#		self.endDayOAM()
 
 	def _lsImage(self,from_path):
 		"""

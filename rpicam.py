@@ -314,7 +314,7 @@ class rpiCamClass(rpiBaseClass):
 			GPIO.cleanup(self.IRport)
 			GPIO.setmode(GPIO.BCM)
 			GPIO.setup(self.IRport, GPIO.OUT, initial=0)
-		else
+		else:
 			USEGPIO = False
 			
 		### Init the font

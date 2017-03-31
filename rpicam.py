@@ -65,7 +65,7 @@ if RPICAM:
 	import io
 
 ### GPIO
-if RPICAM or RASPISTILL:
+if not FAKESNAP:
 	import RPi.GPIO as GPIO
 	# Uses /dev/gpiomem if available to avoid being run as root
 else:

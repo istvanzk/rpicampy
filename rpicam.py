@@ -296,7 +296,7 @@ class rpiCamClass(rpiBaseClass):
 
 		### Cam ID
 		self._camera = None
-		self.camid = self._config['cam_id']
+		self.camid = self._config['image_id']
 
 		### Init the FIFO buffer
 		self.imageFIFO.camID = self.camid

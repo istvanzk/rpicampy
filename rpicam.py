@@ -152,6 +152,10 @@ class rpiCamClass(rpiBaseClass):
 			# Lock the buffer
 			self.imageFIFO.acquireSemaphore()
 
+			# Switch ON/OFF IR
+			if (not FAKESNAP) and (self._config['use_ir'] == 1):
+				self._switchIR(self._isDark())
+
 			if FAKESNAP:
 				logging.debug('Faking snapshot: ' + self.image_name)
 				self._grab_cam = subprocess.Popen("touch " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
@@ -161,7 +165,7 @@ class rpiCamClass(rpiBaseClass):
 
 			elif RASPISTILL:
 				# Use raspistill -n -vf -hf -awb auto -q 95
-				self._grab_cam = subprocess.Popen("raspistill -n -vf -hf -q 95 -co 30 -w 640 -h 480 -o " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+				self._grab_cam = subprocess.Popen("raspistill -n -rot " + self._config['image_rot'] + " -q 95 -co 30 -w 1024 -h 768 -o " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
 
 				# Check return/errors
 				#self.grab_cam.wait()
@@ -191,7 +195,7 @@ class rpiCamClass(rpiBaseClass):
 				image = Image.open(stream)
 
 				# When in 'dark' time
-				# Calculate brightness and adjust shutter speed
+				# Calculate brightness and adjust shutter speed when not using IR light
 				sN = ': '
 				if self.bDarkExp:
 					sN = 'n' + sN
@@ -272,7 +276,9 @@ class rpiCamClass(rpiBaseClass):
 			### Close the picamera
 			if RPICAM:
 				self._camera.close()
-				self._switchIR(False)
+				
+			### Switch off IR	
+			self._switchIR(False)
 
 		except OSError as e:
 			raise rpiBaseClassError("%s::: jobRun(): Snapshot %s could not be created!\n%s" % (self.name, self.image_path, e), ERRLEV2)
@@ -360,17 +366,13 @@ class rpiCamClass(rpiBaseClass):
 		'''
 		Set camera exposure according to the 'dark' time threshold.
 		Used only when RPICAM or RASPISTILL = True.
-		'''
-
+		'''				
 		if RPICAM:
 		
 			# Set the "dark" exposure parameters when needed
 			if self._isDark():
 			
 				if self._config['use_ir'] == 1:
-				 	# Switch ON IR
-					self._switchIR(True)
-
 					self._camera.awb_mode = 'auto'
 					self._camera.iso = 0
 					self._camera.contrast = 50
@@ -394,9 +396,6 @@ class rpiCamClass(rpiBaseClass):
 			else:
 
 				if self._config['use_ir'] == 1:
-				 	# Switch OFF IR
-					self._switchIR(False)
-
 					self._camera.awb_mode = 'auto'
 					self._camera.iso = 0
 					self._camera.contrast = 30

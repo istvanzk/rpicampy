@@ -1,0 +1,38 @@
+# systemd unit file for rpicam_sch.py service (run with --user)
+# V1.0, 31.03.2017
+
+# Place: $HOME/.config/systemd/user/rpicamsch.service 
+
+# Requires:
+# sudo apt-get install libpam-systemd
+# sudo loginctl enable-linger username
+#sudo reboot
+
+# Use:
+# systemctl --user enable rpicamsch
+# systemctl --user daemon-reload
+# systemctl --user stop rpicamsch
+# systemctl --user start rpicamsch
+# systemctl --user status rpicamsch
+
+# References:
+# https://wiki.archlinux.org/index.php/Systemd/User#How_it_works 
+# http://www.raspberrypi-spy.co.uk/2015/10/how-to-autorun-a-python-script-on-boot-using-systemd/
+# http://askubuntu.com/questions/676007/how-do-i-make-my-systemd-service-run-via-specific-user-and-start-on-boot
+# https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+# https://www.freedesktop.org/software/systemd/man/systemd.service.html
+# https://wiki.archlinux.org/index.php/systemd
+
+[Unit]
+Description=RPiCam service V1.0
+Documentation=https://github.com/istvanzk/rpicampy file:rpicam_sch.py
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/rpicampy/rpicam_sch.py
+WorkingDirectory=%h/rpicampy
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

@@ -472,7 +472,7 @@ def main():
 	rpiLogger.debug("Scheduler started on: %s" % (time.ctime(time.time())))
 	schedRPi.start()
 
-	infort_str = "Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all) 
+	info_str = "Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all) 
 	rpiLogger.info(info_str)
 	journald_send(info_str)
 
@@ -579,7 +579,7 @@ def main():
 					raise
 
 				finally:
-					time.sleep( 60 )
+					time.sleep( 10 )
 
 
 			# Next day 00:00 time

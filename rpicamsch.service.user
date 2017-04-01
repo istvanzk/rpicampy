@@ -1,5 +1,5 @@
 ## systemd unit file for rpicam_sch.py service (run with --user)
-## V1.1, 31.03.2017
+## V1.1, 01.04.2017
 
 ## Place: $HOME/.config/systemd/user/rpicamsch.service 
 # chmod 644 $HOME/.config/systemd/user/rpicamsch.service
@@ -25,15 +25,15 @@
 # https://wiki.archlinux.org/index.php/systemd
 
 [Unit]
-Description=RPiCam service V1.0
+Description=RPiCam service V1.1
 Documentation=https://github.com/istvanzk/rpicampy file:rpicam_sch.py
 After=network-online.target
 
 [Service]
 Type=notify
 NotifyAccess=main
-TimeoutStartSec=5
-WatchdogSec=60
+#TimeoutStartSec=5
+WatchdogSec=90
 #Type=simple
 ExecStart=/usr/bin/python3 %h/rpicampy/rpicam_sch.py
 WorkingDirectory=%h/rpicampy

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Time-lapse with Rasberry Pi controlled camera - VER 4.55 for Python 3.4+
+Time-lapse with Rasberry Pi controlled camera - VER 4.6 for Python 3.4+
 Copyright (C) 2016 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -20,12 +20,16 @@ Copyright (C) 2016 Istvan Z. Kovacs
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 TODOs:
+Must have:
 1) Implement gracefull exit (http://stackoverflow.com/questions/18499497/how-to-process-sigterm-signal-gracefully)
-2) Implement Job crash recovery mechanism and
-3) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
+
+Using systemd functionalities:
+2) Use JournalHandler logging (https://www.freedesktop.org/software/systemd/python-systemd/journal.html)
+3) Implement Job crash recovery mechanism 
+
+Nice to have:
+4) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
 and pyinotify module, http://www.saltycrane.com/blog/2010/04/monitoring-filesystem-python-and-pyinotify/
-4) Integrate with RasPiConnectServer
-5) Use configurable logging (http://victorlin.me/posts/2012/08/26/good-logging-practice-in-python)
 
 """
 
@@ -39,6 +43,7 @@ from collections import deque
 import yaml
 import subprocess
 
+	
 # APScheduler
 #from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -121,6 +126,21 @@ rpiLogger.addHandler(hndl)
 
 rpiLogger.info("\n\n======== Started on %s (loglevel:%d) ========\n" % (HOST_NAME, LOGLEVEL))
 
+### Use systemd features when available
+SYSTEMD = False
+try:
+	from systemd import journal
+	from systemd import daemon
+except:
+	rpiLogger.warning("The python-systemd module was not found. Continuing without systemd features.")
+	pass
+	
+if daemon.booted(): 
+	SYSTEMD = True
+else:
+	rpiLogger.warning("The system is not running under systemd. Continuing without systemd features")
+
+
 ### Read the parameters
 try:
 	with open(YAMLCFG_FILE, 'r') as stream:
@@ -139,7 +159,9 @@ try:
 	timerConfig['status']  = ''
 
 	rpiLogger.info("Configuration file read")
-
+	if SYSTEMD:
+		journal.send("Configuration read from %s" % YAMLCFG_FILE)
+		
 except yaml.YAMLError as e:
 	rpiLogger.error("Error in configuration file:" % e)
 	os._exit()
@@ -174,6 +196,16 @@ else:
 ###
 ### Methods
 ###
+
+def journald_send(msg_str):
+	"""
+	Send a message to the journald or print it
+	"""
+	if SYSTEMD:
+		journal.send(msg_str)
+	else:
+		print(msg_str)
+	
 
 def jobListener(event):
 	"""
@@ -385,7 +417,6 @@ def timerJob():
 		RESTfeed.update()
 
 
-
 ### The APScheduler
 schedRPi = BackgroundScheduler(alias='BkgScheduler')
 #schedRPi = BlockingScheduler(alias='BlkScheduler')
@@ -423,9 +454,9 @@ def main():
 	### Check if the time period is valid
 	tnow = datetime.now()
 	if tnow >= tstop_all:
-		logging.warning("Current time (%s) is after the end of schedRPiuler activity period (%s)!" % (tnow, tstop_all))
-		rpiLogger.info("Scheduler was not started! Bye!")
-		print("Scheduler was not started! Bye!")
+		warn_str = "Current time (%s) is after the end of schedRPiuler activity period (%s)! Scheduler was not started! Bye!" % (tnow, tstop_all)
+		rpiLogger.warning(warn_str)
+		journald_send(warn_str)
 
 		# Update status
 		timerConfig['status'] = 'NoStart'
@@ -441,13 +472,18 @@ def main():
 	rpiLogger.debug("Scheduler started on: %s" % (time.ctime(time.time())))
 	schedRPi.start()
 
-	rpiLogger.info("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
-	print("Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all))
+	infort_str = "Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all) 
+	rpiLogger.info(info_str)
+	journald_send(info_str)
 
 	# Update status
 	timerConfig['status'] = 'SchStart'
 	timerJob()
 
+	# Notify systemd.daemon
+	if SYSTEMD:
+		daemon.notify("READY=1")
+	
 	# Main loop
 	MainRun = True
 	while MainRun:
@@ -508,8 +544,14 @@ def main():
 					# The eventsRPi.eventAllJobsEnd is set when all jobs have been removed/finished
 					while timerConfig['enabled'] and not eventsRPi.eventAllJobsEnd.is_set():
 
-						# Do something else while the schedRPiuler is running
-						time.sleep(10)
+						# Do something else while the schedRPi is running
+						# ...
+						time.sleep(10)				
+	
+						# Update the systemd watchdog timestamp	
+						if SYSTEMD:
+							time.sleep(30)	
+							daemon.notify("WATCHDOG=1")
 
 
 					# Go to next daily period only if timer is still enabled
@@ -569,6 +611,11 @@ def main():
 
 		else:
 			rpiLogger.info("All job schedules were ended. Enter waiting loop.")
+			journald_send("All job schedules were ended. Enter waiting loop.")
+
+	# Notify systemd.daemon
+	if SYSTEMD:
+		daemon.notify("STOPPING=1")
 
 	# End schedRPiuler
 	timerConfig['enabled'] = False

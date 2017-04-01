@@ -1,11 +1,12 @@
 # rpicampy
 Time-lapse with Rasberry Pi controlled camera.
 
-Version 4.55 for Python 3.4+
+Version 4.6 for Python 3.4+
 
 
 rpicam_sch:	The main method. Uses APScheduler (Advanced Python Scheduler: http://apscheduler.readthedocs.org/en/latest/) 
 to background schedule three interval jobs implemented in: rpicam, rpimgdir and rpimgdb. An additional ThingSpeak TalkBack job is also scheduled.
+The module notifies the systemd (when available) on startup finish and sends keep-alive ping.
 
 rpiconfig.yaml:	The configuration file, with parameters for the modules described below.
 

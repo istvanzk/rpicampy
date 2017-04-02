@@ -93,8 +93,8 @@ class GracefulKiller:
 	kill_now = False
 	def __init__(self):
 		signal.signal(signal.SIGINT, self.exit_gracefully)
-    	signal.signal(signal.SIGTERM, self.exit_gracefully)
-    	signal.signal(signal.SIGABRT, self.exit_gracefully)
+		signal.signal(signal.SIGTERM, self.exit_gracefully)
+		signal.signal(signal.SIGABRT, self.exit_gracefully)
 
 	def exit_gracefully(self,signum, frame):
 		self.kill_now = True
@@ -572,7 +572,7 @@ def main():
 	
 						# Update the systemd watchdog timestamp	
 						if SYSTEMD:
-							time.sleep(WATCHDOG_USEC/2.0)	
+							time.sleep(1.0*WATCHDOG_USEC/2000000.0)	
 							daemon.notify("WATCHDOG=1")
 
 

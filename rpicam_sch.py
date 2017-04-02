@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-Time-lapse with Rasberry Pi controlled camera - VER 4.6 for Python 3.4+
-Copyright (C) 2016 Istvan Z. Kovacs
+Time-lapse with Rasberry Pi controlled camera - VER 4.65 for Python 3.4+
+Copyright (C) 2016-2017 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,15 +20,11 @@ Copyright (C) 2016 Istvan Z. Kovacs
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 TODOs:
-Must have:
-1) Implement gracefull exit (http://stackoverflow.com/questions/18499497/how-to-process-sigterm-signal-gracefully)
-
 Using systemd functionalities:
-2) Use JournalHandler logging (https://www.freedesktop.org/software/systemd/python-systemd/journal.html)
-3) Implement Job crash recovery mechanism 
+1) Use JournalHandler logging (https://www.freedesktop.org/software/systemd/python-systemd/journal.html)
 
 Nice to have:
-4) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
+2) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
 and pyinotify module, http://www.saltycrane.com/blog/2010/04/monitoring-filesystem-python-and-pyinotify/
 
 """
@@ -42,6 +38,7 @@ import logging.handlers
 from collections import deque
 import yaml
 import subprocess
+import signal
 
 	
 # APScheduler
@@ -49,6 +46,7 @@ import subprocess
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_ADDED, EVENT_JOB_REMOVED
 
+# The rpi(cam)py modules
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 import rpimgdir
 import rpicam
@@ -89,6 +87,19 @@ PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 4)
 ### Hostname
 HOST_NAME = subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8')
 
+### Gracefull exit
+# http://stackoverflow.com/questions/18499497/how-to-process-sigterm-signal-gracefully
+class GracefulKiller:
+	kill_now = False
+	def __init__(self):
+		signal.signal(signal.SIGINT, self.exit_gracefully)
+    	signal.signal(signal.SIGTERM, self.exit_gracefully)
+    	signal.signal(signal.SIGABRT, self.exit_gracefully)
+
+	def exit_gracefully(self,signum, frame):
+		self.kill_now = True
+
+
 ### Set up the logging and a filter
 class NoRunningFilter(logging.Filter):
 
@@ -126,8 +137,10 @@ rpiLogger.addHandler(hndl)
 
 rpiLogger.info("\n\n======== Started on %s (loglevel:%d) ========\n" % (HOST_NAME, LOGLEVEL))
 
+
 ### Use systemd features when available
 SYSTEMD = False
+WATCHDOG_USEC = 0
 try:
 	from systemd import journal
 	from systemd import daemon
@@ -137,8 +150,10 @@ except:
 	
 if daemon.booted(): 
 	SYSTEMD = True
+	WATCHDOG_USEC = int(os.environ['WATCHDOG_USEC'])
+	rpiLogger.info("systemd features used: READY=1, STATUS=, WATCHDOG=1 (WATCHDOG_USEC=%d), STOPPING=1" % WATCHDOG_USEC) 
 else:
-	rpiLogger.warning("The system is not running under systemd. Continuing without systemd features")
+	rpiLogger.warning("The system is not running under systemd. Continuing without systemd features.")
 
 
 ### Read the parameters
@@ -189,7 +204,6 @@ if TSPKTBUSE:
 	rpiLogger.info("ThingSpeak TalkBack ID %d initialized" % RESTTalkB.talkback_id)
 else:
 	RESTTalkB = None
-
 
 
 
@@ -445,7 +459,10 @@ def main():
 	"""
 	Runs the APScheduler with the Jobs on every day in the set time periods.
 	"""
-
+	
+	### Gracefull killer/exit
+	gexit = GracefulKiller()
+	
 	### Time period start/stop
 	tstart_all = datetime(timerConfig['start_year'], timerConfig['start_month'], timerConfig['start_day'], timerConfig['start_hour'][0], timerConfig['start_min'][0], 0, 0)
 	tstop_all  = datetime(timerConfig['stop_year'], timerConfig['stop_month'], timerConfig['stop_day'], timerConfig['stop_hour'][-1], timerConfig['stop_min'][-1], 59, 0)
@@ -508,7 +525,7 @@ def main():
 					bValidDayPer[tper] = False
 					rpiLogger.info("The daily period %02d:%02d - %02d:%02d was skipped." % (timerConfig['start_hour'][tper], timerConfig['start_min'][tper], timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper]))
 
-		# The schedRPiuling period: every day in the given time periods
+		# The scheduling period: every day in the given time periods
 		while tcrt < tstop_all:
 
 			# Initialize jobs (will run only after EoD, when not initialized already)
@@ -540,9 +557,14 @@ def main():
 					imgDbx.setRun((tstart_per + timedelta(minutes=1), tstop_per, dbxConfig['interval_sec'][tper]))
 					imgDir.setRun((tstart_per + timedelta(minutes=3), tstop_per, dirConfig['interval_sec'][tper]))
 
-
+					# Send status info to systemd
+					if SYSTEMD:
+						daemon.notify("STATUS=Running current day period: %s - %s" % (tstart_per, tstop_per))
+					
 					# The eventsRPi.eventAllJobsEnd is set when all jobs have been removed/finished
-					while timerConfig['enabled'] and not eventsRPi.eventAllJobsEnd.is_set():
+					while timerConfig['enabled'] and \
+						not eventsRPi.eventAllJobsEnd.is_set() and \
+						not gexit.kill_now:
 
 						# Do something else while the schedRPi is running
 						# ...
@@ -550,12 +572,13 @@ def main():
 	
 						# Update the systemd watchdog timestamp	
 						if SYSTEMD:
-							time.sleep(30)	
+							time.sleep(WATCHDOG_USEC/2.0)	
 							daemon.notify("WATCHDOG=1")
 
 
 					# Go to next daily period only if timer is still enabled
-					if not timerConfig['enabled']:
+					if not timerConfig['enabled'] or \
+						gexit.kill_now:
 
 						# Stop all the jobs
 						imgCam.setStop()
@@ -596,7 +619,8 @@ def main():
 			imgDbx.setEndDayOAM()
 
 			# Go to next day only if timer is still enabled
-			if not timerConfig['enabled']:
+			if not timerConfig['enabled'] or \
+				gexit.kill_now:
 				break # end the while tcrt loop
 
 
@@ -605,8 +629,9 @@ def main():
 		imgDir.setEndOAM()
 		imgDbx.setEndOAM()
 
-		# Normal end of the schedRPiuling period (exit) or enter wait loop
-		if timerConfig['enabled']:
+		# Normal end of the scheduling period or kill/exit, else enter wait loop
+		if timerConfig['enabled'] or \
+			gexit.kill_now:
 			MainRun = False
 
 		else:
@@ -617,7 +642,7 @@ def main():
 	if SYSTEMD:
 		daemon.notify("STOPPING=1")
 
-	# End schedRPiuler
+	# End scheduling
 	timerConfig['enabled'] = False
 	schedRPi.shutdown(wait=True)
 	rpiLogger.debug("Scheduler stop on: %s" % time.ctime(time.time()))

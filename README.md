@@ -50,7 +50,7 @@ The images are saved remotely in a sub-folder under the root image_dir folder sp
 
 The implementation of the thingspk module follows the [ThingSpeak API documentation](https://www.mathworks.com/help/thingspeak/)
 and the [TalkBack API documentation](https://www.mathworks.com/help/thingspeak/talkback-app.html)
-The REST client implementation follows the model of the official python Xively API client (SDK).
+The REST client implementation follows the model of the older [Python Xively API client](https://github.com/xively/xively-python).
 
 #### Auto-start with:
 

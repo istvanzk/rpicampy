@@ -6,25 +6,25 @@ Version 4.65 for Python 3.4+
 
 rpicam_sch:	The main method. 
 
-	- Uses APScheduler (Advanced Python Scheduler: http://apscheduler.readthedocs.org/en/latest/) to background schedule three interval jobs implemented in: rpicam, rpimgdir and rpimgdb. 
+- Uses APScheduler (Advanced Python Scheduler: http://apscheduler.readthedocs.org/en/latest/) to background schedule three interval jobs implemented in: rpicam, rpimgdir and rpimgdb. 
 
-	- A ThingSpeak TalkBack background job is also scheduled for send/receive remote control commands. All the jobs above have a remote control interface via the TalkBack API.
+- A ThingSpeak TalkBack background job is also scheduled for send/receive remote control commands. All the jobs above have a remote control interface via the TalkBack API.
 
-	- The module notifies the systemd (when available) with: READY=1, STATUS=, WATCHDOG=1 (read env variable WATCHDOG_USEC=), STOPPING=1.
+- The module notifies the systemd (when available) with: READY=1, STATUS=, WATCHDOG=1 (read env variable WATCHDOG_USEC=), STOPPING=1.
 
-	- Gracefull exit is implemented for SIGINT, SIGTERM and SIGABRT.
+- Gracefull exit is implemented for SIGINT, SIGTERM and SIGABRT.
 
 rpiconfig.yaml:	The configuration file, with parameters for the modules described below.
 
 rpicam:		Run and control a:
 
-	- Raspberry PI camera using using the picamera module, or
+- Raspberry PI camera using using the picamera module, or
 
-	- Raspberry PI camera using the raspistill utility, or 
+- Raspberry PI camera using the raspistill utility, or 
 
-	- USB web camera using fswebcam utility 
+- USB web camera using fswebcam utility 
 
-	- Infra-red (IR) or visible light (VL) reflector control via GPIO
+- Infra-red (IR) or visible light (VL) reflector control via GPIO
 
 The image file names are:  '%d%m%y-%H%M%S-CAMID.jpg', where CAMID is the image/camera identification string image_id specified in the configuration file.
 The images are saved locally in a sub-folder under the root image_dir folder specified in the cofiguration file. The sub-folder name is the current date '%d%m%y'.

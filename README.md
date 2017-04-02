@@ -6,8 +6,7 @@ Version 4.65 for Python 3.4+
 
 rpicam_sch:	The main method. 
 
-	- Uses APScheduler (Advanced Python Scheduler: http://apscheduler.readthedocs.org/en/latest/) 
-to background schedule three interval jobs implemented in: rpicam, rpimgdir and rpimgdb. 
+	- Uses APScheduler (Advanced Python Scheduler: http://apscheduler.readthedocs.org/en/latest/) to background schedule three interval jobs implemented in: rpicam, rpimgdir and rpimgdb. 
 
 	- A ThingSpeak TalkBack background job is also scheduled for send/receive remote control commands. All the jobs above have a remote control interface via the TalkBack API.
 

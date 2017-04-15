@@ -315,7 +315,7 @@ class rpiImageDbxClass(rpiBaseClass):
 			for f in self.ls_ref.entries:
 				if 'media_info' in f._all_field_names_ and \
 					f.media_info is not None:
-					if self.imgid in f.path_lower:
+					if self.imgid.lower() in f.path_lower:
 						img = '.%s' % f.path_lower
 						foundImg = True
 						if not img in self.imageDbList:

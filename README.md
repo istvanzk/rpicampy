@@ -67,7 +67,7 @@ The REST client implementation follows the model of the older [Python Xively API
 
 #### Dependencies on other python modules
 
-PIP requirements.txt, to be used with ```sudo pip3 install -r requirements.txt --upgrade```
+PIP: requirements.txt, to be used with ```sudo pip3 install -r requirements.txt --upgrade```
 
 - [Advanced Python Scheduler](https://pypi.python.org/pypi/APScheduler)
 
@@ -81,7 +81,7 @@ PIP requirements.txt, to be used with ```sudo pip3 install -r requirements.txt -
 
 - [RPi.GPIO](https://pypi.python.org/pypi/RPi.GPIO); the module is installed by default in Raspbian/Wheezy; see alternative below
 
-Other:
+APT-GET:
 
 - [raspberry-gpio-python](https://sourceforge.net/p/raspberry-gpio-python/wiki/install/)
 

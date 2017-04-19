@@ -24,13 +24,15 @@ import time
 import sys
 import socket
 import subprocess
+import signal
 
 import thingspk
 from rpilogger import rpiLogger
 
 __all__ = ('HOST_NAME', 'timerConfig', 'camConfig', 'dirConfig', 'dbxConfig', 
 			'RPIJOBNAMES', 'INTERNETCONN', 'RESTfeed', 'RESTTalkB', 'TSPKFIELDNAMES', 
-			'DBXUSE', 'SYSTEMDUSE', 'WATCHDOG_USEC');
+			'DBXUSE', 'SYSTEMDUSE', 'WATCHDOG_USEC',
+			'rpigexit');
 
 ### Custom configuration START
 
@@ -54,15 +56,17 @@ if not PY34:
 ### Hostname
 HOST_NAME = subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8')
 
-### Gracefull exit function
+### Gracefull exit handler
 # http://stackoverflow.com/questions/18499497/how-to-process-sigterm-signal-gracefully
-class graceful_killer:
+class GracefulKiller:
 	""" Gracefull exit function """
 	kill_now = False
 	def __init__(self):
 		signal.signal(signal.SIGINT, self.exit_gracefully)
 		signal.signal(signal.SIGTERM, self.exit_gracefully)
 		signal.signal(signal.SIGABRT, self.exit_gracefully)
+		
+		rpiLogger.info("Set gracefull exit handling for SIGINT, SIGTERM and SIGABRT.")
 
 	def exit_gracefully(self,signum, frame):
 		self.kill_now = True
@@ -90,31 +94,36 @@ try:
 	INTERNETCONN = True
 	rpiLogger.info("Internet connection available.")
 	
-except Exception as ex:
+except Exception as e:
 	rpiLogger.info("Internet connection NOT available. Continuing in off-line mode.")
 	pass
 
 
 ### Use systemd features when available
-SYSTEMDUSE    = False
 WATCHDOG_USEC = 0
 try:
-	from systemd import daemon
+	from systemd import daemon		
+	from systemd import journal	
+	SYSTEMD_MOD = True
 	
-	if daemon.booted(): 
-		SYSTEMDUSE = True
-		WATCHDOG_USEC = int(os.environ['WATCHDOG_USEC'])
-	
-		from systemd import journal
-
-		rpiLogger.info("systemd features used: READY=1, STATUS=, WATCHDOG=1 (WATCHDOG_USEC=%d), STOPPING=1" % WATCHDOG_USEC) 
-	else:
-		rpiLogger.warning("The system is not running under systemd. Continuing without systemd features.")
-		
 except ImportError as e:
 	rpiLogger.warning("The python-systemd module was not found. Continuing without systemd features.")
+	SYSTEMD_MOD = False
 	pass
 	
+SYSTEMDUSE = SYSTEMD_MOD and daemon.booted() 
+if SYSTEMDUSE:
+	try:
+		WATCHDOG_USEC = int(os.environ['WATCHDOG_USEC'])
+		
+	except KeyError as e:
+		rpiLogger.warning("Environment variable WATCHDOG_USEC is not set (yet?).")
+		pass
+		
+	rpiLogger.info("systemd features used: READY=1, STATUS=, WATCHDOG=1 (WATCHDOG_USEC=%d), STOPPING=1" % WATCHDOG_USEC) 
+
+else:
+	rpiLogger.warning("The system is not running under systemd. Continuing without systemd features.")
 
 
 ### Read the configuration parameters
@@ -174,7 +183,7 @@ if TSPKFEEDUSE:
 	RESTfeed = thingspk.ThingSpeakAPIClient(timerConfig['token_file'] )
 	if RESTfeed is not None:
 		TSPKFIELDNAMES = {'timer':'field1', 'cam':'field2', 'dir':'field3', 'dbx':'field4'}
-		rpiLogger.info("ThingSpeak Channel ID %d initialized" % RESTfeed.channel_id)
+		rpiLogger.info("ThingSpeak Channel ID %d initialized." % RESTfeed.channel_id)
 		for tsf in TSPKFIELDNAMES.values():
 			RESTfeed.setfield(tsf, 0)
 		RESTfeed.setfield('status', '---')
@@ -184,11 +193,13 @@ else:
 
 if TSPKTBUSE:
 	RESTTalkB = thingspk.ThingSpeakTBClient(timerConfig['token_file'])
-	rpiLogger.info("ThingSpeak TalkBack ID %d initialized" % RESTTalkB.talkback_id)
+	rpiLogger.info("ThingSpeak TalkBack ID %d initialized." % RESTTalkB.talkback_id)
 else:
 	RESTTalkB = None
 	TSPKTBUSE = False
 
+### Gracefull killer/exit
+rpigexit = GracefulKiller()
 
 ### Initialization info message
 rpiLogger.info("\n\n=== Initialized on %s (INTERNETCONN:%s, DBXUSE:%s, TSPKFEEDUSE:%s, TSPKTBUSE:%s, SYSTEMDUSE:%s) ===\n" % (HOST_NAME, INTERNETCONN, DBXUSE, TSPKFEEDUSE, TSPKTBUSE, SYSTEMDUSE))

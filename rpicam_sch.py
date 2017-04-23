@@ -1,8 +1,8 @@
 #!/usr/local/bin/python3.4
 # -*- coding: utf-8 -*-
-
 """
-Time-lapse with Rasberry Pi controlled camera - VER 4.65 for Python 3.4+
+Time-lapse with Rasberry Pi controlled camera - Main method
+VER 4.7 for Python 3.4+
 Copyright (C) 2016-2017 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -22,204 +22,43 @@ Copyright (C) 2016-2017 Istvan Z. Kovacs
 TODOs:
 Using systemd functionalities:
 1) Use JournalHandler logging (https://www.freedesktop.org/software/systemd/python-systemd/journal.html)
-
 Nice to have:
 2) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
 and pyinotify module, http://www.saltycrane.com/blog/2010/04/monitoring-filesystem-python-and-pyinotify/
-
+3) Automatically reload configuration file
 """
 
 import os
 import sys
 import time
 from datetime import datetime, timedelta
-import logging
-import logging.handlers
 from collections import deque
-import yaml
-import subprocess
-import signal
 
-	
-# APScheduler
 #from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_ADDED, EVENT_JOB_REMOVED
 
-# The rpi(cam)py modules
+### The rpicampy modules
+from rpilogger import rpiLogger
+from rpiconfig import *
+from rpiconfig import journal_send, daemon_notify
+import rpievents
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 import rpimgdir
 import rpicam
-import rpimgdb
-import rpievents
-import thingspk
-
-### Configuration
-
-# Configuration file
-YAMLCFG_FILE = 'rpiconfig.yaml'
-
-# DB API token file
-DBTOKEN_FILE = 'token_key.txt'
-
-# ThingSpeak API feed and TalkBack app
-TSPK_FILE   = 'tspk_keys.txt'
-TSPKFEEDUSE = True
-TSPKTBUSE   = True
-
-# Logging parameters
-LOGLEVEL = logging.INFO
-LOGFILEBYTES = 3*102400
-
-# RPi Job names
-RPIJOBNAMES = {'timer':'TIMERJob', 'cam':'CAMJob', 'dir':'DIRJob', 'dbx':'DBXJob'}
-
-# ThingSpeak feed field names mapping
-TSPKFIELDNAMES = {'timer':'field1', 'cam':'field2', 'dir':'field3', 'dbx':'field4'}
-
-
-### End of Configuration
-
-
-### Python version
-PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 4)
-
-### Hostname
-HOST_NAME = subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8')
-
-### Gracefull exit
-# http://stackoverflow.com/questions/18499497/how-to-process-sigterm-signal-gracefully
-class GracefulKiller:
-	kill_now = False
-	def __init__(self):
-		signal.signal(signal.SIGINT, self.exit_gracefully)
-		signal.signal(signal.SIGTERM, self.exit_gracefully)
-		signal.signal(signal.SIGABRT, self.exit_gracefully)
-
-	def exit_gracefully(self,signum, frame):
-		self.kill_now = True
-
-
-### Set up the logging and a filter
-class NoRunningFilter(logging.Filter):
-
-    def __init__(self, filter_str=""):
-    	logging.Filter.__init__(self, filter_str)
-    	self.filterstr = filter_str
-
-    def filter(self, rec):
-    	if self.filterstr in rec.getMessage():
-    		return False
-    	else:
-    		return True
-
-### Does not work with logger/handler filter!
-# logging.basicConfig(filename='rpicam.log', filemode='w',
-# 					level=logging.INFO,
-#                     format='%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s',
-#                     )
-
-rpiLogger = logging.getLogger()
-rpiLogger.setLevel(logging.DEBUG)
-
-#hndl = logging.FileHandler(filename='rpicam.log', mode='w')
-hndl = logging.handlers.RotatingFileHandler(filename='rpicam.log', mode='w', maxBytes=LOGFILEBYTES, backupCount=5)
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s')
-hndl.setLevel(LOGLEVEL)
-hndl.setFormatter(formatter)
-
-# Filter out all messages which are not from the main Jobs
-filter = NoRunningFilter('Job_Cmd')
-hndl.addFilter(filter)
-
-#rpiLogger.addFilter(filter)
-rpiLogger.addHandler(hndl)
-
-rpiLogger.info("\n\n======== Started on %s (loglevel:%d) ========\n" % (HOST_NAME, LOGLEVEL))
-
-
-### Use systemd features when available
-SYSTEMD = False
-WATCHDOG_USEC = 0
-try:
-	from systemd import journal
-	from systemd import daemon
-except:
-	rpiLogger.warning("The python-systemd module was not found. Continuing without systemd features.")
-	pass
-	
-if daemon.booted(): 
-	SYSTEMD = True
-	WATCHDOG_USEC = int(os.environ['WATCHDOG_USEC'])
-	rpiLogger.info("systemd features used: READY=1, STATUS=, WATCHDOG=1 (WATCHDOG_USEC=%d), STOPPING=1" % WATCHDOG_USEC) 
+if DROPBOXUSE:
+	# Dropbox
+	from rpimgdb import rpiImageDbxClass
+#elif LOCUSBUSE:	
+#	# USB storage 	
+#	from rpimgusb import rpiImageUSBClass as rpiImageDbxClass
 else:
-	rpiLogger.warning("The system is not running under systemd. Continuing without systemd features.")
-
-
-### Read the parameters
-try:
-	with open(YAMLCFG_FILE, 'r') as stream:
-		timerConfig, camConfig, dirConfig, dbxConfig = yaml.load_all(stream)
-
-	# Add config keys
-	dbxConfig['token_file'] = DBTOKEN_FILE
-	dbxConfig['image_dir']  = camConfig['image_dir']
-	dirConfig['image_dir']  = camConfig['image_dir']
-	camConfig['list_size']  = dirConfig['list_size']
-
-	# Operation control flags
-	timerConfig['enabled'] = True
-	timerConfig['cmd_run'] = False
-	timerConfig['stateval']= 0
-	timerConfig['status']  = ''
-
-	rpiLogger.info("Configuration file read")
-	if SYSTEMD:
-		journal.send("Configuration read from %s" % YAMLCFG_FILE)
+	# Dummy
+	from rpibase import rpiBaseClass as rpiImageDbxClass
 		
-except yaml.YAMLError as e:
-	rpiLogger.error("Error in configuration file:" % e)
-	os._exit()
-
-rpiLogger.debug("timerConfig: %s" % timerConfig)
-rpiLogger.debug("camConfig: %s" % camConfig)
-rpiLogger.debug("dirConfig: %s" % dirConfig)
-rpiLogger.debug("dbxConfig: %s" % dbxConfig)
-
-### ThingSpeak feed
-if TSPKFEEDUSE:
-	RESTfeed = thingspk.ThingSpeakAPIClient(TSPK_FILE)
-	if RESTfeed is not None:
-		rpiLogger.info("ThingSpeak Channel ID %d initialized" % RESTfeed.channel_id)
-		for tsf in TSPKFIELDNAMES.values():
-			RESTfeed.setfield(tsf, 0)
-		RESTfeed.setfield('status', '---')
-else:
-	RESTfeed = None
-
-
-### ThingSpeak TalkBack
-if TSPKTBUSE:
-	RESTTalkB = thingspk.ThingSpeakTBClient(TSPK_FILE)
-	rpiLogger.info("ThingSpeak TalkBack ID %d initialized" % RESTTalkB.talkback_id)
-else:
-	RESTTalkB = None
-
-
-
 ###
 ### Methods
 ###
-
-def journald_send(msg_str):
-	"""
-	Send a message to the journald or print it
-	"""
-	if SYSTEMD:
-		journal.send(msg_str)
-	else:
-		print(msg_str)
-	
 
 def jobListener(event):
 	"""
@@ -311,16 +150,17 @@ def procStateVal():
 	eventsRPi.stateValList[imgCam.name] = imgCam.stateValue
 	eventsRPi.stateValList[imgDir.name] = imgDir.stateValue
 	eventsRPi.stateValList[imgDbx.name] = imgDbx.stateValue
-	eventsRPi.stateValList['TIMERJob'] = timer_stateval
+	eventsRPi.stateValList[RPIJOBNAMES['timer']]  = timer_stateval
 
 	# The combined state (cmd 4bits + err 4bits) values for all jobs
-	timerConfig['stateval'] = 256*256*256*eventsRPi.stateValList['TIMERJob']
-	timerConfig['stateval'] += eventsRPi.stateValList[imgCam.name] + 256*eventsRPi.stateValList[imgDir.name] + 256*256*eventsRPi.stateValList[imgDbx.name]
+	timerConfig['stateval'] = 256*256*256*eventsRPi.stateValList[RPIJOBNAMES['timer']]
+	timerConfig['stateval'] += eventsRPi.staeValList[imgCam.name] + 256*eventsRPi.stateValList[imgDir.name] + 256*256*eventsRPi.stateValList[imgDbx.name]
 
 
 def getMessageVal():
 	"""
 	Retrieve the latest messages and message values from all rpi jobs.
+	Map messages to the ThingSpeak feed fields.
 	"""
 	st_all = {}
 	st_all['timer'] = (timerConfig['status'], timerConfig['stateval']) #has to be changed to use a deque?
@@ -335,8 +175,9 @@ def getMessageVal():
 		if msg is not None:
 			messages.append(msg)
 
-		if val > ERRNONE or \
-			( val == ERRNONE and msg is not None) :
+		if RESTfeed is not None and \
+			( val > ERRNONE or \
+			( val == ERRNONE and msg is not None ) ):
 			message_values[TSPKFIELDNAMES[k]] = val
 
 	if not messages==[]:
@@ -346,8 +187,8 @@ def getMessageVal():
 
 def timerJob():
 	"""
-	ThingSpeak TalkBack APP command handler and dispatcher for the rpi scheduled jobs.
 	Collect and combine the status messages from the rpi scheduled jobs.
+	ThingSpeak TalkBack APP command handler and dispatcher for the rpi scheduled jobs.
 	ThingSpeak REST API post data for all feeds and status.
 	"""
 
@@ -355,7 +196,7 @@ def timerJob():
 	cmdstr = u'none'
 	cmdval = -1
 
-	### Get command from ThingSpeak Talk Back APP
+	### Get command from ThingSpeak TalkBack APP
 	if RESTTalkB is not None:
 		RESTTalkB.talkback.execcmd()
 		res = RESTTalkB.talkback.response
@@ -369,8 +210,7 @@ def timerJob():
 
 
 	### Handle and dispatch the received commands
-
-	# Timer
+	# Timer job commands
 	if cmdstr==u'sch':
 		if cmdval==1 and not timerConfig['enabled']:
 			timerConfig['enabled'] = True
@@ -396,8 +236,8 @@ def timerJob():
 			rpiLogger.debug("TBCmd fast mode disabled.")
 			timerConfig['status'] = "TBCmd standby"
 
-
-	# These commands are active only in cmd mode
+	# Commands for other modules
+	# These commands are active only in cmd_run mode
 	if timerConfig['cmd_run']:
 
 		# Cam control
@@ -439,17 +279,20 @@ schedRPi = BackgroundScheduler(alias='BkgScheduler')
 schedRPi.add_listener(jobListener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_JOB_ADDED | EVENT_JOB_REMOVED)
 
 
-### The events
+### The rpicampy events
 eventsRPi = rpievents.rpiEventsClass(RPIJOBNAMES)
 rpiLogger.info(eventsRPi)
 
-### Instantiate the job classes
+### Instantiate the rpicampy job classes
+# Camera
 imgCam = rpicam.rpiCamClass(RPIJOBNAMES['cam'], schedRPi, eventsRPi, camConfig)
 rpiLogger.info(imgCam)
 
-imgDbx = rpimgdb.rpiImageDbxClass(RPIJOBNAMES['dbx'], schedRPi, eventsRPi, dbxConfig, imgCam.imageFIFO)
+# Storage (Dropbox, local USB, etc.)	
+imgDbx = rpiImageDbxClass(RPIJOBNAMES['dbx'], schedRPi, eventsRPi, dbxConfig, imgCam.imageFIFO)
 rpiLogger.info(imgDbx)
 
+# Local image files management
 imgDir = rpimgdir.rpiImageDirClass(RPIJOBNAMES['dir'], schedRPi, eventsRPi, dirConfig, imgCam.imageFIFO, imgDbx.imageUpldFIFO)
 rpiLogger.info(imgDir)
 
@@ -461,7 +304,7 @@ def main():
 	"""
 	
 	### Gracefull killer/exit
-	gexit = GracefulKiller()
+	rpigexit = GracefulKiller()
 	
 	### Time period start/stop
 	tstart_all = datetime(timerConfig['start_year'], timerConfig['start_month'], timerConfig['start_day'], timerConfig['start_hour'][0], timerConfig['start_min'][0], 0, 0)
@@ -498,8 +341,7 @@ def main():
 	timerJob()
 
 	# Notify systemd.daemon
-	if SYSTEMD:
-		daemon.notify("READY=1")
+	daemon_notify("READY=1")
 	
 	# Main loop
 	MainRun = True
@@ -557,28 +399,26 @@ def main():
 					imgDbx.setRun((tstart_per + timedelta(minutes=1), tstop_per, dbxConfig['interval_sec'][tper]))
 					imgDir.setRun((tstart_per + timedelta(minutes=3), tstop_per, dirConfig['interval_sec'][tper]))
 
-					# Send status info to systemd
-					if SYSTEMD:
-						daemon.notify("STATUS=Running current day period: %s - %s" % (tstart_per, tstop_per))
+					# Send status info to journald
+					#daemon_notify("STATUS=Running current day period: %s - %s" % (tstart_per, tstop_per))
+					journald_send("Running current day period: %s - %s" % (tstart_per, tstop_per))
 					
 					# The eventsRPi.eventAllJobsEnd is set when all jobs have been removed/finished
 					while timerConfig['enabled'] and \
 						not eventsRPi.eventAllJobsEnd.is_set() and \
-						not gexit.kill_now:
+						not rpigexit.kill_now:
 
 						# Do something else while the schedRPi is running
 						# ...
 						time.sleep(10)				
 	
 						# Update the systemd watchdog timestamp	
-						if SYSTEMD:
-							time.sleep(1.0*WATCHDOG_USEC/2000000.0)	
-							daemon.notify("WATCHDOG=1")
+						time.sleep(1.0*WATCHDOG_USEC/2000000.0)	
+						daemon_notify("WATCHDOG=1")
 
 
 					# Go to next daily period only if timer is still enabled
-					if not timerConfig['enabled'] or \
-						gexit.kill_now:
+					if not timerConfig['enabled'] or rpigexit.kill_now:
 
 						# Stop all the jobs
 						imgCam.setStop()
@@ -620,7 +460,7 @@ def main():
 
 			# Go to next day only if timer is still enabled
 			if not timerConfig['enabled'] or \
-				gexit.kill_now:
+				rpigexit.kill_now:
 				break # end the while tcrt loop
 
 
@@ -631,7 +471,7 @@ def main():
 
 		# Normal end of the scheduling period or kill/exit, else enter wait loop
 		if timerConfig['enabled'] or \
-			gexit.kill_now:
+			rpigexit.kill_now:
 			MainRun = False
 
 		else:
@@ -639,8 +479,7 @@ def main():
 			journald_send("All job schedules were ended. Enter waiting loop.")
 
 	# Notify systemd.daemon
-	if SYSTEMD:
-		daemon.notify("STOPPING=1")
+	daemon_notify("STOPPING=1")
 
 	# End scheduling
 	timerConfig['enabled'] = False
@@ -650,7 +489,7 @@ def main():
 	# Update REST feed (now)
 	timerConfig['status'] = 'SchStop'
 	timerJob()
-	logging.shutdown()
+	rpiLogger.shutdown()
 	time.sleep( 60 )
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 4.5 for Python 3.4+
-    Copyright (C) 2016 Istvan Z. Kovacs
+    Time-lapse with Rasberry Pi controlled camera
+    Copyright (C) 2016-2017 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,8 +26,9 @@ import glob
 import time
 import datetime
 import subprocess
-import logging
 
+### The rpi(cam)py modules
+from rpilogger import rpiLogger
 from rpibase import rpiBaseClass, rpiBaseClassError
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 
@@ -78,9 +79,9 @@ class rpiImageDirClass(rpiBaseClass):
 		self._image_names = os.path.join(self._locdir, self._imageFIFO.crtSubDir + '-*' + self._imageFIFO.camID + '.jpg')
 		self.imagelist = sorted(glob.glob(self._image_names))
 		if len(self.imagelist) > 0:
-			logging.debug("imagelist: %s .. %s" % (self.imagelist[0], self.imagelist[-1]))
+			rpiLogger.debug("imagelist: %s .. %s" % (self.imagelist[0], self.imagelist[-1]))
 		else:
-			logging.debug("imagelist: empty. No %s found!" % self._image_names)
+			rpiLogger.debug("imagelist: empty. No %s found!" % self._image_names)
 
 		### Run directory/file management only if no errors were detected when
 		### updating to remote directory
@@ -98,7 +99,7 @@ class rpiImageDirClass(rpiBaseClass):
 					for img in self.imagelist:
 						if not img in self._imageFIFO and \
 							img in self._imageUpldFIFO:
-							logging.info("Remove image: %s" % img)
+							rpiLogger.info("Remove image: %s" % img)
 							self._rmimg = subprocess.Popen("rm " + img, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
 							self._diroutput, self._direrrors = self._rmimg.communicate()
 
@@ -121,13 +122,13 @@ class rpiImageDirClass(rpiBaseClass):
 			# Update image list in the current local sub-folder
 			self._imagelist_ref = sorted(glob.glob(self._image_names))
 			if len(self._imagelist_ref) > 0:
-				logging.debug("imagelist_ref: %s .. %s" % (self._imagelist_ref[0], self.imagelist[-1]))
+				rpiLogger.debug("imagelist_ref: %s .. %s" % (self._imagelist_ref[0], self.imagelist[-1]))
 			else:
-				logging.debug("imagelist_ref: empty. No %s found!" % self._image_names)
+				rpiLogger.debug("imagelist_ref: empty. No %s found!" % self._image_names)
 
 
 		else:
-			logging.info("eventDbErr is set!")
+			rpiLogger.info("eventDbErr is set!")
 
 
 

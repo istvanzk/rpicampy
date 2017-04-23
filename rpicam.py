@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 4.5 for Python 3.4+
-    Copyright (C) 2016 Istvan Z. Kovacs
+    Time-lapse with Rasberry Pi controlled camera
+    Copyright (C) 2016-2017 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,23 +29,17 @@ import glob
 import time
 from datetime import datetime, timezone
 import subprocess
-import logging
 import ephem
-
-import rpififo
-from rpibase import rpiBaseClass, rpiBaseClassError
-from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
-
-# OpenCV
-#import numpy as np
-##from scipy.misc import imread
-#import cv2
 
 # PILlow
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 import math
 
-#import unittest
+### The rpi(cam)py modules
+import rpififo
+from rpilogger import rpiLogger
+from rpibase import rpiBaseClass, rpiBaseClassError
+from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 
 ### Camera input to use
 # If not RPICAM and not RPISTILL then use a web camera with fswebcam utility
@@ -69,7 +63,7 @@ if not FAKESNAP:
 	import RPi.GPIO as GPIO
 	# Uses /dev/gpiomem if available to avoid being run as root
 else:
-	logging.warning("The RPi.GPIO module is not used!")
+	rpiLogger.warning("The RPi.GPIO module is not used!")
 
 class rpiCamClass(rpiBaseClass):
 	"""
@@ -133,11 +127,11 @@ class rpiCamClass(rpiBaseClass):
 		self._locdir = os.path.join(self._config['image_dir'], self.imageFIFO.crtSubDir)
 		try:
 			os.mkdir(self._locdir)
-			logging.info("%s::: Local daily output folder %s created." % (self.name, self._locdir))
+			rpiLogger.info("%s::: Local daily output folder %s created." % (self.name, self._locdir))
 
 		except OSError as e:
 			if e.errno == EEXIST:
-				logging.debug("%s::: Local daily output folder %s already exist!" % (self.name, self._locdir))
+				rpiLogger.debug("%s::: Local daily output folder %s already exist!" % (self.name, self._locdir))
 				pass
 			else:
 				raise rpiBaseClassError("%s::: jobRun(): Local daily output folder %s could not be created" % (self.name, self._locdir) , ERRCRIT)
@@ -157,7 +151,7 @@ class rpiCamClass(rpiBaseClass):
 				self._switchIR(self._isDark())
 
 			if FAKESNAP:
-				logging.debug('Faking snapshot: ' + self.image_name)
+				rpiLogger.debug('Faking snapshot: ' + self.image_name)
 				self._grab_cam = subprocess.Popen("touch " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
 
 				# Check return/errors
@@ -215,7 +209,7 @@ class rpiCamClass(rpiBaseClass):
 
 							# Shutter speed (micro seconds)
 							ss = self._camera.shutter_speed
-							logging.debug('Before: Br=%d, Ss=%dus' % (self.imgbr, ss))
+							rpiLogger.debug('Before: Br=%d, Ss=%dus' % (self.imgbr, ss))
 
 							# Re-capture the picture
 							time.sleep(3)
@@ -226,7 +220,7 @@ class rpiCamClass(rpiBaseClass):
 
 							# Re-calculate brightness
 							self._averagePerceived(image)
-							logging.debug('After: Br=%d, Ss=%dus' % (self.imgbr, self._camera.shutter_speed))
+							rpiLogger.debug('After: Br=%d, Ss=%dus' % (self.imgbr, self._camera.shutter_speed))
 
 							# Lock the buffer
 							self.imageFIFO.acquireSemaphore()
@@ -259,16 +253,16 @@ class rpiCamClass(rpiBaseClass):
 				self._camoutput, self._camerrors = self._grab_cam.communicate()
 
 
-			logging.info('Snapshot: ' + self.image_name)
+			rpiLogger.info('Snapshot: ' + self.image_name)
 
 			### Add image to deque (FIFO)
 			self.imageFIFO.append(self.image_path)
 			self.crtlenFIFO = len(self.imageFIFO)
 
 			if self.crtlenFIFO > 0:
-				logging.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
+				rpiLogger.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
 			else:
-				logging.debug("imageFIFO[]: empty")
+				rpiLogger.debug("imageFIFO[]: empty")
 
 			### Update status
 			self.statusUpdate = (self.name, self.crtlenFIFO)
@@ -321,10 +315,10 @@ class rpiCamClass(rpiBaseClass):
 		try:
 			os.mkdir(self._config['image_dir'])
 			self.imgSubDir = time.strftime('%d%m%y', time.localtime())
-			logging.info("%s::: Local output folder %s created." % (self.name, self._config['image_dir']))
+			rpiLogger.info("%s::: Local output folder %s created." % (self.name, self._config['image_dir']))
 		except OSError as e:
 			if e.errno == EEXIST:
-				logging.info("%s::: Local output folder %s already exist!" % (self.name, self._config['image_dir']))
+				rpiLogger.info("%s::: Local output folder %s already exist!" % (self.name, self._config['image_dir']))
 				pass
 			else:
 				raise rpiBaseClassError("%s::: initClass(): Local output folder %s could not be created" % (self.name, self._config['image_dir']) , ERRCRIT)

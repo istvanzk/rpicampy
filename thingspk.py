@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 4.5 for Python 3.4+
-    Copyright (C) 2016 Istvan Z. Kovacs
+    Time-lapse with Rasberry Pi controlled camera
+    Copyright (C) 2016-2017 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ A simple REST request abstraction layer and a light ThingSpeak API SDK,
 according to the API documentation at http://community.thingspeak.com/documentation/api/
 and the TalkBack API documentation at https://thingspeak.com/docs/talkback
 
-The REST client implementation is based on the official python Xively API client (SDK).
+The REST client implementation is based on the old python Xively API client (SDK).
 
 The Channel ID and API Key(s) are read from the text file given as argument when the class is instantiated.
 """
@@ -34,14 +34,13 @@ from urllib.parse import urljoin
 from requests.sessions import Session
 from threading import Thread, Semaphore, Event
 from queue import Queue
-import logging
-
-#import unittest
-
 try:
 	import json
 except ImportError:
 	import simplejson as json
+
+### The rpi(cam)py modules
+from rpilogger import rpiLogger
 
 SDK_VERSION = 0.9
 TINTV_CH_SEC = 300
@@ -283,7 +282,7 @@ class ThingSpeakTBClient:
 		self.tconfig = tconfig or None
 	
 		if self.key_file is None:
-			logging.error("ThingSpeak TB::: No TalkBack ID and API Key were specified! Exiting!", exc_info=True)	
+			rpiLogger.error("ThingSpeak TB::: No TalkBack ID and API Key were specified! Exiting!", exc_info=True)	
 		
 		# Read the access key
 		try:
@@ -295,7 +294,7 @@ class ThingSpeakTBClient:
 				self.tbapi_key   = tspk_key[1]
 				
 		except IOError:
-			logging.error("ThingSpeak TB::: Keys file ''%s'' not found! Exiting!" % (self.key_file), exc_info=True)
+			rpiLogger.error("ThingSpeak TB::: Keys file ''%s'' not found! Exiting!" % (self.key_file), exc_info=True)
 			raise
 		
 		# REST client
@@ -439,7 +438,7 @@ class ThingSpeakAPIClient:
 		self.tconfig = tconfig or None
 		
 		if self.key_file is None:
-			logging.error("ThingSpeak API::: No Channel ID and API Keys were specified! Exiting!", exc_info=True)	
+			rpiLogger.error("ThingSpeak API::: No Channel ID and API Keys were specified! Exiting!", exc_info=True)	
 			
 		# Read the Channel ID and API Key
 		try:
@@ -452,7 +451,7 @@ class ThingSpeakAPIClient:
 				self.read_key   = tspk_key[2]
 				
 		except IOError:
-			logging.error("ThingSpeak API::: Keys file ''%s'' not found! Exiting!" % (self.key_file), exc_info=True)
+			rpiLogger.error("ThingSpeak API::: Keys file ''%s'' not found! Exiting!" % (self.key_file), exc_info=True)
 			raise
 
 		# REST client

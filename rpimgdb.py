@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 4.5 for Python 3.4+
-    Copyright (C) 2016 Istvan Z. Kovacs
+    Time-lapse with Rasberry Pi controlled camera
+    Copyright (C) 2016-2017 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,20 +28,28 @@ import sys
 import time
 import datetime
 import posixpath
-import logging
 import atexit
-
-from dropbox import Dropbox
-from dropbox.files import WriteMode, SearchMode, FileMetadata, FolderMetadata
-from dropbox.exceptions import ApiError, AuthError, DropboxException, InternalServerError
-from requests import exceptions
-import json
-
-# if six.PY3:
-#     from io import StringIO
-# else:
-#     from StringIO import StringIO
-
+try:
+	import json
+except ImportError:
+	import simplejson as json
+	
+try:
+	from dropbox import Dropbox
+	from dropbox.files import WriteMode, SearchMode, FileMetadata, FolderMetadata
+	from dropbox.exceptions import ApiError, AuthError, DropboxException, InternalServerError
+	from requests import exceptions
+	DBXUSE = True
+except ImportError:
+	DBXUSE = False
+	pass
+	
+### The rpi(cam)py modules	
+from rpilogger import rpiLogger
+if not DBXUSE:
+	rpiLogger.error("Dropbox module not found or not available!")
+	os._exit()
+	
 import rpififo
 from rpibase import rpiBaseClass, rpiBaseClassError
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
@@ -102,7 +110,7 @@ class rpiImageDbxClass(rpiBaseClass):
 					self._putImage(self._imageFIFO[-1], self._config['image_snap'], True)
 					self.crt_image_snap = self._imageFIFO[-1]
 					self.numImgUpdDb += 1
-					logging.info("Updated remote %s with %s" % (self._config['image_snap'], self._imageFIFO[-1]) )
+					rpiLogger.info("Updated remote %s with %s" % (self._config['image_snap'], self._imageFIFO[-1]) )
 
 
 				# Lock the upload buffer
@@ -118,7 +126,7 @@ class rpiImageDbxClass(rpiBaseClass):
 				for img in self._imageFIFO:
 					if not img in self.imageUpldFIFO:
 						self._putImage(img, os.path.join(self.upldir, os.path.basename(img)))
-						logging.info("Uploaded %s" % img )
+						rpiLogger.info("Uploaded %s" % img )
 
 				# Release the upload buffer
 				self.imageUpldFIFO.releaseSemaphore()
@@ -130,7 +138,7 @@ class rpiImageDbxClass(rpiBaseClass):
 				# Update status
 				self.statusUpdate = (self.name, ERRNONE)
 
-				logging.info('Nothing to upload')
+				rpiLogger.info('Nothing to upload')
 
 
 		# Handle exceptions, mostly HTTP/SSL related!
@@ -152,7 +160,7 @@ class rpiImageDbxClass(rpiBaseClass):
 
 # 			except BadStatusLine as e:
 # 				self.eventErr_set('run()')
-# 				logging.debug("BadStatusLine:\n%s" % str(e))
+# 				rpiLogger.debug("BadStatusLine:\n%s" % str(e))
 # 				pass
 
 		except rpiBaseClassError as e:
@@ -204,11 +212,11 @@ class rpiImageDbxClass(rpiBaseClass):
 
 				del upldimg
 
-				logging.info("%s::: Local log file %s found and loaded." % (self.name, self.logfile))
+				rpiLogger.info("%s::: Local log file %s found and loaded." % (self.name, self.logfile))
 			else:
 				with open(self.logfile,'w') as logf:
 					json.dump([], logf)
-					logging.info("%s::: Local log file %s initialized." % (self.name, self.logfile))
+					rpiLogger.info("%s::: Local log file %s initialized." % (self.name, self.logfile))
 
 		except IOError:
 			raise rpiBaseClassError("%s::: initClass(): Local log file %s was not found or could not be created." % (self.name, self.logfile), ERRCRIT)
@@ -230,7 +238,7 @@ class rpiImageDbxClass(rpiBaseClass):
 			# {'account_id', 'is_paired', 'locale', 'email', 'name', 'team', 'country', 'account_type', 'referral_link'}
 			self.dbinfo ={'email': info.email, 'referral_link': info.referral_link}
 
-			logging.info("%s::: Loaded access token from ''%s''" % (self.name, self._token_file) )
+			rpiLogger.info("%s::: Loaded access token from ''%s''" % (self.name, self._token_file) )
 
 			### Create remote root folder (relative to app root) if it does not exist yet
 			self._mkdirImage(os.path.normpath(self._config['image_dir']))
@@ -263,7 +271,7 @@ class rpiImageDbxClass(rpiBaseClass):
 		"""
 
 		self._lsImage(self.upldir)
-		logging.info("%s::: %d images in the remote folder %s" % (self.name, len(self.imageDbList), self.upldir))
+		rpiLogger.info("%s::: %d images in the remote folder %s" % (self.name, len(self.imageDbList), self.upldir))
 
 		# Lock the uplaod buffer
 		self.imageUpldFIFO.acquireSemaphore()
@@ -278,7 +286,7 @@ class rpiImageDbxClass(rpiBaseClass):
 
 			del upldimg
 
-			logging.info("%s::: Local log file %s updated." % (self.name, self.logfile))
+			rpiLogger.info("%s::: Local log file %s updated." % (self.name, self.logfile))
 
 		except IOError:
 			raise rpiBaseClassError("endDayOAM(): Local log file %s was not found." % self.logfile,  ERRCRIT)
@@ -306,7 +314,7 @@ class rpiImageDbxClass(rpiBaseClass):
 			else:
 				new_ls = self._dbx.files_list_folder_continue(self._imageDbCursor)
 				if new_ls.entries == []:
-					logging.debug("%s::: _lsImage():: No changes on the server." % self.name)
+					rpiLogger.debug("%s::: _lsImage():: No changes on the server." % self.name)
 				else:
 					self.ls_ref = new_ls
 
@@ -329,9 +337,9 @@ class rpiImageDbxClass(rpiBaseClass):
 			self._imageDbCursor = self.ls_ref.cursor
 
 			if len(self.imageDbList) > 0:
-				logging.debug("%s::: _lsImage():: imageDbList[0..%d]: %s .. %s" % (self.name, len(self.imageDbList)-1, self.imageDbList[0], self.imageDbList[-1]) )
+				rpiLogger.debug("%s::: _lsImage():: imageDbList[0..%d]: %s .. %s" % (self.name, len(self.imageDbList)-1, self.imageDbList[0], self.imageDbList[-1]) )
 			else:
-				logging.debug("%s::: _lsImage():: imageDbList[]: empty" % self.name)
+				rpiLogger.debug("%s::: _lsImage():: imageDbList[]: empty" % self.name)
 
 		except ApiError as e:
 			raise rpiBaseClassError("_lsImage(): %s" % e.error, ERRLEV2)
@@ -354,7 +362,7 @@ class rpiImageDbxClass(rpiBaseClass):
 				if not overwrite:
 					self.imageUpldFIFO.append(from_path)
 
-				logging.debug("%s::: _putImage(): Uploaded file from %s to remote %s" % (self.name, from_path, to_path))
+				rpiLogger.debug("%s::: _putImage(): Uploaded file from %s to remote %s" % (self.name, from_path, to_path))
 
 			except ApiError as e:
 				# This checks for the specific error where a user doesn't have
@@ -379,7 +387,7 @@ class rpiImageDbxClass(rpiBaseClass):
 		try:
 			self._dbx.files_create_folder('/' + os.path.normpath(path))
 
-			logging.debug("%s::: Remote output folder /%s created." % (self.name, path))
+			rpiLogger.debug("%s::: Remote output folder /%s created." % (self.name, path))
 
 		except ApiError as e:
 			noerr = False
@@ -392,7 +400,7 @@ class rpiImageDbxClass(rpiBaseClass):
 					wce = we.get_conflict()
 					# union tag is 'folder'
 					if wce.is_folder():
-						logging.info("%s::: Remote output folder /%s already exist!" % (self.name, path))
+						rpiLogger.info("%s::: Remote output folder /%s already exist!" % (self.name, path))
 						noerr = True
 
 			if not noerr:
@@ -411,7 +419,7 @@ class rpiImageDbxClass(rpiBaseClass):
 		try:
 			self._dbx.files_move( '/' + os.path.normpath(from_path), '/' +  os.path.normpath(to_path) )
 
-			logging.debug("%s::: _mvImage(): Moved file from %s to %s" % (self.name, from_path, to_path))
+			rpiLogger.debug("%s::: _mvImage(): Moved file from %s to %s" % (self.name, from_path, to_path))
 
 		except ApiError as e:
 			raise rpiBaseClassError("_mvImage(): Image %s could not be moved to %s! %s" % (from_path, to_path, e.error), ERRLEV2)
@@ -426,7 +434,7 @@ class rpiImageDbxClass(rpiBaseClass):
 # 		"""
 # 		try:
 # 			metadata, response  = self._dbx.files_download_to_file( to_path, '/' + os.path.normpath(from_file) )
-# 			logging.debug("%s::: _getImage(): Downloaded file from remote %s to %s. Metadata: %s" % (self.name, from_file, to_path, metadata) )
+# 			rpiLogger.debug("%s::: _getImage(): Downloaded file from remote %s to %s. Metadata: %s" % (self.name, from_file, to_path, metadata) )
 #
 # 		except ApiError as e:
 # 			raise rpiBaseClassError("_getImage(): %s" % e.error, ERRLEV2)

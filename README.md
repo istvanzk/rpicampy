@@ -1,9 +1,9 @@
 # rpicampy
 ## Time-lapse with Rasberry Pi controlled (pi)camera.
 
-### Implementation
+### Implementation (rpicampy)
 
-##### Version 4.65 for Python 3.4+
+##### Version 4.7 for Python 3.4+
 
 #### rpicam_sch:	The main method. 
 
@@ -45,9 +45,9 @@ The images are saved remotely in a sub-folder under the root `image_dir` folder 
 
 #### rpibase:	Base class for rpicam, rpimgdir and rpimgdb (see above).
 
-#### rpievents:	Implements the the set of events and counters to be used in the rpi classes.
+#### rpievents:	Implements the set of events and counters to be used in the rpi classes.
 
-#### rpififo:	Implements the a FIFO buffer for the image file names (full path) generated in the rpicam.
+#### rpififo:	Implements the FIFO buffer for the image file names (full path) generated in the rpicam.
 
 #### thingspk:	A simple REST request abstraction layer and a light ThingSpeak API and TalkBack App SDK. 
 
@@ -55,6 +55,9 @@ The implementation of the thingspk module follows the [ThingSpeak API documentat
 and the [TalkBack API documentation](https://www.mathworks.com/help/thingspeak/talkback-app.html)
 The REST client implementation follows the model of the older [Python Xively API client](https://github.com/xively/xively-python).
 
+#### rpiconfig:	Implements the rpicampy configuration (read `rpiconfig.yaml`) and performs system checks.
+
+#### rpilogger:	Implements the custom logging for the rpicampy.
 
 ### Auto-start as service
 

@@ -303,9 +303,6 @@ def main():
 	Runs the APScheduler with the Jobs on every day in the set time periods.
 	"""
 	
-	### Gracefull killer/exit
-	rpigexit = GracefulKiller()
-	
 	### Time period start/stop
 	tstart_all = datetime(timerConfig['start_year'], timerConfig['start_month'], timerConfig['start_day'], timerConfig['start_hour'][0], timerConfig['start_min'][0], 0, 0)
 	tstop_all  = datetime(timerConfig['stop_year'], timerConfig['stop_month'], timerConfig['stop_day'], timerConfig['stop_hour'][-1], timerConfig['stop_min'][-1], 59, 0)

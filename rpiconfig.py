@@ -184,8 +184,8 @@ rpiLogger.debug("dbxConfig: %s" % dbxConfig)
 
 ### Dropbox API use
 if DROPBOXUSE :
-	if not INTERNETUSE or\
-		dbxConfig['token_file'] is None or\
+	if not INTERNETUSE or \
+		dbxConfig['token_file'] is None or \
 		dbxConfig['token_file'] == '':
 		DROPBOXUSE = False
 else:
@@ -197,32 +197,44 @@ TSPKFIELDNAMES = None
 RESTfeed       = None
 RESTTalkB      = None
 if TSPKFEEDUSE or TSPKTBUSE:
-	if not INTERNETUSE or\
-		timerConfig['token_file'] is None or\
+	if not INTERNETUSE or \
+		timerConfig['token_file'] is None or \
 		timerConfig['token_file'] == '':
 		TSPKFEEDUSE = False
 		TSPKTBUSE   = False
-		
+	
 	else:
 		import thingspk
-	
-		if TSPKFEEDUSE:	
-			RESTfeed = thingspk.ThingSpeakAPIClient(timerConfig['token_file'] )
+
+		if TSPKFEEDUSE:
+			RESTfeed = thingspk.ThingSpeakAPIClient(timerConfig['token_file'])
+			
 			if RESTfeed is not None:
 				TSPKFIELDNAMES = {}
 				for indx, item in enumerate(RPIJOBNAMES, start=1):
 					TSPKFIELDNAMES[item] = 'field%d' % indx
-					
+
 				for tsf in TSPKFIELDNAMES.values():
 					RESTfeed.setfield(tsf, 0)
+
 				RESTfeed.setfield('status', '---')
-				rpiLogger.info("ThingSpeak Channel ID %d initialized. Fields: %s" % (RESTfeed.channel_id, TSPKFIELDNAMES)
+				rpiLogger.info("ThingSpeak Channel ID %d initialized. Fields: %s" % (RESTfeed.channel_id, TSPKFIELDNAMES))
+
+			else:
+				TSPKFEEDUSE = False
+				rpiLogger.warning("ThingSpeak API could not initialized.")
+			
 		else:
 			rpiLogger.info("ThingSpeak API not used.")
 
 		if TSPKTBUSE:
 			RESTTalkB = thingspk.ThingSpeakTBClient(timerConfig['token_file'])
-			rpiLogger.info("ThingSpeak TalkBack ID %d initialized." % RESTTalkB.talkback_id)
+			if RESTTalkB is not None:
+				rpiLogger.info("ThingSpeak TalkBack ID %d initialized." % RESTTalkB.talkback_id)
+				
+			else:
+				rpiLogger.warning("ThingSpeak TalkBack could not be initialized.")
+
 		else:
 			rpiLogger.info("ThingSpeak TalkBack APP not used.")
 

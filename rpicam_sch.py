@@ -313,7 +313,7 @@ def main():
 	if tnow >= tstop_all:
 		warn_str = "Current time (%s) is after the end of schedRPiuler activity period (%s)! Scheduler was not started! Bye!" % (tnow, tstop_all)
 		rpiLogger.warning(warn_str)
-		journald_send(warn_str)
+		journal_send(warn_str)
 
 		# Update status
 		timerConfig['status'] = 'NoStart'
@@ -331,7 +331,7 @@ def main():
 
 	info_str = "Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all) 
 	rpiLogger.info(info_str)
-	journald_send(info_str)
+	journal_send(info_str)
 
 	# Update status
 	timerConfig['status'] = 'SchStart'
@@ -398,7 +398,7 @@ def main():
 
 					# Send status info to journald
 					#daemon_notify("STATUS=Running current day period: %s - %s" % (tstart_per, tstop_per))
-					journald_send("Running current day period: %s - %s" % (tstart_per, tstop_per))
+					journal_send("Running current day period: %s - %s" % (tstart_per, tstop_per))
 					
 					# The eventsRPi.eventAllJobsEnd is set when all jobs have been removed/finished
 					while timerConfig['enabled'] and \
@@ -473,7 +473,7 @@ def main():
 
 		else:
 			rpiLogger.info("All job schedules were ended. Enter waiting loop.")
-			journald_send("All job schedules were ended. Enter waiting loop.")
+			journal_send("All job schedules were ended. Enter waiting loop.")
 
 	# Notify systemd.daemon
 	daemon_notify("STOPPING=1")

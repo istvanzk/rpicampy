@@ -154,7 +154,7 @@ def procStateVal():
 
 	# The combined state (cmd 4bits + err 4bits) values for all jobs
 	timerConfig['stateval'] = 256*256*256*eventsRPi.stateValList[RPIJOBNAMES['timer']]
-	timerConfig['stateval'] += eventsRPi.staeValList[imgCam.name] + 256*eventsRPi.stateValList[imgDir.name] + 256*256*eventsRPi.stateValList[imgDbx.name]
+	timerConfig['stateval'] += eventsRPi.stateValList[imgCam.name] + 256*eventsRPi.stateValList[imgDir.name] + 256*256*eventsRPi.stateValList[imgDbx.name]
 
 
 def getMessageVal():

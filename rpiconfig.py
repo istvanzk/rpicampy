@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    Time-lapse with Rasberry Pi controlled camera - VER 4.7
+    Time-lapse with Rasberry Pi controlled camera
     Copyright (C) 2017 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
@@ -26,12 +26,11 @@ import socket
 import subprocess
 import signal
 
-import thingspk
 from rpilogger import rpiLogger
 
 __all__ = ('HOST_NAME', 'timerConfig', 'camConfig', 'dirConfig', 'dbxConfig', 
-			'RPIJOBNAMES', 'INTERNETCONN', 'RESTfeed', 'RESTTalkB', 'TSPKFIELDNAMES', 
-			'DBXUSE', 'SYSTEMDUSE', 'WATCHDOG_USEC',
+			'RPIJOBNAMES', 'INTERNETUSE', 'TSPKFEEDUSE', 'RESTfeed', 'TSPKTBUSE', 'RESTTalkB',
+			'TSPKFIELDNAMES', 'DROPBOXUSE', 'LOCUSBUSE', 'SYSTEMDUSE', 'WATCHDOG_USEC',
 			'rpigexit');
 
 ### Custom configuration START
@@ -42,6 +41,22 @@ YAMLCFG_FILE = 'rpiconfig.yaml'
 # RPi Job names
 RPIJOBNAMES = {'timer':'TIMERJob', 'cam':'CAMJob', 'dir':'DIRJob', 'dbx':'DBXJob'}
 
+# Internet connection
+INTERNETUSE = True
+
+# Dropbox storage
+DROPBOXUSE  = True
+
+# ThingSpeak API and TalkBack APP
+TSPKFEEDUSE = True
+TSPKTBUSE   = True
+
+# Local USB storage
+LOCUSBUSE   = False
+
+# SystemD use
+SYSTEMDUSE  = True
+
 ### Custom configuration END
 
 
@@ -50,7 +65,7 @@ RPIJOBNAMES = {'timer':'TIMERJob', 'cam':'CAMJob', 'dir':'DIRJob', 'dbx':'DBXJob
 ### Python version
 PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 4)
 if not PY34:
-	rpiLogger.error("This program requires minimum Python3.4!")
+	rpiLogger.error("This program requires minimum Python 3.4!")
 	os._exit()
 
 ### Hostname
@@ -87,43 +102,49 @@ def daemon_notify(msg_str):
 ### When the DNS server google-public-dns-a.google.com is reachable on port 53/tcp, 
 # then the internet connection is up and running.
 # https://github.com/arvydas/blinkstick-python/wiki/Example:-Display-Internet-connectivity-status
-INTERNETCONN   = False
-try:
-	socket.setdefaulttimeout(5)
-	socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("8.8.8.8", 53))
-	INTERNETCONN = True
-	rpiLogger.info("Internet connection available.")
+if INTERNETUSE:
+	try:
+		socket.setdefaulttimeout(5)
+		socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("8.8.8.8", 53))
+		rpiLogger.info("Internet connection available.")
 	
-except Exception as e:
-	rpiLogger.info("Internet connection NOT available. Continuing in off-line mode.")
-	pass
+	except Exception as e:
+		rpiLogger.info("Internet connection NOT available. Continuing in off-line mode.")
+		INTERNETUSE = False
+		pass
+else:
+	rpiLogger.info("Internet connection not used.")
 
 
 ### Use systemd features when available
 WATCHDOG_USEC = 0
-try:
-	from systemd import daemon		
-	from systemd import journal	
-	SYSTEMD_MOD = True
-	
-except ImportError as e:
-	rpiLogger.warning("The python-systemd module was not found. Continuing without systemd features.")
-	SYSTEMD_MOD = False
-	pass
-	
-SYSTEMDUSE = SYSTEMD_MOD and daemon.booted() 
 if SYSTEMDUSE:
 	try:
-		WATCHDOG_USEC = int(os.environ['WATCHDOG_USEC'])
-		
-	except KeyError as e:
-		rpiLogger.warning("Environment variable WATCHDOG_USEC is not set (yet?).")
+		from systemd import daemon		
+		from systemd import journal	
+		SYSTEMD_MOD = True
+	
+	except ImportError as e:
+		rpiLogger.warning("The python-systemd module was not found. Continuing without systemd features.")
+		SYSTEMD_MOD = False
 		pass
+	
+	SYSTEMDUSE = SYSTEMD_MOD and daemon.booted() 
+	if SYSTEMDUSE:
+		try:
+			WATCHDOG_USEC = int(os.environ['WATCHDOG_USEC'])
 		
-	rpiLogger.info("systemd features used: READY=1, STATUS=, WATCHDOG=1 (WATCHDOG_USEC=%d), STOPPING=1" % WATCHDOG_USEC) 
+		except KeyError as e:
+			rpiLogger.warning("Environment variable WATCHDOG_USEC is not set (yet?).")
+			pass
+		
+		rpiLogger.info("SystemD features used: READY=1, STATUS=, WATCHDOG=1 (WATCHDOG_USEC=%d), STOPPING=1." % WATCHDOG_USEC) 
+
+	else:
+		rpiLogger.warning("The system is not running under SystemD. Continuing without SystemD features.")
 
 else:
-	rpiLogger.warning("The system is not running under systemd. Continuing without systemd features.")
+	rpiLogger.info("SystemD features not used.")
 
 
 ### Read the configuration parameters
@@ -162,45 +183,59 @@ rpiLogger.debug("dbxConfig: %s" % dbxConfig)
 
 
 ### Dropbox API use
-DBXUSE      = True
-if not INTERNETCONN or\
-	dbxConfig['token_file'] is None or\
-	dbxConfig['token_file'] == '':
-	DBXUSE = False
+if DROPBOXUSE :
+	if not INTERNETUSE or\
+		dbxConfig['token_file'] is None or\
+		dbxConfig['token_file'] == '':
+		DROPBOXUSE = False
+else:
+	rpiLogger.info("Dropbox not used.")
+
 
 ### ThingSpeak API and TalkBack APP use
-TSPKFEEDUSE = True
-TSPKTBUSE   = True
-if not INTERNETCONN or\
-	timerConfig['token_file'] is None or\
-	timerConfig['token_file'] == '':
-	TSPKFEEDUSE = False
-	TSPKTBUSE   = False
-	
-# Initialize ThingSpeak API and TalkBack APP	
 TSPKFIELDNAMES = None
-if TSPKFEEDUSE:
-	RESTfeed = thingspk.ThingSpeakAPIClient(timerConfig['token_file'] )
-	if RESTfeed is not None:
-		TSPKFIELDNAMES = {'timer':'field1', 'cam':'field2', 'dir':'field3', 'dbx':'field4'}
-		rpiLogger.info("ThingSpeak Channel ID %d initialized." % RESTfeed.channel_id)
-		for tsf in TSPKFIELDNAMES.values():
-			RESTfeed.setfield(tsf, 0)
-		RESTfeed.setfield('status', '---')
-else:
-	RESTfeed    = None
-	TSPKFEEDUSE = False
+RESTfeed       = None
+RESTTalkB      = None
+if TSPKFEEDUSE or TSPKTBUSE:
+	if not INTERNETUSE or\
+		timerConfig['token_file'] is None or\
+		timerConfig['token_file'] == '':
+		TSPKFEEDUSE = False
+		TSPKTBUSE   = False
+		
+	else:
+		import thingspk
+	
+		if TSPKFEEDUSE:	
+			RESTfeed = thingspk.ThingSpeakAPIClient(timerConfig['token_file'] )
+			if RESTfeed is not None:
+				TSPKFIELDNAMES = {'timer':'field1', 'cam':'field2', 'dir':'field3', 'dbx':'field4'}
+				rpiLogger.info("ThingSpeak Channel ID %d initialized. Fields: %s" % (RESTfeed.channel_id, TSPKFIELDNAMES)
+				for tsf in TSPKFIELDNAMES.values():
+					RESTfeed.setfield(tsf, 0)
+				RESTfeed.setfield('status', '---')
+		else:
+			rpiLogger.info("ThingSpeak API not used.")
 
-if TSPKTBUSE:
-	RESTTalkB = thingspk.ThingSpeakTBClient(timerConfig['token_file'])
-	rpiLogger.info("ThingSpeak TalkBack ID %d initialized." % RESTTalkB.talkback_id)
+		if TSPKTBUSE:
+			RESTTalkB = thingspk.ThingSpeakTBClient(timerConfig['token_file'])
+			rpiLogger.info("ThingSpeak TalkBack ID %d initialized." % RESTTalkB.talkback_id)
+		else:
+			rpiLogger.info("ThingSpeak TalkBack APP not used.")
+
 else:
-	RESTTalkB = None
-	TSPKTBUSE = False
+	rpiLogger.info("ThingSpeak not used.")
+
+### Local USB storage
+#if LOCUSBUSE:
+#	...
+#	rpiLogger.info("USB storage used.")
+#else:
+#	rpiLogger.info("USB storage not used.")
 
 ### Gracefull killer/exit
 rpigexit = GracefulKiller()
 
 ### Initialization info message
-rpiLogger.info("\n\n=== Initialized on %s (INTERNETCONN:%s, DBXUSE:%s, TSPKFEEDUSE:%s, TSPKTBUSE:%s, SYSTEMDUSE:%s) ===\n" % (HOST_NAME, INTERNETCONN, DBXUSE, TSPKFEEDUSE, TSPKTBUSE, SYSTEMDUSE))
+rpiLogger.info("\n\n=== Initialized on %s (INTERNETUSE:%s, DROPBOXUSE:%s, TSPKFEEDUSE:%s, TSPKTBUSE:%s, SYSTEMDUSE:%s) ===\n" % (HOST_NAME, INTERNETUSE, DROPBOXUSE, TSPKFEEDUSE, TSPKTBUSE, SYSTEMDUSE))
 

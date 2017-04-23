@@ -209,11 +209,14 @@ if TSPKFEEDUSE or TSPKTBUSE:
 		if TSPKFEEDUSE:	
 			RESTfeed = thingspk.ThingSpeakAPIClient(timerConfig['token_file'] )
 			if RESTfeed is not None:
-				TSPKFIELDNAMES = {'timer':'field1', 'cam':'field2', 'dir':'field3', 'dbx':'field4'}
-				rpiLogger.info("ThingSpeak Channel ID %d initialized. Fields: %s" % (RESTfeed.channel_id, TSPKFIELDNAMES)
+				TSPKFIELDNAMES = {}
+				for indx, item in enumerate(RPIJOBNAMES, start=1):
+					TSPKFIELDNAMES[item] = 'field%d' % indx
+					
 				for tsf in TSPKFIELDNAMES.values():
 					RESTfeed.setfield(tsf, 0)
 				RESTfeed.setfield('status', '---')
+				rpiLogger.info("ThingSpeak Channel ID %d initialized. Fields: %s" % (RESTfeed.channel_id, TSPKFIELDNAMES)
 		else:
 			rpiLogger.info("ThingSpeak API not used.")
 

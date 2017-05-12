@@ -16,7 +16,7 @@
     You should have received a copy of the GNU General Public License along
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-    
+
 Implements the a FIFO buffer for the image file names (full path).
 """
 
@@ -24,23 +24,23 @@ from threading import BoundedSemaphore
 from collections import deque
 
 class rpiFIFOClass(deque):
-	"""
-	Implements the a Deque with BoundedSemaphore.
-	Used as a FIFO buffer for the image file names (including the full path).
-	Stores also the name of the current sub-folder.
-	"""
-	def __init__(self, *args):
-		super(rpiFIFOClass,self).__init__(*args)
-		self.FIFOSema  = BoundedSemaphore()
-		self.crtSubDir = '/'
-		self.camID     = ''
-		
-	def acquireSemaphore(self):
-		self.FIFOSema.acquire()
-		
-	def releaseSemaphore(self):
-		self.FIFOSema.release()		
+    """
+    Implements the a Deque with BoundedSemaphore.
+    Used as a FIFO buffer for the image file names (including the full path).
+    Stores also the name of the current sub-folder.
+    """
+    def __init__(self, *args):
+        super(rpiFIFOClass,self).__init__(*args)
+        self.FIFOSema  = BoundedSemaphore()
+        self.crtSubDir = '/'
+        self.camID     = ''
 
-	def __del__(self):
-#		self.FIFOSema.release()	
-		self.crtSubDir = ''
+    def acquireSemaphore(self):
+        self.FIFOSema.acquire()
+
+    def releaseSemaphore(self):
+        self.FIFOSema.release()
+
+    def __del__(self):
+#       self.FIFOSema.release()
+        self.crtSubDir = ''

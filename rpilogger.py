@@ -19,11 +19,11 @@
 
 Implements the custom logging for the rpicampy
 
-Inspired by: 
-	Nicolargo <nicolas@nicolargo.com>
-		https://github.com/nicolargo/glances/blob/master/glances/logger.py
+Inspired by:
+    Nicolargo <nicolas@nicolargo.com>
+        https://github.com/nicolargo/glances/blob/master/glances/logger.py
 and filter setting from:
-	http://stackoverflow.com/questions/21455515/install-filter-on-logging-level-in-python-using-dictconfig
+    http://stackoverflow.com/questions/21455515/install-filter-on-logging-level-in-python-using-dictconfig
 """
 
 import logging
@@ -39,87 +39,87 @@ LOG_FILENAME = 'rpicam.log'
 class NoRunningFilter(logging.Filter):
 
     def __init__(self, filter_str=None):
-    	logging.Filter.__init__(self, filter_str)
-    	self.filterstr = filter_str
+        logging.Filter.__init__(self, filter_str)
+        self.filterstr = filter_str
 
     def filter(self, rec):
-    	if self.filterstr is None:
-    		allow = True
-    	else: 
-    		allow = self.filterstr not in rec.getMessage()
-    	
-    	return allow
-    	
+        if self.filterstr is None:
+            allow = True
+        else:
+            allow = self.filterstr not in rec.getMessage()
+
+        return allow
+
 ### Define the logging configuration
 RPILOGGING = {
-	'version': 1,
-	'disable_existing_loggers': 'False',
-	'root': {
-		'level': 'INFO',
-		'handlers': ['file', 'console']
-	},
-	'formatters': {
-		'full': {
-			'format': '%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s'
-		},
-		'short': {
-			'format': '%(asctime)s %(message)s'
-		}
-	},	
-	'handlers': {
-		'file': {
-			'level': LOGLEVEL,
-			'class': 'logging.handlers.RotatingFileHandler',
-			'mode': 'w', 
-			'maxBytes': LOGFILEBYTES, 
-			'backupCount': 5,
-			'formatter': 'full',
-			'filename': LOG_FILENAME,
-			'filters': ['NotMainJob']
-		},
-		'console': {
-			'level': 'CRITICAL',
-			'class': 'logging.StreamHandler',
-			'formatter': 'short',
-		}
-	},
-	'filters':{
-		'NotMainJob': {
-			'()': NoRunningFilter,
-			'filter_str': 'Job_Cmd'
-		}
-	},
-	'loggers': {
-		'info': {
-			'handlers': ['file'],
-			'level': 'INFO'
-		},
-		'debug': {
-			'handlers': ['file', 'console'],
-			'level': 'DEBUG'
-		},
-		'warning': {
-			'handlers': ['file', 'console'],
-			'level': 'WARNING'
-		},
-		'error': {
-			'handlers': ['file', 'console'],
-			'level': 'ERROR'
-		}
-	}
+    'version': 1,
+    'disable_existing_loggers': 'False',
+    'root': {
+        'level': 'INFO',
+        'handlers': ['file', 'console']
+    },
+    'formatters': {
+        'full': {
+            'format': '%(asctime)s [%(levelname)s] (%(threadName)-10s) %(message)s'
+        },
+        'short': {
+            'format': '%(asctime)s %(message)s'
+        }
+    },
+    'handlers': {
+        'file': {
+            'level': LOGLEVEL,
+            'class': 'logging.handlers.RotatingFileHandler',
+            'mode': 'w',
+            'maxBytes': LOGFILEBYTES,
+            'backupCount': 5,
+            'formatter': 'full',
+            'filename': LOG_FILENAME,
+            'filters': ['NotMainJob']
+        },
+        'console': {
+            'level': 'CRITICAL',
+            'class': 'logging.StreamHandler',
+            'formatter': 'short',
+        }
+    },
+    'filters':{
+        'NotMainJob': {
+            '()': NoRunningFilter,
+            'filter_str': 'Job_Cmd'
+        }
+    },
+    'loggers': {
+        'info': {
+            'handlers': ['file'],
+            'level': 'INFO'
+        },
+        'debug': {
+            'handlers': ['file', 'console'],
+            'level': 'DEBUG'
+        },
+        'warning': {
+            'handlers': ['file', 'console'],
+            'level': 'WARNING'
+        },
+        'error': {
+            'handlers': ['file', 'console'],
+            'level': 'ERROR'
+        }
+    }
 }
 
 ### Build the rpilogger
 def rpi_logger():
-	"""Build and return the logger.
-	:return: logger -- Logger instance
-	"""
-	_logger = logging.getLogger()
+    """Build and return the logger.
+    :return: logger -- Logger instance
+    """
+    _logger = logging.getLogger()
 
-	# Use the PRILOGGING logger configuration
-	logging.config.dictConfig(RPILOGGING)
-	
-	return _logger
+    # Use the PRILOGGING logger configuration
+    logging.config.dictConfig(RPILOGGING)
+
+    return _logger
 
 
 rpiLogger = rpi_logger()

@@ -76,7 +76,7 @@ PIP: requirements.txt, to be used with ```sudo pip3 install -r requirements.txt 
 
 - [PyYAML](https://pypi.python.org/pypi/PyYAML)
 
-- [PIL](https://pypi.python.org/pypi/PIL)
+- [Pillow (PIL fork)](https://pillow.readthedocs.io/en/latest/)
 
 - [PyEphem](https://pypi.python.org/pypi/pyephem/)
 

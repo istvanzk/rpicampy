@@ -86,6 +86,10 @@ PIP: requirements.txt, to be used with ```sudo pip3 install -r requirements.txt 
 
 APT-GET:
 
+- libopenjp2-7 and libtiff5 (required by Pillow)
+
+- fontconfig (provides Dejavu fonts)
+
 - [raspberry-gpio-python](https://sourceforge.net/p/raspberry-gpio-python/wiki/install/)
 
 - [python3-systemd](https://github.com/systemd/python-systemd)

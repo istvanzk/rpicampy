@@ -1,9 +1,9 @@
 # YAML
 ---
 #timerConfig:
-  start_year: 2017
-  stop_year: 2017
-  start_month: 1
+  start_year: 2021
+  stop_year: 2021
+  start_month: 11
   stop_month: 12
   start_day: 1
   stop_day: 31
@@ -12,7 +12,7 @@
   stop_hour: [23] 
   stop_min: [55] 
   interval_sec: [150, 30]
-  token_file: 'tspk_keys.txt'
+  token_file: ''
 --- 
 #camImgConfig:
   image_dir: './webcam'

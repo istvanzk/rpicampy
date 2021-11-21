@@ -48,8 +48,8 @@ INTERNETUSE = True
 DROPBOXUSE  = True
 
 # ThingSpeak API and TalkBack APP
-TSPKFEEDUSE = True
-TSPKTBUSE   = True
+TSPKFEEDUSE = False
+TSPKTBUSE   = False
 
 # Local USB storage
 LOCUSBUSE   = False
@@ -152,7 +152,7 @@ try:
     import yaml
 
     with open(YAMLCFG_FILE, 'r') as stream:
-        timerConfig, camConfig, dirConfig, dbxConfig = yaml.load_all(stream)
+        timerConfig, camConfig, dirConfig, dbxConfig = yaml.load_all(stream, Loader=yaml.SafeLoader)
 
     # Add/copy config keys
     dbxConfig['image_dir']  = camConfig['image_dir']

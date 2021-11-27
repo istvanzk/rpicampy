@@ -19,7 +19,9 @@
 
 #### rpicam:	Manage (pi)camera and save images locally.
 
-- Raspberry PI camera using using the picamera module, or
+- Raspberry PI camera using libcamera-still (new libcamera stack, preferred), or
+
+- Raspberry PI camera using the picamera python module, or
 
 - Raspberry PI camera using the raspistill utility, or 
 
@@ -30,6 +32,10 @@
 The image file names are:  '%d%m%y-%H%M%S-CAMID.jpg', where CAMID is the image/camera identification string `image_id` specified in the configuration file.
 The images are saved locally in a sub-folder under the root `image_dir` folder specified in the cofiguration file. The sub-folder name is the current date `%d%m%y`.
 When using picamera module, the images are automatically rotated with the `image_rot` angle (degrees) specified in the configuration file. 
+
+The libcamera-still (`LIBCAMERA`) is the preferred/recommended option since Debian Bullseye, Nov 2021.
+When libcamera-still is used a tunning file (--tuning-file) must be configured by setting the `LIBCAMERA_JSON` in the rpicam.py module.
+See https://www.raspberrypi.com/documentation/accessories/camera.html
 
 The rpicam module implements a 'dark' time long exposure time or an IR/VL reflector ON/OFF switch. 
 The 'dark' time period (start and stop) can be configured manually using the hour/min parameters set in the configuration file.

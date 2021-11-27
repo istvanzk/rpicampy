@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
     Time-lapse with Rasberry Pi controlled camera
-    Copyright (C) 2016-2017 Istvan Z. Kovacs
+    Copyright (C) 2016-2021 Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,21 +42,41 @@ from rpibase import rpiBaseClass, rpiBaseClassError
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 
 ### Camera input to use
-# If not RPICAM and not RPISTILL then use a web camera with fswebcam utility
+# When none selected, then the fswebcam -d /dev/video0 is used to capture an image
+# FAKESNAP generates an empty file!
 FAKESNAP   = False
+# The 'back-end' to use
+# See https://www.raspberrypi.com/documentation/accessories/camera.html
+# LIBCAMERA is the preferred/recommended option since Debian Bullseye, Nov 2021
+# LIBCAMERA_JSON has to be set to the JSON file name corresponding to the used camera (see docs above)
+# RASPISTILL and RPICAM are deprecated since Debian Bullseye, Nov 2021
+# RPICAM2 is not available, under development, Nov 2021
+LIBCAMERA  = True
+LIBCAMERA_JSON = "ov5647_noir.json"
+#RPICAM2    = False
 RASPISTILL = False
-RPICAM     = True
+RPICAM     = False
+
 
 if FAKESNAP:
     # Dummy (no image capture!)
+    LIBCAMERA  = False
+    RPICAM2    = False
     RASPISTILL = False
     RPICAM     = False
+    
 
 if RPICAM:
     # PIcamera
     import picamera
     from fractions import Fraction
     import io
+
+#elif RPICAM2:
+    # PIcamera2
+    #import picamera2
+    #from fractions import Fraction
+    #import io
 
 ### GPIO
 if not FAKESNAP:
@@ -156,6 +176,16 @@ class rpiCamClass(rpiBaseClass):
 
                 # Check return/errors
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
+
+            elif LIBCAMERA:
+                # Use libcamera-still --tuning-file /usr/share/libcamera/ipa/raspberrypi/<LIBCAMERA_JSON> --exposure normal --immediate -n -q 95 --contrast 30 --width 1024 --height 768 --rotation
+                self._grab_cam = subprocess.Popen("libcamera-still --tuning-file /usr/share/libcamera/ipa/raspberrypi/" + LIBCAMERA_JSON + " -n --immediate --exposure normal --contrast 30 --width 1024 --height 768 -q 95 --rotation " + self._config['image_rot'] + " -o " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+
+                # Check return/errors
+                #self.grab_cam.wait()
+                self._camoutput, self._camerrors = self._grab_cam.communicate()
+
+            #elif RPICAM2:
 
             elif RASPISTILL:
                 # Use raspistill -n -vf -hf -awb auto -q 95

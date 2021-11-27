@@ -181,7 +181,7 @@ class rpiCamClass(rpiBaseClass):
             elif LIBCAMERA:
                 # Use libcamera-still
                 cmd_str = ["libcamera-still", "--tuning-file", f"/usr/share/libcamera/ipa/raspberrypi/{LIBCAMERA_JSON:s}", "-n", "--immediate", "--exposure", "normal", "--width", "1024", "--height", "768", "-q", "85", "--rotation", f"{self._config['image_rot']:n}", "-o", f"{self.image_path:s}"]
-                self._grab_cam = subprocess.Popen(cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+                self._grab_cam = subprocess.Popen(cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
                 # Check return/errors
                 #self.grab_cam.wait()

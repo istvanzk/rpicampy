@@ -52,7 +52,8 @@ FAKESNAP   = False
 # RASPISTILL and RPICAM are deprecated since Debian Bullseye, Nov 2021
 # RPICAM2 is not available, under development, Nov 2021
 LIBCAMERA  = True
-LIBCAMERA_JSON = "ov5647_noir.json"
+LIBCAMERA_JSON = "ov5647_noir.json" # Cam V1 Noir: dtoverlay=ov5647 in /boot/config.txt
+#LIBCAMERA_JSON = "imx219.json" # Cam V2: dtoverlay=imx219 in /boot/config.txt
 #RPICAM2    = False
 RASPISTILL = False
 RPICAM     = False
@@ -89,7 +90,7 @@ class rpiCamClass(rpiBaseClass):
     """
     Implements the rpiCam class, to run and control:
     - Raspberry PI camera using the raspistill utility or
-    - Raspberry PI camera usingthe picamera module, or
+    - Raspberry PI camera using the picamera module, or
     - Web camera using fswebcam utility.
     Use GPIO to ON/OFF control an IR/VL reflector for night imaging.
     """

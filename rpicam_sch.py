@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.4
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Time-lapse with Rasberry Pi controlled camera - Main method

@@ -113,8 +113,8 @@ class rpiCamClass(rpiBaseClass):
 
     def __str__(self):
         msg = super().__str__()
-        return "%s::: %s, config: %s, FAKESNAP: %s, RASPISTILL: %s, RPiCAM: %s\nimageFIFO: %s\n%s" % \
-            (self.name, self.camid, self._config, FAKESNAP, RASPISTILL, RPICAM, self.imageFIFO, msg)
+        return "%s::: %s, config: %s, FAKESNAP: %s, LIBCAMERA: %s, RASPISTILL: %s, RPiCAM: %s\nimageFIFO: %s\n%s" % \
+            (self.name, self.camid, self._config, FAKESNAP, LIBCAMERA, RASPISTILL, RPICAM, self.imageFIFO, msg)
 
     def __del__(self):
 
@@ -124,7 +124,7 @@ class rpiCamClass(rpiBaseClass):
                 self._camera.close()
 
             ### Clean up GPIO on exit
-            if RPICAM or RASPISTILL:
+            if LIBCAMERA or RPICAM or RASPISTILL:
                 #GPIO.cleanup()
                 self._switchIR(False)
         except:
@@ -178,8 +178,9 @@ class rpiCamClass(rpiBaseClass):
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
 
             elif LIBCAMERA:
-                # Use libcamera-still --tuning-file /usr/share/libcamera/ipa/raspberrypi/<LIBCAMERA_JSON> --exposure normal --immediate -n -q 95 --contrast 30 --width 1024 --height 768 --rotation
-                self._grab_cam = subprocess.Popen("libcamera-still --tuning-file /usr/share/libcamera/ipa/raspberrypi/" + LIBCAMERA_JSON + " -n --immediate --exposure normal --contrast 30 --width 1024 --height 768 -q 95 --rotation " + self._config['image_rot'] + " -o " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+                # Use libcamera-still
+                cmd_str = f"--tuning-file /usr/share/libcamera/ipa/raspberrypi/{LIBCAMERA_JSON:s} -n --immediate --exposure normal --contrast 30 --width 1024 --height 768 -q 95 --rotation {self._config['image_rot']:n}  -o {self.image_path:s}"
+                self._grab_cam = subprocess.Popen("libcamera-still {cmd_str}", stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
 
                 # Check return/errors
                 #self.grab_cam.wait()

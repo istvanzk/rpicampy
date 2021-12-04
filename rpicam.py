@@ -341,14 +341,15 @@ class rpiCamClass(rpiBaseClass):
 
             ### Check if the image file has been actually saved
             if os.path.exists(self.image_name):
-                rpiLogger.info('Snapshot saved: ' + self.image_name)
+                rpiLogger.info(f"Snapshot saved: {self.image_name}")
 
                 # Add image to deque (FIFO)
                 self.imageFIFO.append(self.image_path)
                 self.crtlenFIFO = len(self.imageFIFO)
 
             else:
-                rpiLogger.warning('Snapshot NOT saved: ' + self.image_name)
+                rpiLogger.warning(f"Snapshot NOT saved: {self.image_name}. Error was:")
+                rpiLogger.warning(self._camerrors)
 
             if self.crtlenFIFO > 0:
                 rpiLogger.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))

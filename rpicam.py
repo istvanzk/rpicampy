@@ -348,8 +348,9 @@ class rpiCamClass(rpiBaseClass):
                 self.crtlenFIFO = len(self.imageFIFO)
 
             else:
-                rpiLogger.warning(f"Snapshot NOT saved: {self.image_name}. Error was:")
+                rpiLogger.warning(f"Snapshot NOT saved: {self.image_name}. Error was: ")
                 rpiLogger.warning(self._camerrors)
+                rpiLogger.warning(self._camoutput)
 
             if self.crtlenFIFO > 0:
                 rpiLogger.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
@@ -489,7 +490,7 @@ class rpiCamClass(rpiBaseClass):
                 "--exposure", self.exposure_mode,
                 "--contrast", f"{self.contrast}",
                 "--brightness", f"{self.brightness}",
-                "--saturation", f"{self.saturation}"
+                "--saturation", f"{self.saturation}",
                 "--ev", f"{self.ev}",
                 "--metering", self.metering,
             ]

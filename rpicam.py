@@ -351,7 +351,7 @@ class rpiCamClass(rpiBaseClass):
             else:
                 rpiLogger.warning(f"Snapshot NOT saved: {self.image_name}. Error was: ")
                 rpiLogger.warning(self._camerrors)
-                rpiLogger.warning(self._camoutput)
+                #rpiLogger.warning(self._camoutput)
 
             if self.crtlenFIFO > 0:
                 rpiLogger.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))

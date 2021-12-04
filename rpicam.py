@@ -42,10 +42,10 @@ from rpibase import rpiBaseClass, rpiBaseClassError
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 
 ### Camera input to use
-# When none selected, then the fswebcam -d /dev/video0 is used to capture an image
+# When none selected, then the fswebcam -d /dev/video0 is attemped to be used to capture an image
 # FAKESNAP generates an empty file!
 FAKESNAP   = False
-# The 'back-end' to use
+# The real image 'back-end' to use
 # See https://www.raspberrypi.com/documentation/accessories/camera.html
 # LIBCAMERA is the preferred/recommended option since Debian Bullseye, Nov 2021
 # LIBCAMERA_JSON has to be set to the JSON file name corresponding to the used camera (see docs above)
@@ -89,9 +89,10 @@ else:
 class rpiCamClass(rpiBaseClass):
     """
     Implements the rpiCam class, to run and control:
-    - Raspberry PI camera using the raspistill utility or
-    - Raspberry PI camera using the picamera module, or
-    - Web camera using fswebcam utility.
+    - Raspberry PI camera using libcamera-still (new libcamera stack, preferred), or
+    - Raspberry PI camera using the picamera python module, or
+    - Raspberry PI camera using the raspistill utility, or 
+    - USB web camera using fswebcam utility. 
     Use GPIO to ON/OFF control an IR/VL reflector for night imaging.
     """
 
@@ -105,6 +106,13 @@ class rpiCamClass(rpiBaseClass):
 
         ### The FIFO buffer (deque)
         self.imageFIFO = rpififo.rpiFIFOClass([], self._config['list_size'])
+
+        # Configuration for the image capture
+        self.exif_tags_copyr = 'Copyright (c) 2021 Istvan Z. Kovacs'
+        self.resolution      = (1024, 768)
+        self.jpgqual         = 85
+        self.rotation        = self._config['image_rot']
+        self.camexp_list     = ["--exposure", "normal"]
 
         ### Init base class
         super().__init__(name, rpi_apscheduler, rpi_events)
@@ -126,7 +134,7 @@ class rpiCamClass(rpiBaseClass):
 
             ### Clean up GPIO on exit
             if LIBCAMERA or RPICAM or RASPISTILL:
-                #GPIO.cleanup()
+                GPIO.cleanup()
                 self._switchIR(False)
         except:
             pass
@@ -179,9 +187,29 @@ class rpiCamClass(rpiBaseClass):
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
 
             elif LIBCAMERA:
-                # Use libcamera-still
-                cmd_str = ["libcamera-still", "--tuning-file", f"/usr/share/libcamera/ipa/raspberrypi/{LIBCAMERA_JSON:s}", "-n", "--immediate", "--exposure", "normal", "--width", "1024", "--height", "768", "-q", "85", "--rotation", f"{self._config['image_rot']:n}", "-o", f"{self.image_path:s}"]
+                # https://www.raspberrypi.com/documentation/accessories/camera.html#common-command-line-options
+
+                # Set camera exposure according to the 'dark' time threshold
+                self._setCamExp()
+
+                # Generate the arguments
+                cmd_str = ["libcamera-still", 
+                    "--tuning-file", f"/usr/share/libcamera/ipa/raspberrypi/{LIBCAMERA_JSON:s}", 
+                    "-n", 
+                    "--immediate"]
+                cmd_str.extend(self.camexp_list) 
+                cmd_str.extend([ 
+                    "--width", f"{self.resolution[0]}", "--height", f"{self.resolution[1]}", 
+                    "-q", f"{self.jpgqual:n}", 
+                    "--rotation", f"{self.rotation:n}", 
+                    "-o", f"{self.image_path:s}"])
+                
+                # Capture image
                 self._grab_cam = subprocess.Popen(cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+
+                # TODO: post-process to add text with OpenCV
+                # https://www.raspberrypi.com/documentation/accessories/camera.html#post-processing
+                # https://www.raspberrypi.com/documentation/accessories/camera.html#writing-your-own-post-processing-stages
 
                 # Check return/errors
                 #self.grab_cam.wait()
@@ -189,23 +217,40 @@ class rpiCamClass(rpiBaseClass):
 
             #elif RPICAM2:
 
+
             elif RASPISTILL:
-                # Use raspistill -n -vf -hf -awb auto -q 95
-                self._grab_cam = subprocess.Popen("raspistill -n -rot " + self._config['image_rot'] + " -q 95 -co 30 -w 1024 -h 768 -o " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+                # Deprecated!
+                # https://www.arducam.com/docs/cameras-for-raspberry-pi/native-raspberry-pi-cameras/native-camera-commands-raspistillraspivid/
+                # https://www.raspberrypi.com/documentation/accessories/camera.html#raspistill
+                
+                # Generate the arguments
+                cmd_str = ["raspistill", 
+                    "-n", 
+                    "-rot", f"{self.rotation:n}",
+                    "-q", f"{self.jpgqual:n}",
+                    "-w", f"{self.resolution[0]}", "-h", f"{self.resolution[1]}", 
+                    "-co", "30",
+                    "-o", f"{self.image_path:s}"
+                ]
+
+                # Capture image
+                self._grab_cam = subprocess.Popen(cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
                 # Check return/errors
                 #self.grab_cam.wait()
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
 
             elif RPICAM:
+                # Deprecated!
+                # https://picamera.readthedocs.io/en/release-1.13/api_camera.html
+
                 # Init the camera
-                #with picamera.PiCamera() as self._camera:
                 self._camera = picamera.PiCamera()
-                self._camera.resolution = (1024, 768)
-                self._camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2017 Istvan Z. Kovacs'
+                self._camera.resolution = self.resolution
+                self._camera.exif_tags['IFD0.Copyright'] = self.exif_tags_copyr
                 #self._camera.hflip = True
                 #self._camera.vflip = True
-                self._camera.rotation = self._config['image_rot']
+                self._camera.rotation = self.rotation
 
                 # Set camera exposure according to the 'dark' time threshold
                 self._setCamExp()
@@ -214,7 +259,7 @@ class rpiCamClass(rpiBaseClass):
                 stream = io.BytesIO()
 
                 # Camera warm-up time and capture
-                self._camera.capture(stream, format='jpeg')
+                self._camera.capture(stream, format='jpeg', quality=self.imgqual)
 
                 # Read stream to a PIL image
                 stream.seek(0)
@@ -278,18 +323,32 @@ class rpiCamClass(rpiBaseClass):
                 self._camerrors = ''
 
             else:
-                # Use fswebcam -d /dev/video0 -s brightness=50% -s gain=32
-                self._grab_cam = subprocess.Popen("fswebcam -d /dev/video0 -q -r 640x480 --jpeg=95 " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+
+                # Generate the arguments
+                cmd_str = ["fswebcam", 
+                    "-d", "/dev/video0",
+                    "-s brightness=", "50%",
+                    "-s gain=", "32",
+                    f"{self.image_path}"
+                ]
+
+                # Capture image
+                self._grab_cam = subprocess.Popen(cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
 
                 ### Check return/errors
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
 
 
-            rpiLogger.info('Snapshot: ' + self.image_name)
+            ### Check if the image file has been actually saved
+            if os.path.exists(self.image_name):
+                rpiLogger.info('Snapshot saved: ' + self.image_name)
 
-            ### Add image to deque (FIFO)
-            self.imageFIFO.append(self.image_path)
-            self.crtlenFIFO = len(self.imageFIFO)
+                # Add image to deque (FIFO)
+                self.imageFIFO.append(self.image_path)
+                self.crtlenFIFO = len(self.imageFIFO)
+
+            else:
+                rpiLogger.warning('Snapshot NOT saved: ' + self.image_name)
 
             if self.crtlenFIFO > 0:
                 rpiLogger.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
@@ -336,7 +395,7 @@ class rpiCamClass(rpiBaseClass):
         ### Init GPIO port, BCMxx pin. NO CHECK!
         self.IRport = self._config['bcm_irport']
         if self._config['use_ir'] == 1:
-            GPIO.cleanup(self.IRport)
+            #GPIO.cleanup(self.IRport)
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(self.IRport, GPIO.OUT, initial=0)
 
@@ -391,18 +450,64 @@ class rpiCamClass(rpiBaseClass):
     def _setCamExp(self):
         '''
         Set camera exposure according to the 'dark' time threshold.
-        Used only when RPICAM or RASPISTILL = True.
+        Used only with LIBCAMERA or RPICAM
         '''
-        if RPICAM:
+        if LIBCAMERA:
+            # https://www.raspberrypi.com/documentation/accessories/camera.html#common-command-line-options
+            # TODO: Test these settings
+            self.shutter_speed = None
+            self.awb_mode      = 'auto'
+            self.exposure_mode = 'normal'
+            self.gain       = 1.0 # ISO = 100 * analog gain (V1 camera)
+            self.contrast   = 1.0 # 0 ... 1 ...    
+            self.brightness = 0   #-1 ... 0 ... +1
+            self.saturation = 1.0 # 0 ... 1 ...
+            self.ev         = 0 # -10 ... 0 ... 10
+            self.metering   = 'average'
+            if self._isDark():
+                if self._config['use_ir'] == 1:
+                    self.contrast   = 1.5 
+                else:
+                    self.gain = 8.0
+                    self.contrast = 1.3
+                    self.brightness = 20/50                    
+                    #self.framerate = Fraction(1, 2)
+                    self.shutter_speed = 5000000
 
+                self.bDarkExp = True
+
+            else:
+                self.contrast = 1.3
+
+                self.bDarkExp = False
+
+            # Set the list with the parameter values
+            self.camexp_list = [
+                "--awb", self.awb_mode,
+                "--gain", f"{self.gain}",
+                "--exposure", self.exposure_mode,
+                "--contrast", f"{self.contrast}",
+                "--brightness", f"{self.brightness}",
+                "--saturation", f"{self.saturation}"
+                "--ev", f"{self.ev}",
+                "--metering", self.metering,
+            ]
+            if self.shutter_speed is not None:
+                self.camexp_list.extend([
+                    "--shutter", f"{self.shutter_speed}"
+                ])
+
+
+        elif RPICAM:
+            # https://picamera.readthedocs.io/en/release-1.13/api_camera.html
             # Set the "dark" exposure parameters when needed
             if self._isDark():
 
                 if self._config['use_ir'] == 1:
                     self._camera.awb_mode = 'auto'
                     self._camera.iso = 0
-                    self._camera.contrast = 50
-                    self._camera.brightness = 70
+                    self._camera.contrast = 50 #-100 ... 0 ... 100
+                    self._camera.brightness = 70 #0 ... 50 ... 100
                     self._camera.exposure_mode = 'auto'
                     time.sleep(2)
 
@@ -421,26 +526,15 @@ class rpiCamClass(rpiBaseClass):
 
             else:
 
-                if self._config['use_ir'] == 1:
-                    self._camera.awb_mode = 'auto'
-                    self._camera.iso = 0
-                    self._camera.contrast = 30
-                    self._camera.brightness = 50
-                    self._camera.exposure_mode = 'auto'
-                    time.sleep(2)
-
-                else:
-                    self._camera.awb_mode = 'auto'
-                    self._camera.iso = 0
-                    self._camera.contrast = 30
-                    self._camera.brightness = 50
-                    self._camera.exposure_mode = 'auto'
-                    time.sleep(2)
+                self._camera.awb_mode = 'auto'
+                self._camera.iso = 0
+                self._camera.contrast = 30
+                self._camera.brightness = 50
+                self._camera.exposure_mode = 'auto'
+                time.sleep(2)
 
                 self.bDarkExp = False
 
-        #elif RASPISTILL:
-            # TODO!
 
     def _isDark(self):
         '''

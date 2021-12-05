@@ -240,7 +240,7 @@ class rpiCamClass(rpiBaseClass):
                     "-o", f"{self.image_path:s}"])
 
                 # Capture image
-                self._grab_cam = subprocess.Popen(cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                self._grab_cam = subprocess.Popen(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
                 # Check return/errors
                 #self.grab_cam.wait()
@@ -346,7 +346,7 @@ class rpiCamClass(rpiBaseClass):
 
 
             ### Check if the image file has been actually saved
-            if os.path.exists(self.image_name):
+            if os.path.exists(self.image_path):
                 rpiLogger.info(f"Snapshot saved: {self.image_name:s}")
 
                 # Add image to deque (FIFO)

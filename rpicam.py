@@ -260,6 +260,7 @@ class rpiCamClass(rpiBaseClass):
                 stream = io.BytesIO()
 
                 # Camera warm-up time and capture
+                cmd_str = ["format". "jpeg", "quality", f"{self.imgqual}"]
                 self._camera.capture(stream, format='jpeg', quality=self.imgqual)
 
                 # Read stream to a PIL image
@@ -342,16 +343,17 @@ class rpiCamClass(rpiBaseClass):
 
             ### Check if the image file has been actually saved
             if os.path.exists(self.image_name):
-                rpiLogger.info(f"Snapshot saved: {self.image_name}")
+                rpiLogger.info(f"Snapshot saved: {self.image_name:s}")
 
                 # Add image to deque (FIFO)
                 self.imageFIFO.append(self.image_path)
                 self.crtlenFIFO = len(self.imageFIFO)
 
             else:
-                rpiLogger.warning(f"Snapshot NOT saved: {self.image_name}. Error was: ")
-                rpiLogger.warning(self._camerrors)
-                #rpiLogger.warning(self._camoutput)
+                rpiLogger.warning(f"Snapshot NOT saved: {self.image_name:s}")
+                rpiLogger.warning(f"Cmd was: {cmd_str}")
+                rpiLogger.warning(f"Error was: {self._camerrors:s}")
+
 
             if self.crtlenFIFO > 0:
                 rpiLogger.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
@@ -486,14 +488,14 @@ class rpiCamClass(rpiBaseClass):
 
             # Set the list with the parameter values
             self.camexp_list = [
-                "--awb", self.awb_mode,
+                "--awb", f"'{self.awb_mode:s}'",
                 "--gain", f"{self.gain}",
                 "--exposure", self.exposure_mode,
                 "--contrast", f"{self.contrast}",
                 "--brightness", f"{self.brightness}",
                 "--saturation", f"{self.saturation}",
                 "--ev", f"{self.ev}",
-                "--metering", self.metering,
+                "--metering", f"'{self.metering:s}'",
             ]
             if self.shutter_speed is not None:
                 self.camexp_list.extend([

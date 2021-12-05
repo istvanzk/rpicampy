@@ -199,7 +199,7 @@ class rpiCamClass(rpiBaseClass):
                 self._setCamExp()
 
                 # Generate the arguments
-                self.cmd_str.exten([
+                self.cmd_str.extend([
                     "libcamera-still", "--tuning-file", f"/usr/share/libcamera/ipa/raspberrypi/{LIBCAMERA_JSON:s}", 
                     "-n", 
                     "--immediate"])

@@ -113,7 +113,7 @@ class rpiCamClass(rpiBaseClass):
         self.resolution      = (1024, 768)
         self.jpgqual         = 85
         self.rotation        = self._config['image_rot']
-        self.camexp_list     = ["--exposure", "normal"]
+        self.camexp_list     = ["--exposure", "'normal'"]
         self.cmd_str         = list()
 
         ### Init base class
@@ -356,7 +356,7 @@ class rpiCamClass(rpiBaseClass):
             else:
                 rpiLogger.warning(f"Snapshot NOT saved: {self.image_name:s}!")
                 rpiLogger.warning(f"List of args: {self.cmd_str}")
-                rpiLogger.debug(f"Error was: {self._camerrors:s}")
+                rpiLogger.debug(f"Error was: {self._camerrors.decode()}")
 
             ### Info about the FIFI buffer
             if self.crtlenFIFO > 0:

@@ -339,7 +339,7 @@ class rpiCamClass(rpiBaseClass):
                     f"{self.image_path:s}"])
 
                 # Capture image
-                self._grab_cam = subprocess.Popen(cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+                self._grab_cam = subprocess.Popen(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
 
                 ### Check return/errors
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
@@ -492,14 +492,14 @@ class rpiCamClass(rpiBaseClass):
 
             # Set the list with the parameter values
             self.camexp_list = [
-                "--awb", f"'{self.awb_mode:s}'",
+                "--awb", f"{self.awb_mode:s}",
                 "--gain", f"{self.gain}",
-                "--exposure", f"'{self.exposure_mode:s}'",
+                "--exposure", f"{self.exposure_mode:s}",
                 "--contrast", f"{self.contrast}",
                 "--brightness", f"{self.brightness}",
                 "--saturation", f"{self.saturation}",
                 "--ev", f"{self.ev}",
-                "--metering", f"'{self.metering:s}'",
+                "--metering", f"{self.metering:s}",
             ]
             if self.shutter_speed is not None:
                 self.camexp_list.extend([

@@ -113,7 +113,7 @@ class rpiCamClass(rpiBaseClass):
         self.resolution      = (1024, 768)
         self.jpgqual         = 85
         self.rotation        = self._config['image_rot']
-        self.camexp_list     = ["--exposure", "'normal'"]
+        self.camexp_list     = list()
         self.cmd_str         = list()
 
         ### Init base class
@@ -494,7 +494,7 @@ class rpiCamClass(rpiBaseClass):
             self.camexp_list = [
                 "--awb", f"'{self.awb_mode:s}'",
                 "--gain", f"{self.gain}",
-                "--exposure", self.exposure_mode,
+                "--exposure", f"'{self.exposure_mode:s}'",
                 "--contrast", f"{self.contrast}",
                 "--brightness", f"{self.brightness}",
                 "--saturation", f"{self.saturation}",

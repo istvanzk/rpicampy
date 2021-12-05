@@ -108,11 +108,13 @@ class rpiCamClass(rpiBaseClass):
         self.imageFIFO = rpififo.rpiFIFOClass([], self._config['list_size'])
 
         # Configuration for the image capture
+        self._camera         = None
         self.exif_tags_copyr = 'Copyright (c) 2021 Istvan Z. Kovacs'
         self.resolution      = (1024, 768)
         self.jpgqual         = 85
         self.rotation        = self._config['image_rot']
         self.camexp_list     = ["--exposure", "normal"]
+        self.cmd_str         = list()
 
         ### Init base class
         super().__init__(name, rpi_apscheduler, rpi_events)
@@ -172,13 +174,17 @@ class rpiCamClass(rpiBaseClass):
 
         ### Take a new snapshot and save the image locally
         try:
-            # Lock the buffer
+            ### Lock the buffer
             self.imageFIFO.acquireSemaphore()
 
-            # Switch ON/OFF IR
+            ### Switch ON/OFF IR
             if (not FAKESNAP) and (self._config['use_ir'] == 1):
                 self._switchIR(self._isDark())
 
+            ### Reset list of cmd arguments
+            self.cmd_str.clear()
+
+            ### Capture image
             if FAKESNAP:
                 rpiLogger.debug('Faking snapshot: ' + self.image_name)
                 self._grab_cam = subprocess.Popen("touch " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
@@ -193,19 +199,19 @@ class rpiCamClass(rpiBaseClass):
                 self._setCamExp()
 
                 # Generate the arguments
-                cmd_str = ["libcamera-still", 
-                    "--tuning-file", f"/usr/share/libcamera/ipa/raspberrypi/{LIBCAMERA_JSON:s}", 
+                self.cmd_str.exten([
+                    "libcamera-still", "--tuning-file", f"/usr/share/libcamera/ipa/raspberrypi/{LIBCAMERA_JSON:s}", 
                     "-n", 
-                    "--immediate"]
-                cmd_str.extend(self.camexp_list) 
-                cmd_str.extend([ 
+                    "--immediate"])
+                self.cmd_str.extend(self.camexp_list) 
+                self.cmd_str.extend([ 
                     "--width", f"{self.resolution[0]}", "--height", f"{self.resolution[1]}", 
                     "-q", f"{self.jpgqual:n}", 
                     "--rotation", f"{self.rotation:n}", 
                     "-o", f"{self.image_path:s}"])
                 
                 # Capture image
-                self._grab_cam = subprocess.Popen(cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                self._grab_cam = subprocess.Popen(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
                 time.sleep(10)
 
                 # TODO: post-process to add text with OpenCV
@@ -225,14 +231,13 @@ class rpiCamClass(rpiBaseClass):
                 # https://www.raspberrypi.com/documentation/accessories/camera.html#raspistill
                 
                 # Generate the arguments
-                cmd_str = ["raspistill", 
+                self.cmd_str.extend(["raspistill", 
                     "-n", 
                     "-rot", f"{self.rotation:n}",
                     "-q", f"{self.jpgqual:n}",
                     "-w", f"{self.resolution[0]}", "-h", f"{self.resolution[1]}", 
                     "-co", "30",
-                    "-o", f"{self.image_path:s}"
-                ]
+                    "-o", f"{self.image_path:s}"])
 
                 # Capture image
                 self._grab_cam = subprocess.Popen(cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -260,7 +265,7 @@ class rpiCamClass(rpiBaseClass):
                 stream = io.BytesIO()
 
                 # Camera warm-up time and capture
-                cmd_str = ["format". "jpeg", "quality", f"{self.imgqual}"]
+                self.cmd_str.extend(["format". "jpeg", "quality", f"{self.imgqual}"])
                 self._camera.capture(stream, format='jpeg', quality=self.imgqual)
 
                 # Read stream to a PIL image
@@ -327,12 +332,11 @@ class rpiCamClass(rpiBaseClass):
             else:
 
                 # Generate the arguments
-                cmd_str = ["fswebcam", 
+                self.cmd_str.extend(["fswebcam", 
                     "-d", "/dev/video0",
                     "-s brightness=", "50%",
                     "-s gain=", "32",
-                    f"{self.image_path}"
-                ]
+                    f"{self.image_path:s}"])
 
                 # Capture image
                 self._grab_cam = subprocess.Popen(cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
@@ -350,11 +354,11 @@ class rpiCamClass(rpiBaseClass):
                 self.crtlenFIFO = len(self.imageFIFO)
 
             else:
-                rpiLogger.warning(f"Snapshot NOT saved: {self.image_name:s}")
-                rpiLogger.warning(f"Cmd was: {cmd_str}")
-                rpiLogger.warning(f"Error was: {self._camerrors:s}")
+                rpiLogger.warning(f"Snapshot NOT saved: {self.image_name:s}!")
+                rpiLogger.warning(f"List of args: {self.cmd_str}")
+                rpiLogger.debug(f"Error was: {self._camerrors:s}")
 
-
+            ### Info about the FIFI buffer
             if self.crtlenFIFO > 0:
                 rpiLogger.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
             else:

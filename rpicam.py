@@ -473,12 +473,15 @@ class rpiCamClass(rpiBaseClass):
             self.saturation = 1.0 # 0 ... 1 ...
             self.ev         = 0 # -10 ... 0 ... 10
             self.metering   = 'average'
+            
             if self._isDark():
                 if self._config['use_ir'] == 1:
+                    self.gain       = 4.0
                     self.contrast   = 1.5 
+                    self.brightness = 20/50  
                 else:
-                    self.gain = 8.0
-                    self.contrast = 1.3
+                    self.gain       = 8.0
+                    self.contrast   = 1.3
                     self.brightness = 20/50                    
                     #self.framerate = Fraction(1, 2)
                     self.shutter_speed = 5000000

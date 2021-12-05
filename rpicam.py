@@ -265,7 +265,7 @@ class rpiCamClass(rpiBaseClass):
                 stream = io.BytesIO()
 
                 # Camera warm-up time and capture
-                self.cmd_str.extend(["format". "jpeg", "quality", f"{self.imgqual}"])
+                self.cmd_str.extend(["format", "jpeg", "quality", f"{self.imgqual}"])
                 self._camera.capture(stream, format='jpeg', quality=self.imgqual)
 
                 # Read stream to a PIL image

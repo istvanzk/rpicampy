@@ -487,8 +487,10 @@ def main():
     # Update REST feed (now)
     timerConfig['status'] = 'SchStop'
     timerJob()
+
+    # Shutdown logging
     logging.shutdown()
-    time.sleep( 60 )
+    time.sleep( 10 )
 
 if __name__ == "__main__":
     main()

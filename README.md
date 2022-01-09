@@ -3,7 +3,7 @@
 
 ### Implementation (rpicampy)
 
-##### Version 4.7 for Python 3.4+
+##### Version 5.0 for Python 3.9+
 
 #### rpicam_sch:	The main method. 
 

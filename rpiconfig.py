@@ -63,9 +63,9 @@ SYSTEMDUSE  = True
 
 
 ### Python version
-PY34 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 4)
-if not PY34:
-    rpiLogger.error("This program requires minimum Python 3.4!")
+PY39 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 9)
+if not PY39:
+    rpiLogger.error("This program requires minimum Python 3.9!")
     os._exit()
 
 ### Hostname

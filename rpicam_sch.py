@@ -40,7 +40,7 @@ from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_AD
 
 ### The rpicampy modules
 from rpilogger import rpiLogger
-import rpiconfig
+from rpiconfig import *
 from rpiconfig import journal_send, daemon_notify
 import rpievents
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE

@@ -30,7 +30,6 @@ import time
 from datetime import datetime, timezone
 import subprocess
 import ephem
-
 import math
 
 ### The rpi(cam)py modules

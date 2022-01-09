@@ -33,6 +33,7 @@ import sys
 import time
 from datetime import datetime, timedelta
 from collections import deque
+import logging
 
 #from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -486,7 +487,7 @@ def main():
     # Update REST feed (now)
     timerConfig['status'] = 'SchStop'
     timerJob()
-    rpiLogger.shutdown()
+    logging.shutdown()
     time.sleep( 60 )
 
 if __name__ == "__main__":

@@ -409,7 +409,8 @@ class rpiCamClass(rpiBaseClass):
             GPIO.setup(self.IRport, GPIO.OUT, initial=0)
 
         ### Init the font
-        self._TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
+        if RPICAM:
+            self._TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
 
         ### Create output folder
         try:

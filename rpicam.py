@@ -31,8 +31,6 @@ from datetime import datetime, timezone
 import subprocess
 import ephem
 
-# PILlow
-from PIL import Image, ImageDraw, ImageFont, ImageStat
 import math
 
 ### The rpi(cam)py modules
@@ -72,6 +70,9 @@ if RPICAM:
     import picamera
     from fractions import Fraction
     import io
+    # PILlow
+    from PIL import Image, ImageDraw, ImageFont, ImageStat
+
 
 #elif RPICAM2:
     # PIcamera2
@@ -109,7 +110,7 @@ class rpiCamClass(rpiBaseClass):
 
         # Configuration for the image capture
         self._camera         = None
-        self.exif_tags_copyr = 'Copyright (c) 2021 Istvan Z. Kovacs'
+        self.exif_tags_copyr = 'Copyright (c) 2022 Istvan Z. Kovacs'
         self.resolution      = (1024, 768)
         self.jpgqual         = 85
         self.rotation        = self._config['image_rot']

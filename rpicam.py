@@ -417,9 +417,9 @@ class rpiCamClass(rpiBaseClass):
 
             if self._config['use_pir'] == 1:
                 self.PIRport = self._config['bcm_pirport']
-                GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+                GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                 # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
-                GPIO.add_event_detect(self.PIRport, GPIO.RISING, callback=self.manualRun, bouncetime=5000)  
+                GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.manualRun, bouncetime=5000)  
             else:
                 self.PIRport = None
 

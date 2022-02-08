@@ -27,7 +27,9 @@
 
 - USB web camera using fswebcam utility. 
 
-- Implement infra-red (IR) or visible light (VL) reflector control via GPIO
+- Implement infra-red (IR) or visible light (VL) reflector control via GPIO (configured with `use_irl` and `bcm_irlport` parameters)
+
+- Implement PIR sensor as external trigger for the camera job, which replaces the job scheduler (configured with `use_pir` and `bcm_pirport` parameters)
 
 The image file names are:  '%d%m%y-%H%M%S-CAMID.jpg', where CAMID is the image/camera identification string `image_id` specified in the configuration file.
 The images are saved locally in a sub-folder under the root `image_dir` folder specified in the cofiguration file. The sub-folder name is the current date `%d%m%y`.

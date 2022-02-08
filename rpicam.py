@@ -142,6 +142,9 @@ class rpiCamClass(rpiBaseClass):
                 if self._config['use_irl'] == 1:
                     self._switchIR(False)
 
+                if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
+                    GPIO.cleanup()
+
         except:
             pass
 
@@ -182,7 +185,7 @@ class rpiCamClass(rpiBaseClass):
             self.imageFIFO.acquireSemaphore()
 
             ### Switch ON/OFF IR
-            if (not FAKESNAP) and (self._config['use_ir'] == 1):
+            if (not FAKESNAP) and (self._config['use_irl'] == 1):
                 self._switchIR(self._isDark())
 
             ### Reset list of cmd arguments
@@ -282,7 +285,7 @@ class rpiCamClass(rpiBaseClass):
                 if self.bDarkExp:
                     sN = 'n' + sN
 
-                    if self._config['use_ir'] == 0:
+                    if self._config['use_irl'] == 0:
 
                         # Calculate brightness
                         #self._grayscaleAverage(image)
@@ -495,7 +498,7 @@ class rpiCamClass(rpiBaseClass):
             self.metering   = 'average'
             
             if self._isDark():
-                if self._config['use_ir'] == 1:
+                if self._config['use_irl'] == 1:
                     self.gain       = 4.0
                     self.contrast   = 1.5 
                     self.brightness = 20/50  
@@ -535,7 +538,7 @@ class rpiCamClass(rpiBaseClass):
             # Set the "dark" exposure parameters when needed
             if self._isDark():
 
-                if self._config['use_ir'] == 1:
+                if self._config['use_irl'] == 1:
                     self._camera.awb_mode = 'auto'
                     self._camera.iso = 0
                     self._camera.contrast = 50 #-100 ... 0 ... 100
@@ -602,7 +605,7 @@ class rpiCamClass(rpiBaseClass):
         '''
         Switch ON/OFF the IR lights
         '''
-        if self._config['use_ir'] == 1:
+        if self._config['use_irl'] == 1:
             if bONOFF:
                 GPIO.output(self.IRport,1)
             else:
@@ -618,7 +621,7 @@ class rpiCamClass(rpiBaseClass):
         '''
         Convert image to greyscale, return average pixel brightness.
         '''
-        if self._config['use_ir'] == 0:
+        if self._config['use_irl'] == 0:
             # Upper-right ~1/3 image is masked out (black), not used in the statistics
             mask = Image.new('1', (image.size[0], image.size[1]))
             draw = ImageDraw.Draw(mask,'1')
@@ -645,7 +648,7 @@ class rpiCamClass(rpiBaseClass):
         '''
         Average pixels, then transform to "perceived brightness".
         '''
-        if self._config['use_ir'] == 0:
+        if self._config['use_irl'] == 0:
             # Upper-right ~1/3 image is masked out (black), not used in the statistics
             mask = Image.new('1', (image.size[0], image.size[1]))
             draw = ImageDraw.Draw(mask,'1')

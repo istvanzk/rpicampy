@@ -143,6 +143,7 @@ class rpiCamClass(rpiBaseClass):
                     self._switchIR(False)
 
                 if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
+                    time.sleep(5)
                     GPIO.cleanup()
 
         except:

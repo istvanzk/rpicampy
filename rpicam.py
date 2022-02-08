@@ -136,8 +136,12 @@ class rpiCamClass(rpiBaseClass):
 
             ### Clean up GPIO on exit
             if LIBCAMERA or RPICAM or RASPISTILL:
-                GPIO.cleanup()
-                self._switchIR(False)
+                if self._config['use_pir'] == 1:
+                    GPIO.remove_event_detect(self.PIRport)
+
+                if self._config['use_irl'] == 1:
+                    self._switchIR(False)
+
         except:
             pass
 
@@ -401,12 +405,27 @@ class rpiCamClass(rpiBaseClass):
         self.bDarkExp = False
         self.imgbr = 128
 
-        ### Init GPIO port, BCMxx pin. NO CHECK!
-        self.IRport = self._config['bcm_irport']
-        if self._config['use_ir'] == 1:
-            #GPIO.cleanup(self.IRport)
+        ### Init GPIO ports, BCMxx pin. NO CHECK!
+        if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
             GPIO.setmode(GPIO.BCM)
-            GPIO.setup(self.IRport, GPIO.OUT, initial=0)
+
+            if self._config['use_irl'] == 1:
+                self.IRLport = self._config['bcm_irlport']
+                GPIO.setup(self.IRLport, GPIO.OUT, initial=0)
+            else:
+                self.IRLport = None
+
+            if self._config['use_pir'] == 1:
+                self.PIRport = self._config['bcm_pirport']
+                GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+                # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
+                GPIO.add_event_detect(self.PIRport, GPIO.RISING, callback=self.manualRun, bouncetime=5000)  
+            else:
+                self.PIRport = None
+
+        else:
+            self.IRLport = None
+            self.PIRport = None
 
         ### Init the font
         if RPICAM:

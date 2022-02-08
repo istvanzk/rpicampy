@@ -93,7 +93,10 @@ class rpiBaseClass:
 
         # Reference to the APScheduler
         self._sched  = rpi_apscheduler or None
-        self._sched_lock = self._create_lock()
+        if self._sched is not None:
+            self._sched_lock = self._create_lock()
+        else:
+            self._sched_lock = None
 
         # Reference to eventErr (can be accessed via the rpi_events)
         self._eventErr      = rpi_events.eventErrList[self.name]
@@ -142,8 +145,8 @@ class rpiBaseClass:
             (self.name, self._dtstart, self._dtstop, self._interval_sec, self._eventErrcount, time.ctime(self._eventErrtime), self._eventErrdelay, self._state, self._stateVal, self._cmds, self._statusmsg)
 
     def __del__(self):
-        with self._sched_lock:
-            if self._sched is not None:
+        if self._sched is not None:
+            with self._sched_lock:
                 if self._sched.get_job(self._cmdname) is not None:
                     self._sched.remove_job(self._cmdname)
                 if self._sched.get_job(self.name) is not None:
@@ -184,6 +187,13 @@ class rpiBaseClass:
     # Subclass interface methods to be used externally.
     #
 
+    def manualRun(self, ch):
+        """
+        Trigger the execution of the job just as it would be executed by the scheduler
+        """
+        self._run()
+
+
     def queueCmd(self, cmdrx_tuple):
         """
         Puts a remote command (tuple) in the cmd queue.
@@ -197,7 +207,6 @@ class rpiBaseClass:
 
         self._cmds.put(cmdrx_tuple, True, 5)
         return True
-
 
     def setInit(self):
         """
@@ -433,8 +442,8 @@ class rpiBaseClass:
 
         ### Stop and remove the self._run()  and self._proccmd() jobs from the scheduler
         self._remove_run()
-        with self._sched_lock:
-            if self._sched is not None:
+        if self._sched is not None:
+            with self._sched_lock:
                 if self._sched.get_job(self._cmdname) is not None:
                     self._sched.remove_job(self._cmdname)
 
@@ -459,8 +468,8 @@ class rpiBaseClass:
 
 
         ### Add the self._proccmd() job to the scheduler
-        with self._sched_lock:
-            if self._sched is not None:
+        if self._sched is not None:
+            with self._sched_lock:
                 self._sched.add_job(self._proccmd, trigger='interval', id=self._cmdname , seconds=self._proccmd_interval_sec, misfire_grace_time=5, name=self._cmdname )
 
         ### Set Init state
@@ -519,8 +528,9 @@ class rpiBaseClass:
         """
         Set the combined/encoded state value corresponding to the cmd and err states (4 bits each).
         """
-        with self._state_lock:
-            self._stateVal = self._state['errval'] + 16*self._state['cmdval']
+        if self._sched is not None:
+            with self._state_lock:
+                self._stateVal = self._state['errval'] + 16*self._state['cmdval']
 
 
     def _seteventerr(self,str_func,err_val=ERRLEV0):
@@ -553,14 +563,13 @@ class rpiBaseClass:
         """
         Add the self._run() method as a job in the APScheduler.
         """
-        with self._sched_lock:
-            if self._sched is not None:
+        if self._sched is not None:
+            with self._sched_lock:
                 if self._sched.get_job(self.name) is None:
                     self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
                 else:
                     self._reschedule_run(self.name)
 
-        # Why is it needed?
         self._run_state()
 
     def _init_state(self):
@@ -626,26 +635,24 @@ class rpiBaseClass:
         Resume/add the paused or stopped self._run() job.
         Set the Run state.
         """
-        if self._state['stop'] or self._state['pause']:
+        if self._sched is not None and (self._state['stop'] or self._state['pause']):
             with self._sched_lock:
-                if self._sched is not None:
-                    if self._sched.get_job(self.name) is not None:
-                        self._sched.resume_job(self.name)
-                    else:
-                        self._add_run()
+                if self._sched.get_job(self.name) is not None:
+                    self._sched.resume_job(self.name)
+                else:
+                    self._add_run()
 
-        self._run_state()
+            self._run_state()
 
     def _pause_run(self):
         """
         Pause the scheduled self._run() job.
         Set the Pause state.
         """
-        if not self._state['pause']:
+        if self._sched is not None and not self._state['pause']:
             with self._sched_lock:
-                if self._sched is not None:
-                    if self._sched.get_job(self.name) is not None:
-                        self._sched.pause_job(self.name)
+                if self._sched.get_job(self.name) is not None:
+                    self._sched.pause_job(self.name)
 
             self._pause_state()
 
@@ -654,11 +661,10 @@ class rpiBaseClass:
         Remove the scheduled self._run() job.
         Set the Stop state.
         """
-        if not self._state['stop']:
+        if self._sched is not None and not self._state['stop']:
             with self._sched_lock:
-                if self._sched is not None:
-                    if self._sched.get_job(self.name) is not None:
-                        self._sched.remove_job(self.name)
+                if self._sched.get_job(self.name) is not None:
+                    self._sched.remove_job(self.name)
 
             self._stop_state()
 
@@ -667,11 +673,10 @@ class rpiBaseClass:
         Re-schedule the self._run() job.
         Set the ReScheduled state.
         """
-        if not self._state['resch']:
+        if self._sched is not None and not self._state['resch']:
             with self._sched_lock:
-                if self._sched is not None:
-                    if self._sched.get_job(self.name) is not None:
-                        self._sched.reschedule_job(job_id=self.name, trigger='interval', seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, name=self.name)
+                if self._sched.get_job(self.name) is not None:
+                    self._sched.reschedule_job(job_id=self.name, trigger='interval', seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, name=self.name)
 
         self._state['run']   = False
         self._state['stop']  = False
@@ -744,8 +749,9 @@ class rpiBaseClass:
         rpiLogger.warning("The %s job is exiting!" % self.name)
 
         self._remove_run()
-        with self._sched_lock:
-            if self._sched is not None:
+        
+        if self._sched is not None:
+            with self._sched_lock:
                 if self._sched.get_job(self._cmdname) is not None:
                     self._sched.remove_job(self._cmdname)
 

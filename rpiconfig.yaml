@@ -1,9 +1,9 @@
 # YAML
 ---
 #timerConfig:
-  start_year: 2021
-  stop_year: 2021
-  start_month: 11
+  start_year: 2022
+  stop_year: 2022
+  start_month: 1
   stop_month: 12
   start_day: 1
   stop_day: 31
@@ -18,8 +18,10 @@
   image_dir: './webcam'
   image_id: 'CAM1'
   image_rot: 90
-  use_ir: 0
-  bcm_irport: 19
+  use_irl: 1
+  bcm_irlport: 19
+  use_pir: 1
+  bcm_pirport: 26
   dark_hours: [17, 8] 
   dark_mins: [0, 0]
   dark_loc: ['57.0774992' , '9.9117876']

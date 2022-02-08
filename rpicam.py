@@ -607,9 +607,9 @@ class rpiCamClass(rpiBaseClass):
         '''
         if self._config['use_irl'] == 1:
             if bONOFF:
-                GPIO.output(self.IRport,1)
+                GPIO.output(self.IRLport,1)
             else:
-                GPIO.output(self.IRport,0)
+                GPIO.output(self.IRLport,0)
 
     ### The following 4 functions are based on:
     # https://github.com/andrevenancio/brightnessaverage

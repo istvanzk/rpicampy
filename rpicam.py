@@ -410,7 +410,7 @@ class rpiCamClass(rpiBaseClass):
         self.imgbr = 128
 
         ### Init GPIO ports, BCMxx pin. NO CHECK!
-        if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
+        if GPIO.getmode() is None and (self._config['use_irl'] == 1 or self._config['use_pir'] == 1):
             GPIO.setmode(GPIO.BCM)
 
             if self._config['use_irl'] == 1:
@@ -423,6 +423,7 @@ class rpiCamClass(rpiBaseClass):
                 self.PIRport = self._config['bcm_pirport']
                 GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                 # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
+                # To enable access too /dev/mem run: sudo usermod -a -G gpio $USER
                 GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.manualRun, bouncetime=5000)  
             else:
                 self.PIRport = None

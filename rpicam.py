@@ -410,27 +410,29 @@ class rpiCamClass(rpiBaseClass):
         self.imgbr = 128
 
         ### Init GPIO ports, BCMxx pin. NO CHECK!
-        if GPIO.getmode() is None and (self._config['use_irl'] == 1 or self._config['use_pir'] == 1):
-            GPIO.setmode(GPIO.BCM)
+        # Avoid re-init of the GPIO
+        if GPIO.getmode() is None: 
+            if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
+                GPIO.setmode(GPIO.BCM)
 
-            if self._config['use_irl'] == 1:
-                self.IRLport = self._config['bcm_irlport']
-                GPIO.setup(self.IRLport, GPIO.OUT, initial=0)
+                if self._config['use_irl'] == 1:
+                    self.IRLport = self._config['bcm_irlport']
+                    GPIO.setup(self.IRLport, GPIO.OUT, initial=0)
+                else:
+                    self.IRLport = None
+
+                if self._config['use_pir'] == 1:
+                    self.PIRport = self._config['bcm_pirport']
+                    GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+                    # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
+                    # To enable access too /dev/mem run: sudo usermod -a -G gpio $USER
+                    GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.manualRun, bouncetime=5000)  
+                else:
+                    self.PIRport = None
+
             else:
                 self.IRLport = None
-
-            if self._config['use_pir'] == 1:
-                self.PIRport = self._config['bcm_pirport']
-                GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-                # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
-                # To enable access too /dev/mem run: sudo usermod -a -G gpio $USER
-                GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.manualRun, bouncetime=5000)  
-            else:
                 self.PIRport = None
-
-        else:
-            self.IRLport = None
-            self.PIRport = None
 
         ### Init the font
         if RPICAM:
@@ -609,9 +611,9 @@ class rpiCamClass(rpiBaseClass):
         '''
         if self._config['use_irl'] == 1:
             if bONOFF:
-                GPIO.output(self.IRLport,1)
+                GPIO.output(self.IRLport,GPIO.HIGH)
             else:
-                GPIO.output(self.IRLport,0)
+                GPIO.output(self.IRLport,GPIO.LOW)
 
     ### The following 4 functions are based on:
     # https://github.com/andrevenancio/brightnessaverage

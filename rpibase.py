@@ -188,9 +188,9 @@ class rpiBaseClass:
         """
         Trigger the execution of the job just as it would be executed by the scheduler
         """
-        rpiLogger.debug("Waiting for RLock to execute Manual trigger")
+        rpiLogger.debug(f"{self.name}::: Waiting for RLock to execute Manual trigger")
         with self._sched_lock:
-            rpiLogger.info("Manual trigger")
+            rpiLogger.info(f"{self.name}::: Manual trigger")
             self._run()
 
 

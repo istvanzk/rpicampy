@@ -426,7 +426,7 @@ class rpiCamClass(rpiBaseClass):
                     GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                     # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
                     # To enable access too /dev/mem run: sudo usermod -a -G gpio $USER
-                    GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.manualRun, bouncetime=5000)  
+                    GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.manualRun, bouncetime=10000)  
                 else:
                     self.PIRport = None
 

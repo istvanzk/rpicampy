@@ -47,6 +47,7 @@ import rpievents
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 import rpimgdir
 import rpicam
+from rpicam import LIBCAMERA
 if DROPBOXUSE:
     # Dropbox
     from rpimgdb import rpiImageDbxClass
@@ -492,6 +493,12 @@ def main():
     # Update REST feed (now)
     timerConfig['status'] = 'SchStop'
     timerJob()
+
+    # Reset GPIO
+    if LIBCAMERA:
+        import RPi.GPIO as GPIO
+        if GPIO.getmode() is not None: 
+            GPIO.cleanup()
 
     # Shutdown logging
     logging.shutdown()

@@ -93,11 +93,8 @@ class rpiBaseClass:
 
         # Reference to the APScheduler
         self._sched  = rpi_apscheduler or None
-        if self._sched is not None:
-            self._sched_lock = self._create_lock()
-        else:
-            self._sched_lock = None
-
+        self._sched_lock = self._create_lock()
+ 
         # Reference to eventErr (can be accessed via the rpi_events)
         self._eventErr      = rpi_events.eventErrList[self.name]
 
@@ -191,7 +188,8 @@ class rpiBaseClass:
         """
         Trigger the execution of the job just as it would be executed by the scheduler
         """
-        self._run()
+        with self._sched_lock:
+            self._run()
 
 
     def queueCmd(self, cmdrx_tuple):

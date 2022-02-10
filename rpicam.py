@@ -81,8 +81,9 @@ if RPICAM:
 
 ### GPIO
 if not FAKESNAP:
-    import RPi.GPIO as GPIO
     # Uses /dev/gpiomem if available to avoid being run as root
+    # To enable user access too /dev/gpiomem run: sudo usermod -a -G gpio $USER
+    import RPi.GPIO as GPIO
 else:
     rpiLogger.warning("The RPi.GPIO module is not used!")
 
@@ -135,7 +136,7 @@ class rpiCamClass(rpiBaseClass):
                 self._camera.close()
 
             ### Clean up GPIO on exit
-            if LIBCAMERA or RPICAM or RASPISTILL:
+            if not FAKESNAP:
                 if self._config['use_pir'] == 1:
                     GPIO.remove_event_detect(self.PIRport)
 
@@ -411,7 +412,7 @@ class rpiCamClass(rpiBaseClass):
 
         ### Init GPIO ports, BCMxx pin. NO CHECK!
         # Avoid re-init of the GPIO
-        if GPIO.getmode() is None: 
+        if not FAKESNAP and GPIO.getmode() is None: 
             if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
                 GPIO.setmode(GPIO.BCM)
 
@@ -425,7 +426,6 @@ class rpiCamClass(rpiBaseClass):
                     self.PIRport = self._config['bcm_pirport']
                     GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                     # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
-                    # To enable access too /dev/mem run: sudo usermod -a -G gpio $USER
                     GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.manualRun, bouncetime=10000)  
                 else:
                     self.PIRport = None

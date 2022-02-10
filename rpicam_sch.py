@@ -274,7 +274,7 @@ def timerJob():
 
 
 ### The APScheduler
-schedRPi = BackgroundScheduler(alias='BkgScheduler')
+schedRPi = BackgroundScheduler(alias='BkgScheduler', timezone="Europe/Berlin")
 #schedRPi = BlockingScheduler(alias='BlkScheduler')
 
 # Add job execution event handler

@@ -220,16 +220,20 @@ class rpiCamClass(rpiBaseClass):
                     "-o", f"{self.image_path:s}"])
                 
                 # Capture image
-                self._grab_cam = subprocess.Popen(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-                time.sleep(5)
+                #self._grab_cam = subprocess.Popen(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                #time.sleep(5)
+
+                # Check return/errors
+                #self.grab_cam.wait()
+                #self._camoutput, self._camerrors = self._grab_cam.communicate()
+
+                self._grab_cam = subprocess.run(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                self._camoutput, self._camerrors = self._grab_cam.stdout, self._grab_cam.stderr
 
                 # TODO: post-process to add text with OpenCV
                 # https://www.raspberrypi.com/documentation/accessories/camera.html#post-processing
                 # https://www.raspberrypi.com/documentation/accessories/camera.html#writing-your-own-post-processing-stages
 
-                # Check return/errors
-                #self.grab_cam.wait()
-                self._camoutput, self._camerrors = self._grab_cam.communicate()
 
             #elif RPICAM2:
 

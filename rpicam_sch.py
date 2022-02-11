@@ -497,7 +497,11 @@ def main():
     # Reset GPIO
     if LIBCAMERA:
         import RPi.GPIO as GPIO
+
         if GPIO.getmode() is not None: 
+            if camConfig['use_pir'] == 1:
+                GPIO.remove_event_detect(camConfig['bcm_pirport'])
+
             GPIO.cleanup()
 
     # Shutdown logging

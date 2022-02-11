@@ -135,7 +135,7 @@ class rpiCamClass(rpiBaseClass):
                         self.PIRport = self._config['bcm_pirport']
                         GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                         # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
-                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.manualRun, bouncetime=10000)  
+                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.manualRun, bouncetime=15000)  
                     else:
                         self.PIRport = None
                         rpiLogger.warning(f"{self.name}::: GPIO PIRport not used")  
@@ -172,7 +172,7 @@ class rpiCamClass(rpiBaseClass):
                 self._camera.close()
 
             ### Clean up GPIO on exit
-            if not FAKESNAP:
+            if not FAKESNAP and GPIO.getmode() is not None:
                 if self._config['use_pir'] == 1:
                     GPIO.remove_event_detect(self.PIRport)
 

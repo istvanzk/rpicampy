@@ -117,6 +117,42 @@ class rpiCamClass(rpiBaseClass):
         self.camexp_list     = list()
         self.cmd_str         = list()
 
+        # Init GPIO ports, BCMxx pin. NO CHECK!
+        if not FAKESNAP:
+            if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
+                GPIO.setmode(GPIO.BCM)
+
+                if GPIO.getmode() is not None: 
+
+                    if self._config['use_irl'] == 1:
+                        self.IRLport = self._config['bcm_irlport']
+                        GPIO.setup(self.IRLport, GPIO.OUT, initial=0)
+                    else:
+                        self.IRLport = None
+                        rpiLogger.warning(f"{self.name}::: GPIO IRLport not used")  
+
+                    if self._config['use_pir'] == 1:
+                        self.PIRport = self._config['bcm_pirport']
+                        GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+                        # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
+                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.manualRun, bouncetime=10000)  
+                    else:
+                        self.PIRport = None
+                        rpiLogger.warning(f"{self.name}::: GPIO PIRport not used")  
+
+                else:
+                    GPIO.cleanup()
+                    self.IRLport = None
+                    self.PIRport = None
+                    rpiLogger.error(f"{self.name}::: GPIO could not be initialised!")   
+
+            else:
+                self.IRLport = None
+                self.PIRport = None
+                rpiLogger.warning(f"{self.name}::: No GPIO port is used")   
+
+
+
         ### Init base class
         super().__init__(name, rpi_apscheduler, rpi_events)
 
@@ -413,30 +449,6 @@ class rpiCamClass(rpiBaseClass):
         # (used only when RPICAM or RASPISTILL= True)
         self.bDarkExp = False
         self.imgbr = 128
-
-        ### Init GPIO ports, BCMxx pin. NO CHECK!
-        # Avoid re-init of the GPIO
-        if not FAKESNAP and GPIO.getmode() is None: 
-            if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
-                GPIO.setmode(GPIO.BCM)
-
-                if self._config['use_irl'] == 1:
-                    self.IRLport = self._config['bcm_irlport']
-                    GPIO.setup(self.IRLport, GPIO.OUT, initial=0)
-                else:
-                    self.IRLport = None
-
-                if self._config['use_pir'] == 1:
-                    self.PIRport = self._config['bcm_pirport']
-                    GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-                    # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
-                    GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.manualRun, bouncetime=10000)  
-                else:
-                    self.PIRport = None
-
-            else:
-                self.IRLport = None
-                self.PIRport = None
 
         ### Init the font
         if RPICAM:

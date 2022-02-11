@@ -219,9 +219,6 @@ class rpiCamClass(rpiBaseClass):
 
         ### Take a new snapshot and save the image locally
         try:
-            ### Lock the buffer
-            self.imageFIFO.acquireSemaphore()
-
             ### Switch ON/OFF IR
             if (not FAKESNAP) and (self._config['use_irl'] == 1):
                 self._switchIR(self._isDark())
@@ -256,15 +253,15 @@ class rpiCamClass(rpiBaseClass):
                     "-o", f"{self.image_path:s}"])
                 
                 # Capture image
-                #self._grab_cam = subprocess.Popen(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                self._grab_cam = subprocess.Popen(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
                 #time.sleep(5)
 
                 # Check return/errors
                 #self.grab_cam.wait()
-                #self._camoutput, self._camerrors = self._grab_cam.communicate()
+                self._camoutput, self._camerrors = self._grab_cam.communicate(timeout=8)
 
-                self._grab_cam = subprocess.run(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-                self._camoutput, self._camerrors = self._grab_cam.stdout, self._grab_cam.stderr
+                #self._grab_cam = subprocess.run(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                #self._camoutput, self._camerrors = self._grab_cam.stdout, self._grab_cam.stderr
 
                 # TODO: post-process to add text with OpenCV
                 # https://www.raspberrypi.com/documentation/accessories/camera.html#post-processing
@@ -393,6 +390,17 @@ class rpiCamClass(rpiBaseClass):
                 ### Check return/errors
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
 
+        except OSError as e:
+            raise rpiBaseClassError("%s::: jobRun(): Snapshot %s could not be created!\n%s" % (self.name, self.image_path, e), ERRLEV2)
+
+        except subprocess.TimeoutExpired:
+            self._grab_cam.kill()
+            self._camoutput, self._camerrors = self._grab_cam.communicate()
+
+        finally:
+
+            ### Lock the buffer
+            self.imageFIFO.acquireSemaphore()
 
             ### Check if the image file has been actually saved
             if os.path.exists(self.image_path):
@@ -407,7 +415,7 @@ class rpiCamClass(rpiBaseClass):
                 rpiLogger.warning(f"List of args: {self.cmd_str}")
                 rpiLogger.debug(f"Error was: {self._camerrors.decode()}")
 
-            ### Info about the FIFI buffer
+            ### Info about the FIFO buffer
             if self.crtlenFIFO > 0:
                 rpiLogger.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
             else:
@@ -416,20 +424,15 @@ class rpiCamClass(rpiBaseClass):
             ### Update status
             self.statusUpdate = (self.name, self.crtlenFIFO)
 
+            ### Release the buffer
+            self.imageFIFO.releaseSemaphore()
+
             ### Close the picamera
             if RPICAM:
                 self._camera.close()
 
             ### Switch off IR
             self._switchIR(False)
-
-        except OSError as e:
-            raise rpiBaseClassError("%s::: jobRun(): Snapshot %s could not be created!\n%s" % (self.name, self.image_path, e), ERRLEV2)
-
-        finally:
-            # Release the buffer
-            self.imageFIFO.releaseSemaphore()
-
 
     def initClass(self):
         """"

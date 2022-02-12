@@ -108,7 +108,10 @@ class rpiCamClass(rpiBaseClass):
         ### The FIFO buffer (deque)
         self.imageFIFO = rpififo.rpiFIFOClass([], self._config['list_size'])
 
-        # Configuration for the image capture
+        ### Init base class
+        super().__init__(name, rpi_apscheduler, rpi_events)
+
+        ### Configuration for the image capture
         self._camera         = None
         self.exif_tags_copyr = 'Copyright (c) 2022 Istvan Z. Kovacs'
         self.resolution      = (1024, 768)
@@ -117,7 +120,7 @@ class rpiCamClass(rpiBaseClass):
         self.camexp_list     = list()
         self.cmd_str         = list()
 
-        # Init GPIO ports, BCMxx pin. NO CHECK!
+        ### Init GPIO ports, BCMxx pin. NO CHECK!
         if not FAKESNAP:
             if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
                 GPIO.setmode(GPIO.BCM)
@@ -151,10 +154,6 @@ class rpiCamClass(rpiBaseClass):
                 self.PIRport = None
                 rpiLogger.warning(f"{self.name}::: No GPIO port is used")   
 
-
-
-        ### Init base class
-        super().__init__(name, rpi_apscheduler, rpi_events)
 
     def __repr__(self):
         return "<%s (name=%s, rpi_apscheduler=%s, rpi_events=dict(), rpi_config=%s, dbuff_rpififo=%s)>" % (self.__class__.__name__, self.name, self._sched, self._config, self.imageFIFO)

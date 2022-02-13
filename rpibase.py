@@ -188,10 +188,10 @@ class rpiBaseClass:
         """
         Trigger the execution of the job just as it would be executed by the scheduler
         """
-        rpiLogger.info(f"{self.name}::: Waiting for RLock to execute Manual trigger")
-        with self._sched_lock:
-            rpiLogger.info(f"{self.name}::: Execute Manual trigger")
-            self._run()
+        #rpiLogger.info(f"{self.name}::: Waiting for RLock to execute Manual trigger")
+        #with self._sched_lock:
+        #   rpiLogger.info(f"{self.name}::: Execute Manual trigger")
+        self._run()
 
 
     def queueCmd(self, cmdrx_tuple):

@@ -438,7 +438,7 @@ class rpiBaseClass:
         (re)Initialize the class.
         """
 
-        rpiLogger.info("%s::: Intialize class" % self.name)
+        rpiLogger.info("%s::: Initialize class" % self.name)
 
         ### Stop and remove the self._run()  and self._proccmd() jobs from the scheduler
         self._remove_run()

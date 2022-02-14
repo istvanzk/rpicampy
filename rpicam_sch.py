@@ -287,12 +287,12 @@ rpiLogger.info(eventsRPi)
 
 ### Instantiate the rpicampy job classes
 # Camera
-if camConfig['use_pir'] == 1:
-    # The PIR sensor is used as external trigger for the job
-    imgCam = rpicam.rpiCamClass(RPIJOBNAMES['cam'], None, eventsRPi, camConfig)
-else:
-    # The time-based trigger is used for the job
-    imgCam = rpicam.rpiCamClass(RPIJOBNAMES['cam'], schedRPi, eventsRPi, camConfig)
+#if camConfig['use_pir'] == 1:
+#    # The PIR sensor is used as external trigger for the job
+#    imgCam = rpicam.rpiCamClass(RPIJOBNAMES['cam'], None, eventsRPi, camConfig)
+#else:
+# The time-based trigger is used for the job
+imgCam = rpicam.rpiCamClass(RPIJOBNAMES['cam'], schedRPi, eventsRPi, camConfig)
 rpiLogger.info(imgCam)
 
 # Storage (Dropbox, local USB, etc.)

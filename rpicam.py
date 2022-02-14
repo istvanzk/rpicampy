@@ -121,6 +121,9 @@ class rpiCamClass(rpiBaseClass):
         self.cmd_str         = list()
 
         ### Init GPIO ports, BCMxx pin. NO CHECK!
+        self.pirDetected = False
+        self.IRLport = None
+        self.PIRport = None
         if not FAKESNAP:
             if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
                 GPIO.setmode(GPIO.BCM)
@@ -138,20 +141,16 @@ class rpiCamClass(rpiBaseClass):
                         self.PIRport = self._config['bcm_pirport']
                         GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                         # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
-                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.manualRun, bouncetime=15000)  
+                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.pirRun, bouncetime=15000)  
                     else:
                         self.PIRport = None
                         rpiLogger.warning(f"{self.name}::: GPIO PIRport not used")  
 
                 else:
                     GPIO.cleanup()
-                    self.IRLport = None
-                    self.PIRport = None
                     rpiLogger.error(f"{self.name}::: GPIO could not be initialised!")   
 
             else:
-                self.IRLport = None
-                self.PIRport = None
                 rpiLogger.warning(f"{self.name}::: No GPIO port is used")   
 
 
@@ -178,9 +177,8 @@ class rpiCamClass(rpiBaseClass):
                 if self._config['use_irl'] == 1:
                     self._switchIR(False)
 
-                if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
-                    time.sleep(5)
-                    GPIO.cleanup()
+                time.sleep(5)
+                GPIO.cleanup()
 
         except:
             pass
@@ -193,7 +191,18 @@ class rpiCamClass(rpiBaseClass):
     # Main interface methods
     #
 
+    def pirRun(self,c):
+        """
+        Set flag indicating that PIR sensor has detected movement since last picture has been captured
+        """
+        self.pirDetected = True
+
     def jobRun(self):
+
+        ### Check flag indicating that PIR sensor has detected movement since last picture has been captured
+        if self._config['use_pir'] == 1 and not self.pirDetected:
+            return
+
 
         ### Create the daily output sub-folder
         ### Set the full image file path
@@ -433,6 +442,11 @@ class rpiCamClass(rpiBaseClass):
             ### Switch off IR
             self._switchIR(False)
 
+            ### Reset flag indicating that PIR sensor has detected movement since last picture has been captured
+            if self._config['use_pir'] == 1:
+                self.pirDetected = False
+
+
     def initClass(self):
         """"
         (re)Initialize the class.
@@ -451,6 +465,9 @@ class rpiCamClass(rpiBaseClass):
         # (used only when RPICAM or RASPISTILL= True)
         self.bDarkExp = False
         self.imgbr = 128
+
+        ### Reset flag indicating that PIR sensor has detected movement since last picture has been captured
+        self.pirDetected = False
 
         ### Init the font
         if RPICAM:

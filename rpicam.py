@@ -201,7 +201,10 @@ class rpiCamClass(rpiBaseClass):
 
         ### Check flag indicating that PIR sensor has detected movement since last picture has been captured
         if self._config['use_pir'] == 1 and not self.pirDetected:
+            rpiLogger.info(f"{self.name}::: PIR trigger NOT detected")
             return
+        else:
+            rpiLogger.info(f"{self.name}::: PIR trigger detected")
 
 
         ### Create the daily output sub-folder

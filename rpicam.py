@@ -271,7 +271,7 @@ class rpiCamClass(rpiBaseClass):
 
                 # Check return/errors
                 #self.grab_cam.wait()
-                self._camoutput, self._camerrors = self._grab_cam.communicate(timeout=8)
+                self._camoutput, self._camerrors = self._grab_cam.communicate(timeout=10)
 
                 #self._grab_cam = subprocess.run(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
                 #self._camoutput, self._camerrors = self._grab_cam.stdout, self._grab_cam.stderr

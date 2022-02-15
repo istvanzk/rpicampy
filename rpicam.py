@@ -404,9 +404,10 @@ class rpiCamClass(rpiBaseClass):
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
 
         except OSError as e:
-            raise rpiBaseClassError("%s::: jobRun(): Snapshot %s could not be created!\n%s" % (self.name, self.image_path, e), ERRLEV2)
+            raise rpiBaseClassError(f"{self.name}::: jobRun(): Snapshot {self.image_path} could not be created!\n{e}", ERRLEV2)
 
         except subprocess.TimeoutExpired:
+            rpiLogger.warning(f"{self.name}::: jobRun(): Libcamera-still timeout!")
             self._grab_cam.kill()
             self._camoutput, self._camerrors = self._grab_cam.communicate()
 
@@ -417,22 +418,22 @@ class rpiCamClass(rpiBaseClass):
 
             ### Check if the image file has been actually saved
             if os.path.exists(self.image_path):
-                rpiLogger.info(f"Snapshot saved: {self.image_name:s}")
+                rpiLogger.info(f"{self.name}::: jobRun(): Snapshot saved: {self.image_name:s}")
 
                 # Add image to deque (FIFO)
                 self.imageFIFO.append(self.image_path)
                 self.crtlenFIFO = len(self.imageFIFO)
 
             else:
-                rpiLogger.warning(f"Snapshot NOT saved: {self.image_name:s}!")
-                rpiLogger.warning(f"List of args: {self.cmd_str}")
-                rpiLogger.debug(f"Error was: {self._camerrors.decode()}")
+                rpiLogger.warning(f"{self.name}::: jobRun(): Snapshot NOT saved: {self.image_name:s}!")
+                rpiLogger.warning(f"{self.name}::: jobRun(): List of args: {self.cmd_str}")
+                rpiLogger.debug(f"{self.name}::: jobRun(): Error was: {self._camerrors.decode()}")
 
             ### Info about the FIFO buffer
             if self.crtlenFIFO > 0:
-                rpiLogger.debug("imageFIFO[0..%d]: %s .. %s" % (self.crtlenFIFO-1, self.imageFIFO[0], self.imageFIFO[-1]))
+                rpiLogger.debug(f"{self.name}::: jobRun(): imageFIFO[0...{self.crtlenFIFO-1}]: {self.imageFIFO[0]} ... {self.imageFIFO[-1]}")
             else:
-                rpiLogger.debug("imageFIFO[]: empty")
+                rpiLogger.debug(f"{self.name}::: jobRun(): imageFIFO[]: empty")
 
             ### Update status
             self.statusUpdate = (self.name, self.crtlenFIFO)

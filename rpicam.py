@@ -139,7 +139,7 @@ class rpiCamClass(rpiBaseClass):
 
                     if self._config['use_pir'] == 1:
                         self.PIRport = self._config['bcm_pirport']
-                        GPIO.setup(self.PIRport, GPIO.IN)
+                        GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                         # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
                         GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.pirRun, bouncetime=15000)  
                     else:
@@ -200,11 +200,13 @@ class rpiCamClass(rpiBaseClass):
     def jobRun(self):
 
         ### Check flag indicating that PIR sensor has detected movement since last picture has been captured
-        if self._config['use_pir'] == 1 and not self.pirDetected:
-            rpiLogger.info(f"{self.name}::: PIR trigger NOT detected")
-            return
-        else:
-            rpiLogger.info(f"{self.name}::: PIR trigger detected")
+        if self._config['use_pir'] == 1:
+            if self.pirDetected:
+                rpiLogger.info(f"{self.name}::: PIR trigger detected")
+                self.pirDetected = False
+            else:
+                rpiLogger.info(f"{self.name}::: PIR trigger NOT detected")
+                return
 
 
         ### Create the daily output sub-folder
@@ -444,10 +446,6 @@ class rpiCamClass(rpiBaseClass):
 
             ### Switch off IR
             self._switchIR(False)
-
-            ### Reset flag indicating that PIR sensor has detected movement since last picture has been captured
-            if self._config['use_pir'] == 1:
-                self.pirDetected = False
 
 
     def initClass(self):

@@ -87,6 +87,12 @@ if not FAKESNAP:
 else:
     rpiLogger.warning("The RPi.GPIO module is not used!")
 
+PIRFLAG = False
+def pirDetect(c):
+    global PIRFLAG
+    PIRFLAG = True
+
+
 class rpiCamClass(rpiBaseClass):
     """
     Implements the rpiCam class, to run and control:
@@ -142,7 +148,7 @@ class rpiCamClass(rpiBaseClass):
                         self.PIRport = self._config['bcm_pirport']
                         GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                         # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
-                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.pirRun, bouncetime=15000)  
+                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=pirDetect, bouncetime=15000)  
                         time.sleep(5)
                         rpiLogger.info(f"{self.name}::: GPIO PIRport configured")  
                     else:
@@ -205,10 +211,10 @@ class rpiCamClass(rpiBaseClass):
 
         ### Check flag indicating that PIR sensor has detected movement since last picture has been captured
         if self._config['use_pir'] == 1:
-            time.sleep(1)
-            if self.pirDetected:
+            global PIRFLAG
+            if PIRFLAG: #self.pirDetected:
                 rpiLogger.info(f"{self.name}::: PIR trigger detected")
-                self.pirDetected = False
+                PIRFLAG = False #self.pirDetected = False
             else:
                 rpiLogger.info(f"{self.name}::: PIR trigger NOT detected")
                 return

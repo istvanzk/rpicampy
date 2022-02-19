@@ -88,11 +88,6 @@ if not FAKESNAP:
 else:
     rpiLogger.warning("rpicam::: The RPi.GPIO module is not used!")
 
-PIRFLAG = False
-def pirDetect(c):
-    global PIRFLAG
-    PIRFLAG = True
-
 
 class rpiCamClass(rpiBaseClass):
     """
@@ -152,7 +147,8 @@ class rpiCamClass(rpiBaseClass):
                         self.PIRport = self._config['bcm_pirport']
                         GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                         # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
-                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self._pirRun, bouncetime=15000)
+                        #GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self._pirRun, bouncetime=15000)
+                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, bouncetime=15000)
                         rpiLogger.info(f"{self.name}::: GPIO PIRport configured (BCM {self.PIRport})")  
                     else:
                         self.PIRport = None
@@ -207,8 +203,8 @@ class rpiCamClass(rpiBaseClass):
 
         ### Check flag indicating that PIR sensor has detected movement since last picture has been captured
         if self._config['use_pir'] == 1:
-            global PIRFLAG
-            if self.pirDetected.is_set():
+            if GPIO.event_detected(self.PIRport): #self.pirDetected.is_set()
+                GPIO.remove_event_detect(self.PIRport)
                 rpiLogger.info(f"{self.name}::: PIR trigger detected")
             else:
                 rpiLogger.info(f"{self.name}::: PIR trigger NOT detected")
@@ -456,9 +452,9 @@ class rpiCamClass(rpiBaseClass):
 
             ### Reset flag indicating that PIR sensor has detected movement since last picture has been captured
             if self._config['use_pir'] == 1:
+                time.sleep(0.2)
                 self.pirDetected.clear()
                 GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self._pirRun, bouncetime=15000)
-                time.sleep(0.2)
 
 
     def initClass(self):

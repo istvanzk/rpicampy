@@ -115,6 +115,10 @@ class rpiCamClass(rpiBaseClass):
         ### The FIFO buffer (deque)
         self.imageFIFO = rpififo.rpiFIFOClass([], self._config['list_size'])
 
+        ### The flag indicating that PIR sensor has detected movement since last picture has been captured
+        self.pirDetected = Event()
+        self.pirDetected.clear()
+
         ### Init base class
         super().__init__(name, rpi_apscheduler, rpi_events)
 
@@ -128,8 +132,6 @@ class rpiCamClass(rpiBaseClass):
         self.cmd_str         = list()
 
         ### Init GPIO ports, BCMxx pin. NO CHECK!
-        self.pirDetected = Event()
-        self.pirDetected.clear()
         self.IRLport = None
         self.PIRport = None
         if not FAKESNAP:
@@ -150,7 +152,7 @@ class rpiCamClass(rpiBaseClass):
                         self.PIRport = self._config['bcm_pirport']
                         GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                         # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
-                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.pirRun, bouncetime=15000)
+                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self._pirRun, bouncetime=15000)
                         rpiLogger.info(f"{self.name}::: GPIO PIRport configured (BCM {self.PIRport})")  
                     else:
                         self.PIRport = None
@@ -199,14 +201,7 @@ class rpiCamClass(rpiBaseClass):
 
     #
     # Main interface methods
-    #
-
-    def pirRun(self,c):
-        """
-        Set flag indicating that PIR sensor has detected movement since last picture has been captured
-        """
-        self.pirDetected.set()
-        
+    #        
 
     def jobRun(self):
 
@@ -533,7 +528,13 @@ class rpiCamClass(rpiBaseClass):
 #       """
 
 
-    # Camera control
+
+    def _pirRun(self,c):
+        """
+        Set flag indicating that PIR sensor has detected movement since last picture has been captured
+        """
+        self.pirDetected.set()
+
 
     def _setCamExp(self):
         '''

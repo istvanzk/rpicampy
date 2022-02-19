@@ -82,10 +82,10 @@ if RPICAM:
 ### GPIO
 if not FAKESNAP:
     # Uses /dev/gpiomem if available to avoid being run as root
-    # To enable user access too /dev/gpiomem run: sudo usermod -a -G gpio $USER
+    # To enable user access to /dev/gpiomem, run: sudo usermod -a -G gpio $USER
     import RPi.GPIO as GPIO
 else:
-    rpiLogger.warning("The RPi.GPIO module is not used!")
+    rpiLogger.warning("rpicam::: The RPi.GPIO module is not used!")
 
 PIRFLAG = False
 def pirDetect(c):
@@ -133,13 +133,13 @@ class rpiCamClass(rpiBaseClass):
         if not FAKESNAP:
             if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
                 GPIO.setmode(GPIO.BCM)
-                rpiLogger.info(f"{self.name}::: GPIO BCM mode configured")
+                rpiLogger.info(f"{self.name}::: GPIO BCM mode configured ({GPIO.BCM})")
                 if GPIO.getmode() is not None: 
 
                     if self._config['use_irl'] == 1:
                         self.IRLport = self._config['bcm_irlport']
                         GPIO.setup(self.IRLport, GPIO.OUT, initial=0)
-                        rpiLogger.info(f"{self.name}::: GPIO IRLport configured")
+                        rpiLogger.info(f"{self.name}::: GPIO IRLport configured (BCM {self.IRLport})")
                     else:
                         self.IRLport = None
                         rpiLogger.warning(f"{self.name}::: GPIO IRLport is not used")  
@@ -148,9 +148,9 @@ class rpiCamClass(rpiBaseClass):
                         self.PIRport = self._config['bcm_pirport']
                         GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                         # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
-                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=pirDetect, bouncetime=15000)  
+                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.pirRun, bouncetime=15000)  
                         time.sleep(5)
-                        rpiLogger.info(f"{self.name}::: GPIO PIRport configured")  
+                        rpiLogger.info(f"{self.name}::: GPIO PIRport configured (BCM {self.PIRport})")  
                     else:
                         self.PIRport = None
                         rpiLogger.warning(f"{self.name}::: GPIO PIRport is not used")  
@@ -212,9 +212,10 @@ class rpiCamClass(rpiBaseClass):
         ### Check flag indicating that PIR sensor has detected movement since last picture has been captured
         if self._config['use_pir'] == 1:
             global PIRFLAG
-            if PIRFLAG: #self.pirDetected:
+            if self.pirDetected:
+                GPIO.remove_event_detect(self.PIRport)
                 rpiLogger.info(f"{self.name}::: PIR trigger detected")
-                PIRFLAG = False #self.pirDetected = False
+                self.pirDetected = False
             else:
                 rpiLogger.info(f"{self.name}::: PIR trigger NOT detected")
                 return
@@ -227,14 +228,14 @@ class rpiCamClass(rpiBaseClass):
         self._locdir = os.path.join(self._config['image_dir'], self.imageFIFO.crtSubDir)
         try:
             os.mkdir(self._locdir)
-            rpiLogger.info("%s::: Local daily output folder %s created." % (self.name, self._locdir))
+            rpiLogger.info(f"{self.name}::: Local daily output folder {self._locdir} created.")
 
         except OSError as e:
             if e.errno == EEXIST:
-                rpiLogger.debug("%s::: Local daily output folder %s already exist!" % (self.name, self._locdir))
+                rpiLogger.debug(f"{self.name}::: Local daily output folder {self._locdir} already exist!")
                 pass
             else:
-                raise rpiBaseClassError("%s::: jobRun(): Local daily output folder %s could not be created" % (self.name, self._locdir) , ERRCRIT)
+                raise rpiBaseClassError(f"{self.name}::: jobRun(): Local daily output folder {self._locdir} could not be created!", ERRCRIT)
 
         finally:
             self.image_name = self.imageFIFO.crtSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
@@ -459,6 +460,9 @@ class rpiCamClass(rpiBaseClass):
             ### Switch off IR
             self._switchIR(False)
 
+            if self._config['use_pir'] == 1:
+                GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.pirRun, bouncetime=15000)
+
 
     def initClass(self):
         """"
@@ -490,13 +494,13 @@ class rpiCamClass(rpiBaseClass):
         try:
             os.mkdir(self._config['image_dir'])
             self.imgSubDir = time.strftime('%d%m%y', time.localtime())
-            rpiLogger.info("%s::: Local output folder %s created." % (self.name, self._config['image_dir']))
+            rpiLogger.info(f"{self.name}::: Local output folder {self._config['image_dir']} created.")
         except OSError as e:
             if e.errno == EEXIST:
-                rpiLogger.info("%s::: Local output folder %s already exist!" % (self.name, self._config['image_dir']))
+                rpiLogger.info(f"{self.name}::: Local output folder {self._config['image_dir']} already exist!" )
                 pass
             else:
-                raise rpiBaseClassError("%s::: initClass(): Local output folder %s could not be created" % (self.name, self._config['image_dir']) , ERRCRIT)
+                raise rpiBaseClassError(f"{self.name}::: initClass(): Local output folder {self._config['image_dir']} could not be created!" , ERRCRIT)
 
         ### Fill in the fifo buffer with images found in the output directory
         ### Only the image files with the current date are listed!

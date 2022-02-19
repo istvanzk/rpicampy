@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 import subprocess
 import ephem
 import math
+from threading import Event
 
 ### The rpi(cam)py modules
 import rpififo
@@ -127,7 +128,8 @@ class rpiCamClass(rpiBaseClass):
         self.cmd_str         = list()
 
         ### Init GPIO ports, BCMxx pin. NO CHECK!
-        self.pirDetected = False
+        self.pirDetected = Event()
+        self.pirDetected.clear()
         self.IRLport = None
         self.PIRport = None
         if not FAKESNAP:
@@ -148,8 +150,7 @@ class rpiCamClass(rpiBaseClass):
                         self.PIRport = self._config['bcm_pirport']
                         GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                         # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
-                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.pirRun, bouncetime=15000)  
-                        time.sleep(5)
+                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.pirRun, bouncetime=15000)
                         rpiLogger.info(f"{self.name}::: GPIO PIRport configured (BCM {self.PIRport})")  
                     else:
                         self.PIRport = None
@@ -204,8 +205,7 @@ class rpiCamClass(rpiBaseClass):
         """
         Set flag indicating that PIR sensor has detected movement since last picture has been captured
         """
-        self.pirDetected = True
-        GPIO.remove_event_detect(self.PIRport)
+        self.pirDetected.set()
         
 
     def jobRun(self):
@@ -213,7 +213,7 @@ class rpiCamClass(rpiBaseClass):
         ### Check flag indicating that PIR sensor has detected movement since last picture has been captured
         if self._config['use_pir'] == 1:
             global PIRFLAG
-            if self.pirDetected:
+            if self.pirDetected.is_set():
                 rpiLogger.info(f"{self.name}::: PIR trigger detected")
             else:
                 rpiLogger.info(f"{self.name}::: PIR trigger NOT detected")
@@ -459,9 +459,9 @@ class rpiCamClass(rpiBaseClass):
             ### Switch off IR
             self._switchIR(False)
 
+            ### Reset flag indicating that PIR sensor has detected movement since last picture has been captured
             if self._config['use_pir'] == 1:
-                GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self.pirRun, bouncetime=15000)
-                self.pirDetected = False
+                self.pirDetected.clear()
 
 
     def initClass(self):
@@ -484,7 +484,7 @@ class rpiCamClass(rpiBaseClass):
         self.imgbr = 128
 
         ### Reset flag indicating that PIR sensor has detected movement since last picture has been captured
-        self.pirDetected = False
+        self.pirDetected.clear()
 
         ### Init the font
         if RPICAM:

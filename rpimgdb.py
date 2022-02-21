@@ -364,15 +364,15 @@ class rpiImageDbxClass(rpiBaseClass):
 
                 rpiLogger.debug("%s::: _putImage(): Uploaded file from %s to remote %s" % (self.name, from_path, to_path))
 
-            except ApiError as e:
+            except ApiError as err:
                 # This checks for the specific error where a user doesn't have
                 # enough Dropbox space quota to upload this file
                 if (err.error.is_path() and err.error.get_path().error.is_insufficient_space()):
                     raise rpiBaseClassError("_putImage(): ERROR: Cannot back up; insufficient space.", ERRCRIT)
                 elif err.user_message_text:
-                    raise rpiBaseClassError("_putImage(): %s" % e.user_message_text, ERRLEV2)
+                    raise rpiBaseClassError("_putImage(): %s" % err.user_message_text, ERRLEV2)
                 else:
-                    raise rpiBaseClassError("_putImage(): %s" % e.error, ERRLEV2)
+                    raise rpiBaseClassError("_putImage(): %s" % err.error, ERRLEV2)
 
             #except IOError:
                 #raise rpiBaseClassError("_putImage(): Local img file %s could not be opened." %  from_path, ERRCRIT)

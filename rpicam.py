@@ -113,6 +113,8 @@ class rpiCamClass(rpiBaseClass):
         ### The flag indicating that PIR sensor has detected movement since last picture has been captured
         self.pirDetected = Event()
         self.pirDetected.clear()
+        self.pirTimeDelta = None
+        self.lastPirDetected = None
 
         ### Init base class
         super().__init__(name, rpi_apscheduler, rpi_events)
@@ -145,11 +147,13 @@ class rpiCamClass(rpiBaseClass):
 
                     if self._config['use_pir'] == 1:
                         self.PIRport = self._config['bcm_pirport']
+                        self.pirTimeDelta = datetime.timedelta(self._config['pirtd_sec'])
                         GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-                        # The manualRun callback (see rpibase.py) triggers the execution of the job just as it would be executed by the scheduler
-                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self._pirRun, bouncetime=15000)
-                        #GPIO.add_event_detect(self.PIRport, GPIO.FALLING, bouncetime=15000)
-                        rpiLogger.info(f"{self.name}::: GPIO PIRport configured (BCM {self.PIRport})")  
+                        # The bouncetime is set to avoid quick signal level changes
+                        # The larger and configurable detection delay is added in _pirRun
+                        self.lastPirDetected = datetime.now()
+                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self._pirRun, bouncetime=500)
+                        rpiLogger.info(f"{self.name}::: GPIO PIRport configured (BCM {self.PIRport}, {self.pirTimeDelta}sec intv.)")  
                     else:
                         self.PIRport = None
                         rpiLogger.warning(f"{self.name}::: GPIO PIRport is not used")  
@@ -205,12 +209,6 @@ class rpiCamClass(rpiBaseClass):
         if self._config['use_pir'] == 1:
             if self.pirDetected.is_set():
                 self.pirDetected.clear()
-                GPIO.remove_event_detect(self.PIRport)
-                rpiLogger.info(f"{self.name}::: PIR trigger detected")
-            else:
-                rpiLogger.info(f"{self.name}::: PIR trigger NOT detected")
-                return
-
 
         ### Create the daily output sub-folder
         ### Set the full image file path
@@ -451,11 +449,6 @@ class rpiCamClass(rpiBaseClass):
             ### Switch off IR
             self._switchIR(False)
 
-            ### Reset flag indicating that PIR sensor has detected movement since last picture has been captured
-            if self._config['use_pir'] == 1:
-                time.sleep(0.2)
-                GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self._pirRun, bouncetime=15000)
-
 
     def initClass(self):
         """"
@@ -529,11 +522,18 @@ class rpiCamClass(rpiBaseClass):
 
     def _pirRun(self,c):
         """
-        Set flag indicating that PIR sensor has detected movement since last picture has been captured
+        Set the flag indicating that PIR sensor has detected movement since last picture has been captured
+        Mark a new detection only after a configurable delay from the last detection
         """
-        #time.sleep(0.2)
-        #GPIO.remove_event_detect(self.PIRport)
-        self.pirDetected.set()
+        tnow = datetime.now()
+        if tnow - self.lastPirDetected >= self.pirTimeDelta:
+            self.pirDetected.set()
+            self.lastPirDetected = tnow
+            rpiLogger.info(f"{self.name}::: PIR flag set")
+        else:
+            rpiLogger.debug(f"{self.name}::: PIR flag NOT set")
+            return
+        
 
 
     def _setCamExp(self):

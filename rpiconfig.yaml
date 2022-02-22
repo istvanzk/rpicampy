@@ -22,16 +22,17 @@
   bcm_irlport: 19
   use_pir: 1
   bcm_pirport: 26
+  pirtd_sec: 15
   dark_hours: [17, 8] 
   dark_mins: [0, 0]
   dark_loc: ['57.0774992' , '9.9117876']
-  interval_sec: [300]
+  interval_sec: [10]
 ---
 #dirImgConfig:
   list_size: 10
-  interval_sec: [303.3]
+  interval_sec: [30.3]
 ---
 #dbImgConfig:
   image_snap: 'cam.jpg'
-  interval_sec: [305.3]
+  interval_sec: [60.5]
   token_file: 'token_key.txt'

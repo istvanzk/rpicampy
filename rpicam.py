@@ -147,7 +147,7 @@ class rpiCamClass(rpiBaseClass):
 
                     if self._config['use_pir'] == 1:
                         self.PIRport = self._config['bcm_pirport']
-                        self.pirTimeDelta = timedelta(self._config['pirtd_sec'])
+                        self.pirTimeDelta = timedelta(seconds=self._config['pirtd_sec'])
                         GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                         # The bouncetime is set to avoid quick signal level changes
                         # The larger and configurable detection delay is added in _pirRun
@@ -209,6 +209,8 @@ class rpiCamClass(rpiBaseClass):
         if self._config['use_pir'] == 1:
             if self.pirDetected.is_set():
                 self.pirDetected.clear()
+            else:
+                return
 
         ### Create the daily output sub-folder
         ### Set the full image file path

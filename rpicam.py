@@ -534,9 +534,7 @@ class rpiCamClass(rpiBaseClass):
             rpiLogger.info(f"{self.name}::: PIR flag set")
         else:
             rpiLogger.debug(f"{self.name}::: PIR flag NOT set")
-            return
         
-
 
     def _setCamExp(self):
         '''

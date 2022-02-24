@@ -17,7 +17,7 @@
 #camImgConfig:
   image_dir: './webcam'
   image_id: 'CAM1'
-  image_rot: 0
+  image_rot: 180
   use_irl: 1
   bcm_irlport: 19
   use_pir: 1

@@ -148,11 +148,11 @@ class rpiCamClass(rpiBaseClass):
                     if self._config['use_pir'] == 1:
                         self.PIRport = self._config['bcm_pirport']
                         self.pirTimeDelta = timedelta(seconds=self._config['pirtd_sec'])
-                        GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+                        GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
                         # The bouncetime is set to avoid quick signal level changes
                         # The larger and configurable detection delay is added in _pirRun
                         self.lastPirDetected = datetime.now()
-                        GPIO.add_event_detect(self.PIRport, GPIO.FALLING, callback=self._pirRun, bouncetime=500)
+                        GPIO.add_event_detect(self.PIRport, GPIO.RISING, callback=self._pirRun, bouncetime=500)
                         rpiLogger.info(f"{self.name}::: GPIO PIRport configured (BCM {self.PIRport}, {self.pirTimeDelta}sec intv.)")  
                     else:
                         self.PIRport = None

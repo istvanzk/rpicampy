@@ -90,7 +90,8 @@ def _setCamExp(is_dark: bool, use_irl: bool):
             #    "AeExposureMode": controls.AeExposureModeEnum.Long,
             camera.set_controls(
             {
-                "AeEnable": False, 
+                "AeEnable": True, 
+                "AeExposureMode": controls.AeExposureModeEnum.Custom,
                 "ExposureTime": 200000, #usec
                 "Contrast": 5, # Floating point number from 0.0 to 32.0
                 "Brightness": 0.4, # Floating point number from -1.0 to 1.0

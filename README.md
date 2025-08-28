@@ -1,9 +1,13 @@
-# rpicampy
-## Time-lapse with Rasberry Pi controlled (pi)camera.
+# Time-lapse with Rasberry Pi controlled (pi)camera.
 
-### Implementation (rpicampy)
+![Exp](https://img.shields.io/badge/Dev-Experimental-orange.svg)
+[![Lic](https://img.shields.io/badge/License-Apache2.0-green)](http://www.apache.org/licenses/LICENSE-2.0)
+![Py](https://img.shields.io/badge/Python-3.9+-green)
+![Ver](https://img.shields.io/badge/Version-6.0-blue)
 
-##### Version 5.0 for Python 3.9+
+## Implementation (rpicampy)
+
+### Components
 
 #### rpicam_sch:	The main method. 
 
@@ -13,17 +17,23 @@
 
 - The module notifies the [systemd](https://www.freedesktop.org/software/systemd/python-systemd/) (when available) with: READY=1, STATUS=, WATCHDOG=1 (read env variable WATCHDOG_USEC=), STOPPING=1.
 
+- Use of Picamera2 (2022+)
+  - When `LIBCAMERA` is set in the `rpicam.py` module, then rpicam-still is used from rpicam-apps installed with picamera2.
+[rpicam-still](https://www.raspberrypi.com/documentation/computers/camera_software.html#rpicam-still) uses a tunning file (--tuning-file), which must be configured by setting the `LIBCAMERA_JSON` in the `rpicam.py` module.
+
+  - When `RPICAM2` is set in the `rpicam.py` module, then the [Picamera2 API](https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf) is used.
+
+  - Example testing the installation with 'camtest.sh`
+
 - Gracefull exit is implemented for SIGINT, SIGTERM and SIGABRT.
 
 #### rpiconfig.yaml:	The configuration file with parameters for the functionalities described below.
 
 #### rpicam:	Manage (pi)camera and save images locally.
 
-- Raspberry PI camera using libcamera-still (new libcamera stack, preferred), or
+- Raspberry PI camera using rpicam-still (from rpicam-apps), or
 
-- Raspberry PI camera using the picamera python module, or
-
-- Raspberry PI camera using the raspistill utility, or 
+- Raspberry PI camera using the Picamera2 API python module (new libcamera stack), or
 
 - USB web camera using fswebcam utility. 
 
@@ -35,15 +45,13 @@ The image file names are:  '%d%m%y-%H%M%S-CAMID.jpg', where CAMID is the image/c
 The images are saved locally in a sub-folder under the root `image_dir` folder specified in the cofiguration file. The sub-folder name is the current date `%d%m%y`.
 When using picamera module, the images are automatically rotated with the `image_rot` angle (degrees) specified in the configuration file. 
 
-The libcamera-still (`LIBCAMERA`) is the preferred/recommended option since Debian Bullseye, Nov 2021.
-When libcamera-still is used a tunning file (--tuning-file) must be configured by setting the `LIBCAMERA_JSON` in the rpicam.py module.
-See https://www.raspberrypi.com/documentation/accessories/camera.html
-
 The rpicam module implements a 'dark' time long exposure time or an IR/VL reflector ON/OFF switch. 
 The 'dark' time period (start and stop) can be configured manually using the hour/min parameters set in the configuration file.
 Alternatively, the 'dark' time period can be configured automatically using the [PyEphem](http://rhodesmill.org/pyephem/) 
 and the location parameters (latitude and longitude) set in the configuration file.
 During the 'dark' time period the IR light is controlled via the GPIO BCM port number `bcm_irport` when `use_ir=1` set in the configuration file.
+
+Note: GPIO access is via the [rpi.gpio compatibility package](https://rpi-lgpio.readthedocs.io/en/latest/index.html) on Linux kernels which support [/dev/gpiochipX](https://www.thegoodpenguin.co.uk/blog/stop-using-sys-class-gpio-its-deprecated/).
 
 #### rpimgdir:	Manage the set of locally saved images by rpicam.  
 
@@ -69,36 +77,37 @@ The REST client implementation follows the model of the older [Python Xively API
 
 ### Auto-start as service
 
-#### rpicamsch.sh: System V init script (to be copied to /etc/init.d/rpicamsch.sh)
-
-#### rpicamsch.service.user: systemd service unit, run with --user (to be copied to $HOME/.config/systemd/user/rpicamsch.service)
+#### rpicamsch.service.user: systemd user service unit, to be copied to /etc/systemd/user/rpicamsch.service
 
 
 ### Dependencies 
 
 #### Dependencies on other python modules
 
-PIP: requirements.txt, to be used with ```sudo pip3 install -r requirements.txt --upgrade```
+Installed with `sudo apt install --upgrade python3-<package>`
 
-- [Advanced Python Scheduler](https://pypi.python.org/pypi/APScheduler)
+- apscheduler: [Advanced Python Scheduler](https://pypi.python.org/pypi/APScheduler)
 
-- [PyYAML](https://pypi.python.org/pypi/PyYAML)
+- yaml: [YAML](https://packages.debian.org/bookworm/python3-yaml)
 
-- [Pillow (PIL fork)](https://pillow.readthedocs.io/en/latest/)
+- pil: [PIL](https://pillow.readthedocs.io/en/latest/)
 
-- [PyEphem](https://pypi.python.org/pypi/pyephem/)
+- piexif: [Piexif](https://piexif.readthedocs.io/en/latest/index.html)
 
-- [Python SDK for Dropbox API v2](https://github.com/dropbox/dropbox-sdk-python)
+- ephem: [PyEphem](https://packages.debian.org/bookworm/python3-ephem)
 
-- [RPi.GPIO](https://pypi.python.org/pypi/RPi.GPIO); the module is installed by default in Raspbian/Wheezy; see alternative below
+- dropbox:  [Python SDK for Dropbox API v2](https://github.com/dropbox/dropbox-sdk-python)
 
-APT-GET:
+- rpi-lgpio: [rpi.gpio compatibility package](https://rpi-lgpio.readthedocs.io/en/latest/index.html) on Linux kernels which support /dev/gpiochipX
 
-- libopenjp2-7 and libtiff5 (required by Pillow)
+- systemd: [python3-systemd](https://github.com/systemd/python-systemd)
 
-- fontconfig (provides Dejavu fonts)
+#### System dependencies
 
-- [raspberry-gpio-python](https://sourceforge.net/p/raspberry-gpio-python/wiki/install/)
+Installed with `sudo apt install --upgrade <package>`
 
-- [python3-systemd](https://github.com/systemd/python-systemd)
+- libopenjp2-7: [libopenjp2](https://packages.debian.org/stable/libs/libopenjp2-7), required by Pillow
 
+- fontconfig: [fontconfig](https://packages.debian.org/bookworm/fontconfig) provides Dejavu fonts
+
+Run full system update with `sudo apt-get update && sudo apt-get full-upgrade -y`

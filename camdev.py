@@ -11,19 +11,30 @@ from fractions import Fraction
 import io
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
-# Custom camera tuning modules
-LIBCAMERA_JSON = "ov5647_noir.json"
-
 # Set the logging parameters
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
+# GPIO module
+try:
+    import RPi.GPIO as GPIO
+except NotImplementedError as e:
+    logger.error(f"rpicam::: The RPi.GPIO (rpi-lgpio) module could not be initialized! {e}\n")
+    raise ImportError("The RPi.GPIO (rpi-lgpio) module could not be initialized!")
+except ImportError:    
+    logger.error("rpicam::: The RPi.GPIO (rpi-lgpio) module could not be loaded!")
+    raise ImportError("The RPi.GPIO (rpi-lgpio) module could not be loaded!")
+
+# Picamera2 module
 try:
     from picamera2 import Picamera2, Preview
     from libcamera import controls, Transform
 except ImportError:    
     logger.error("rpicam::: The picamera2 (v2) module could not be loaded!")
     raise ImportError("The picamera2 (v2) module could not be loaded!\nTry running `sudo apt-get update && sudo apt-get full-upgrade -y`")
+
+# Custom camera tuning modules
+LIBCAMERA_JSON = "ov5647_noir.json"
 
 # Camera object and image capture parameters
 _tuning = Picamera2.load_tuning_file(f"{LIBCAMERA_JSON:s}")
@@ -47,6 +58,8 @@ useDark = True
 
 # The use of IRL
 useIRL = False
+# The GPIO BCM port number for the IR light
+IRLport = 19
 
 # The use of image overlay text
 useTXT = True
@@ -100,13 +113,42 @@ def _setCamExp(is_dark: bool, use_irl: bool):
         }
         )
 
+def _switchIR(bONOFF):
+    '''
+    Switch ON/OFF the IR lights
+    '''
+    if bONOFF:
+        GPIO.output(IRLport,GPIO.HIGH)
+    else:
+        GPIO.output(IRLport,GPIO.LOW)
+
 def main():
     """ Main function """
     
+    # Get input args
     if len(sys.argv) > 0:
         useDark = sys.argv[0]==1
         if len(sys.argv) > 1:
             useIRL = sys.argv[1]==1
+    if useDark:
+        print("Using 'dark' time camera settings")
+    else:
+        print("Using 'daylight' time camera settings")
+    if useIRL:
+        print("Using IR light for image capture")
+    else:
+        print("No IR light for image capture")
+
+
+    # Setup the GPIO for IRL control
+    if useIRL:
+        GPIO.setmode(GPIO.BCM)
+        if GPIO.getmode() is not None: # GPIO is set
+            GPIO.setup(IRLport, GPIO.OUT, initial=0)
+            _switchIR(False)
+        else:
+            GPIO.cleanup()
+            raise RuntimeError("GPIO could not be set!")
 
     #_preview_config = camera.create_preview_configuration()
     #camera.configure(_preview_config)
@@ -156,6 +198,10 @@ def main():
     # Set camera exposure according to the 'dark' mode
     _setCamExp(useDark, useIRL)
 
+    # Enable IRL if used
+    if useIRL:
+        _switchIR(True)
+
     # Start the camera
     camera.start()
     time.sleep(1)
@@ -163,6 +209,10 @@ def main():
     # Capture image to memory
     stream = io.BytesIO()
     camera.capture_file(stream, format='jpeg', exif_data=_custom_exif)
+
+    # Disable IRL if used
+    if useIRL:
+        _switchIR(False)
 
     if useTXT:
 
@@ -203,6 +253,10 @@ def main():
 
     # Close the camera
     camera.stop()
+
+    # GPIO cleanup
+    if useIRL:
+        GPIO.cleanup()
 
 if __name__ == "__main__":
     main()

@@ -20,7 +20,7 @@ try:
     import RPi.GPIO as GPIO
 except NotImplementedError as e:
     logger.error(f"rpicam::: The RPi.GPIO (rpi-lgpio) module could not be initialized! {e}\n")
-    raise ImportError("The RPi.GPIO (rpi-lgpio) module could not be initialized!")
+    raise ImportError("The RPi.GPIO (rpi-lgpio) module could not be initialized!\nTry running with the RPI_LGPIO_REVISION=800012` environment variable set.")
 except ImportError:    
     logger.error("rpicam::: The RPi.GPIO (rpi-lgpio) module could not be loaded!")
     raise ImportError("The RPi.GPIO (rpi-lgpio) module could not be loaded!")

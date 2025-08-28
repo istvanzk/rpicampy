@@ -76,7 +76,7 @@ class rpiBaseClass:
     Implements the base class for common functionalities.
     """
 
-    def __init__(self, name, rpi_apscheduler, rpi_events):
+    def __init__(self, name, rpi_apscheduler, rpi_events, *args, **kwargs):
 
         # Public
 
@@ -568,7 +568,7 @@ class rpiBaseClass:
                 if self._sched.get_job(self.name) is None:
                     self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
                 else:
-                    self._reschedule_run(self.name)
+                    self._reschedule_run()
 
         self._run_state()
 

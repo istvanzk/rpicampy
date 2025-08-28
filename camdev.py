@@ -233,7 +233,13 @@ def main():
         # Add overlay text to the final image
         draw = ImageDraw.Draw(image,'RGBA')
         draw.rectangle([0,image.size[1]-20,image.size[0],image.size[1]], fill=(150,200,150,100))
-        draw.text((2,image.size[1]-18), f"{camid:s} {time.strftime('%b %d %Y, %H:%M', time.localtime()):s}", fill=(0,0,0,0), font=TXTfont)
+        if useDark:
+            night_irl_str = 'N'
+        else:
+            night_irl_str = 'D'
+        if useIRL:
+            night_irl_str += 'I'
+        draw.text((2,image.size[1]-18), f"{camid:s} ({night_irl_str:s}) {time.strftime('%b %d %Y, %H:%M', time.localtime()):s}", fill=(0,0,0,0), font=TXTfont)
         #n_width, n_height = TXTfont.getsize('#XX')
         #draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=TXTfont)
         del draw

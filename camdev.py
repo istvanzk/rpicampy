@@ -42,13 +42,16 @@ TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 
 # Image file path
 image_path = "webcam/camdev_test.jpg"
 
+# The dark setting
+useDark = True
+
 # The use of IRL
 useIRL = False
 
 # The use of image overlay text
 useTXT = True
 
-def _setCamExp(is_dark: bool):
+def _setCamExp(is_dark: bool, use_irl: bool):
     """ 
     Set camera exposure according to the 'dark' time threshold.
     See Apendix C in Picamera2 API documentation. 
@@ -56,7 +59,7 @@ def _setCamExp(is_dark: bool):
 
     if is_dark:
 
-        if useIRL:
+        if use_irl:
             camera.set_controls(
             {
                 "AeEnable": True, 
@@ -71,11 +74,11 @@ def _setCamExp(is_dark: bool):
             )
 
         else:
+            #    "AeExposureMode": controls.AeExposureModeEnum.Long,
             camera.set_controls(
             {
-                "AeEnable": True, 
-                "AeExposureMode": controls.AeExposureModeEnum.Long,
-                "ExposureTime": 500000, #usec
+                "AeEnable": False, 
+                "ExposureTime": 200000, #usec
                 "Contrast": 5, # Floating point number from 0.0 to 32.0
                 "Brightness": 0.4, # Floating point number from -1.0 to 1.0
                 "AnalogueGain": 6.0,
@@ -99,6 +102,11 @@ def _setCamExp(is_dark: bool):
 
 def main():
     """ Main function """
+    
+    if len(sys.argv) > 0:
+        useDark = sys.argv[0]==1
+        if len(sys.argv) > 1:
+            useIRL = sys.argv[1]==1
 
     #_preview_config = camera.create_preview_configuration()
     #camera.configure(_preview_config)
@@ -146,7 +154,7 @@ def main():
         }
 
     # Set camera exposure according to the 'dark' mode
-    _setCamExp(True)
+    _setCamExp(useDark, useIRL)
 
     # Start the camera
     camera.start()

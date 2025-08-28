@@ -1,8 +1,9 @@
-## systemd unit file for rpicam_sch.py service (run with --user)
-## V1.1, 01.04.2017
+## systemd unit file for rpicam_sch.py service (user)
+## V2.0, 10.01.2025
 
-## Place: $HOME/.config/systemd/user/rpicamsch.service 
-# chmod 644 $HOME/.config/systemd/user/rpicamsch.service
+## Install user service: 
+# sudo cp rpicamsch.service.user /etc/systemd/user/rpicamsch.service 
+# sudo chmod 644 /etc/systemd/user/rpicamsch.service
 
 ## Requires:
 # sudo apt-get install libpam-systemd
@@ -15,17 +16,19 @@
 # systemctl --user stop rpicamsch
 # systemctl --user start rpicamsch
 # systemctl --user status rpicamsch
+# journalctl --user -xeu rpicamsch
 
 ## References:
-# https://wiki.archlinux.org/index.php/Systemd/User#How_it_works 
+# https://wiki.archlinux.org/title/Systemd/User
 # http://www.raspberrypi-spy.co.uk/2015/10/how-to-autorun-a-python-script-on-boot-using-systemd/
 # http://askubuntu.com/questions/676007/how-do-i-make-my-systemd-service-run-via-specific-user-and-start-on-boot
 # https://www.freedesktop.org/software/systemd/man/systemd.unit.html
 # https://www.freedesktop.org/software/systemd/man/systemd.service.html
 # https://wiki.archlinux.org/index.php/systemd
+# https://www.baeldung.com/linux/systemd-services-environment-variables
 
 [Unit]
-Description=RPiCam service V1.1
+Description=RPiCam service V2.0
 Documentation="https://github.com/istvanzk/rpicampy" "file:%h/rpicampy/rpicam_sch.py"
 After=network-online.target
 
@@ -35,7 +38,9 @@ NotifyAccess=main
 #TimeoutStartSec=5
 WatchdogSec=90
 #Type=simple
-ExecStart=/usr/bin/python3 %h/rpicampy/rpicam_sch.py
+#EnvironmentFile=/home/pi/rpicampy/envfile (ignore_errors=yes)
+#Environment="RPI_LGPIO_REVISION=800012"
+ExecStart=RPI_LGPIO_REVISION=800012 /usr/bin/python3 %h/rpicampy/rpicam_sch.py
 WorkingDirectory=%h/rpicampy
 Restart=on-failure
 

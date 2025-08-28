@@ -126,10 +126,10 @@ def main():
     """ Main function """
     
     # Get input args
-    if len(sys.argv) > 0:
-        useDark = sys.argv[0]==1
-        if len(sys.argv) > 1:
-            useIRL = sys.argv[1]==1
+    if len(sys.argv) > 1:
+        useDark = sys.argv[1]=='1'
+        if len(sys.argv) > 2:
+            useIRL = sys.argv[2]=='1'
     if useDark:
         print("Using 'dark' time camera settings")
     else:

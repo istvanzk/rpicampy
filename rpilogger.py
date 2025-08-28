@@ -116,7 +116,7 @@ def rpi_logger():
     """
     _logger = logging.getLogger()
 
-    # Use the PRILOGGING logger configuration
+    # Use the RPILOGGING logger configuration
     logging.config.dictConfig(RPILOGGING)
 
     return _logger

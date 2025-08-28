@@ -34,7 +34,7 @@ rotation = 180
 resolution = (1024, 768)
 jpgqual = 85
 camid = "CAM1"
-exif_tags_copyr = "Copyright (c) 2024 Istvan Z. Kovacs - All rights reserved"
+exif_tags_copyr = "Copyright (c) 2025 Istvan Z. Kovacs - All rights reserved"
 
 # Text overlay parameters
 TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
@@ -146,7 +146,7 @@ def main():
         }
 
     # Set camera exposure according to the 'dark' mode
-    _setCamExp(False)
+    _setCamExp(True)
 
     # Start the camera
     camera.start()

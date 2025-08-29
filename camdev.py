@@ -77,8 +77,9 @@ def _setCamExp(is_dark: bool, use_irl: bool):
             {
                 "AeEnable": True, 
                 "AeExposureMode": controls.AeExposureModeEnum.Long,
+                "ExposureTime": 20000, #usec
                 "Contrast": 10, # Floating point number from 0.0 to 32.0
-                "Brightness": 0.2, # Floating point number from -1.0 to 1.0
+                "Brightness": 0.3, # Floating point number from -1.0 to 1.0
                 "AnalogueGain": 3.0,
                 "AwbEnable": True, 
                 "AwbMode": controls.AwbModeEnum.Auto,
@@ -87,7 +88,7 @@ def _setCamExp(is_dark: bool, use_irl: bool):
             )
 
         else:
-            #    "AeExposureMode": controls.AeExposureModeEnum.Long,
+            #    "AeExposureMode": controls.AeExposureModeEnum.Custom, requires definition in /usr/share/libcamera/ipa/rpi/vc4/ov5647_noir.json
             camera.set_controls(
             {
                 "AeEnable": True, 
@@ -95,7 +96,7 @@ def _setCamExp(is_dark: bool, use_irl: bool):
                 "ExposureTime": 120000, #usec
                 "Contrast": 5, # Floating point number from 0.0 to 32.0
                 "Brightness": 0.4, # Floating point number from -1.0 to 1.0
-                "AnalogueGain": 3.0,
+                "AnalogueGain": 4.0,
                 "AwbEnable": True, 
                 "AwbMode": controls.AwbModeEnum.Auto,
                 #"FrameDurationLimits": (2000000,2000000), #usec

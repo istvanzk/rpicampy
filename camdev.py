@@ -96,7 +96,7 @@ def _setCamExp(is_dark: bool, use_irl: bool):
                 "ExposureTime": 120000, #usec
                 "Contrast": 5, # Floating point number from 0.0 to 32.0
                 "Brightness": 0.4, # Floating point number from -1.0 to 1.0
-                "AnalogueGain": 4.0,
+                "AnalogueGain": 8.0,
                 "AwbEnable": True, 
                 "AwbMode": controls.AwbModeEnum.Auto,
                 #"FrameDurationLimits": (2000000,2000000), #usec

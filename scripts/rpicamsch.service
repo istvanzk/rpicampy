@@ -1,0 +1,44 @@
+## systemd unit file for rpicam_sch.py service (system wide)
+## V2.0, 08.01.2025
+
+## Install system-wide (root) service:
+# sudo cp rpicamsch.service /lib/systemd/system/rpicamsch.service 
+# sudo chmod 644 /lib/systemd/system/rpicamsch.service
+
+
+## Useful commands:
+# Find the service units directly with: pkg-config systemd --variable=/lib/systemd/system
+# Control the service with:
+# sudo systemctl enable rpicamsch
+# sudo systemctl daemon-reload
+# sudo systemctl start rpicamsch
+# sudo systemctl status rpicamsch
+# sudo systemctl stop rpicamsch
+
+## References:
+# https://wiki.archlinux.org/index.php/Systemd/User#How_it_works 
+# http://www.raspberrypi-spy.co.uk/2015/10/how-to-autorun-a-python-script-on-boot-using-systemd/
+# http://askubuntu.com/questions/676007/how-do-i-make-my-systemd-service-run-via-specific-user-and-start-on-boot
+# https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+# https://www.freedesktop.org/software/systemd/man/systemd.service.html
+# https://wiki.archlinux.org/index.php/systemd
+# https://www.baeldung.com/linux/systemd-services-environment-variables
+
+[Unit]
+Description=RPiCam service V2.0
+Documentation="https://github.com/istvanzk/rpicampy" "file:/home/pi/rpicampy/rpicam_sch.py"
+After=network-online.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+#TimeoutStartSec=5
+WatchdogSec=90
+#Type=simple
+#EnvironmentFile=/home/pi/rpicampy/envfile (ignore_errors=yes)
+ExecStart=/usr/bin/python3 /home/pi/rpicampy/rpicam_sch.py
+WorkingDirectory=/home/pi/rpicampy
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

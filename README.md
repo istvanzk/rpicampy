@@ -111,3 +111,15 @@ Installed with `sudo apt install --upgrade <package>`
 - fontconfig: [fontconfig](https://packages.debian.org/bookworm/fontconfig) provides Dejavu fonts
 
 Run full system update with `sudo apt-get update && sudo apt-get full-upgrade -y`
+
+### Helper scripts
+
+#### dbauth: Perform Dropbox authentication, token refresh, and save to local file of the OAuth2 tokens.
+
+#### camdet: Detect camera with Picamera2 API.
+
+#### camdev: Development and tests with Picamera2 API.
+
+#### camtest: Shell script to test Picamera2 with rpicam-still
+
+#### rpicamsch.sh: Deprecated init.d script

@@ -77,12 +77,13 @@ def _setCamExp(is_dark: bool, use_irl: bool):
             {
                 "AeEnable": True, 
                 "AeExposureMode": controls.AeExposureModeEnum.Long,
-                "ExposureTime": 100000, #usec
-                "Contrast": 10, # Floating point number from 0.0 to 32.0
-                "Brightness": 0.3, # Floating point number from -1.0 to 1.0
-                "AnalogueGain": 3.0,
-                "AwbEnable": True, 
-                "AwbMode": controls.AwbModeEnum.Auto,
+                #"ExposureTime": 120000, #usec
+                "ExposureValue": 1, #Floating point number between -8.0 and 8.0
+                "Contrast": 5, # Floating point number from 0.0 to 32.0
+                #"Brightness": 0.3, # Floating point number from -1.0 to 1.0
+                "AnalogueGain": 8.0,
+                #"AwbEnable": False, 
+                #"AwbMode": controls.AwbModeEnum.Auto,
                 #"FrameDurationLimits": (2000000,1000000), #usec
             }
             )
@@ -93,12 +94,13 @@ def _setCamExp(is_dark: bool, use_irl: bool):
             {
                 "AeEnable": True, 
                 "AeExposureMode": controls.AeExposureModeEnum.Long,
-                "ExposureTime": 120000, #usec
+                #"ExposureTime": 300000, #usec
+                "ExposureValue": 2, #Floating point number between -8.0 and 8.0
                 "Contrast": 5, # Floating point number from 0.0 to 32.0
-                "Brightness": 0.4, # Floating point number from -1.0 to 1.0
+                #"Brightness": 0.4, # Floating point number from -1.0 to 1.0
                 "AnalogueGain": 8.0,
-                "AwbEnable": True, 
-                "AwbMode": controls.AwbModeEnum.Auto,
+                #"AwbEnable": False, 
+                #"AwbMode": controls.AwbModeEnum.Auto,
                 #"FrameDurationLimits": (2000000,2000000), #usec
             }
             )        

@@ -9,7 +9,7 @@
 
 ### Components
 
-#### rpicam_sch:	The main method. 
+#### rpicam_sch:  The main method. 
 
 - Uses the [Advanced Python Scheduler](http://apscheduler.readthedocs.org/en/latest/) to background schedule the three main interval jobs implemented in rpicam, rpimgdir and rpimgdb. 
 
@@ -27,7 +27,19 @@
 
 - Gracefull exit is implemented for SIGINT, SIGTERM and SIGABRT.
 
+Run manually with: 
+```
+RPI_LGPIO_REVISION=800012 python3 rpicam_sch.py &
+```
+NOTE: The `RPI_LGPIO_REVISION` environment variable must be set due the use of the user-space GPIO (see below the details).
+
+Auto-start as service, using the systemd user service unit `rpicamsch.service.user`.
+
+When running, all messages are logged to a (rotated) `rpicam.log` file.
+
 #### rpiconfig.yaml:	The configuration file with parameters for the functionalities described below.
+
+#### rpicamsch.service.user: systemd user service unit, to be copied to /etc/systemd/user/rpicamsch.service
 
 #### rpicam:	Manage (pi)camera and save images locally.
 
@@ -74,10 +86,6 @@ The REST client implementation follows the model of the older [Python Xively API
 #### rpiconfig:	Implements the rpicampy configuration (read `rpiconfig.yaml`) and performs system checks.
 
 #### rpilogger:	Implements the custom logging for the rpicampy.
-
-### Auto-start as service
-
-#### rpicamsch.service.user: systemd user service unit, to be copied to /etc/systemd/user/rpicamsch.service
 
 
 ### Dependencies 

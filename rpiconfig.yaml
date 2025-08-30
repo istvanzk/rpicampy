@@ -18,8 +18,8 @@
   image_res: [1024, 768]
   jpg_qual: 85
   use_ovltxt: yes
-  use_irlv: yes
-  bcm_irlvport: 19
+  use_irl: yes
+  bcm_irlport: 19
   use_pir: no
   bcm_pirport: 16
   pirtd_sec: 15

@@ -776,19 +776,19 @@ class rpiCamClass(rpiBaseClass):
                     {
                         "AeEnable": True,
                         "AeExposureMode": controls.AeExposureModeEnum.Long,
-                        "Contrast": 3.0, # Floating point number from 0.0 to 32.0
-                        "Brightness": 0.2, # Floating point number from -1.0 to 1.0
-                        "AnalogueGain": 3.0,
+                        "Contrast": 5.0, # Floating point number from 0.0 to 32.0
+                        "Brightness": 0.3, # Floating point number from -1.0 to 1.0
+                        "AnalogueGain": 4.0,
                     })
                 else:
                     self._camera.set_controls( # pyright: ignore[reportOptionalMemberAccess]
                     {
                         "AeEnable": True,
-                        "AeExposureMode": controls.AeExposureModeEnum.Long,
-                        "ExposureTime": 120000, #usec
+                        "AeExposureMode": controls.AeExposureModeEnum.Normal,
+                        "ExposureTime": 300000, #usec
                         "Contrast": 5.0, # Floating point number from 0.0 to 32.0
                         "Brightness": 0.4, # Floating point number from -1.0 to 1.0
-                        "AnalogueGain": 4.0,
+                        "AnalogueGain": 8.0,
                     })
   
         elif RPICAM:

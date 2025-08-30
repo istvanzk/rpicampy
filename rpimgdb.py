@@ -18,24 +18,24 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 Implements the rpiImageDbx class to manage images in a remote directory (dropbox).
-Use Dropbox SDK, API V2, Python 3.4
-https://www.dropbox.com/developers/documentation/python
-https://github.com/dropbox/dropbox-sdk-python
+Use Dropbox SDK, API V2, Python 3.9+
+https://dropbox-sdk-python.readthedocs.io/en/latest/index.html
 """
 
 import os
 import sys
 import time
-import datetime
+from datetime import datetime
 import posixpath
 import atexit
+import pickle
 try:
     import json
 except ImportError:
     import simplejson as json
 
 try:
-    from dropbox import Dropbox
+    from dropbox import Dropbox, DropboxOAuth2FlowNoRedirect
     from dropbox.files import WriteMode, SearchMode, FileMetadata, FolderMetadata
     from dropbox.exceptions import ApiError, AuthError, DropboxException, InternalServerError
     from requests import exceptions
@@ -48,11 +48,13 @@ except ImportError:
 from rpilogger import rpiLogger
 if not DBXUSE:
     rpiLogger.error("Dropbox module not found or not available!")
-    os._exit()
+    os._exit(1)
 
 import rpififo
 from rpibase import rpiBaseClass, rpiBaseClassError
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
+
+TOKEN_EXPIRATION_BUFFER = 300  # seconds
 
 class rpiImageDbxClass(rpiBaseClass):
     """
@@ -226,17 +228,32 @@ class rpiImageDbxClass(rpiBaseClass):
             self.imageUpldFIFO.releaseSemaphore()
 
         ### Init Dropbox API client
+        # See https://github.com/dropbox/dropbox-sdk-python/blob/main/example/oauth/commandline-oauth-scopes.py
         self._token_file = self._config['token_file']
+        self._tokens = None
         self._dbx = None
         self.dbinfo = None
         try:
-            with open(self._token_file, 'r') as token:
-                self._dbx = Dropbox(token.read())
+            #with open(self._token_file, 'r') as token:
+            #    self._access_token = token.read().rstrip()
+            # Read pkl file
+            with open(self._token_file, 'rb') as f:
+                self._tokens = pickle.load(f)
+
+            # Initialize the client
+            self._dbx = Dropbox(
+                oauth2_access_token=self._tokens["oauth_result"].access_token,
+                user_agent='RPiCamPy/6.0',
+                oauth2_access_token_expiration=self._tokens["oauth_result"].expires_at,
+                oauth2_refresh_token=self._tokens["oauth_result"].refresh_token,
+                app_key=self._tokens['app_key'],
+                app_secret=self._tokens['app_secret']
+            )
 
             info = self._dbx.users_get_current_account()
             # info._all_field_names_ =
             # {'account_id', 'is_paired', 'locale', 'email', 'name', 'team', 'country', 'account_type', 'referral_link'}
-            self.dbinfo ={'email': info.email, 'referral_link': info.referral_link}
+            self.dbinfo ={'email': info.email, 'referral_link': info.referral_link} # pyright: ignore[reportAttributeAccessIssue]
 
             rpiLogger.info("%s::: Loaded access token from ''%s''" % (self.name, self._token_file) )
 
@@ -246,11 +263,11 @@ class rpiImageDbxClass(rpiBaseClass):
         except rpiBaseClassError as e:
             if e.errval == ERRCRIT:
                 self.endDayOAM()
-            raise rpiBaseClassError("initClass(): %s" % e.errmsg, e.errval)
+            raise rpiBaseClassError("initClass() error: %s" % e.errmsg, e.errval)
 
         except IOError:
             self.endDayOAM()
-            raise rpiBaseClassError("initClass(): Token file ''%s'' could not be read." % (self.name, self._token_file), ERRCRIT)
+            raise rpiBaseClassError("initClass(): Token file '%s' could not be read." % self._token_file, ERRCRIT)
 
         except AuthError as e:
             self.endDayOAM()
@@ -303,12 +320,37 @@ class rpiImageDbxClass(rpiBaseClass):
 #   def atexitend():
 #       self.endDayOAM()
 
+    def _check_and_refresh_access_token(self):
+        """
+        Check and refresh the access token if needed.
+        """
+        if self._dbx is None:
+            return
+
+        try:
+            self._dbx.check_and_refresh_access_token()
+
+        except AuthError as e:
+            raise rpiBaseClassError("_check_and_refresh_access_token(): AuthError:\n%s" % e.error, ERRCRIT)
+
+        except DropboxException as e:
+            raise rpiBaseClassError("_check_and_refresh_access_token(): DropboxException:\n%s" %  str(e), ERRCRIT)
+
+        except InternalServerError as e:
+            raise rpiBaseClassError("_check_and_refresh_access_token(): InternalServerError:\n%s" % str(e.status_code),  ERRCRIT)
+
+
     def _lsImage(self,from_path):
         """
         List the image/video files in the remote directory.
         Stores the found file names in self.imageDbList.
         """
+        if self._dbx is None:
+            return
+        
         try:
+            self._check_and_refresh_access_token()
+
             if self._imageDbCursor is None:
                 self.ls_ref = self._dbx.files_list_folder('/' + os.path.normpath(from_path), recursive=False, include_media_info=True )
             else:
@@ -353,6 +395,11 @@ class rpiImageDbxClass(rpiBaseClass):
         Examples:
         _putImage('./path/test.jpg', '/path/dropbox-upload-test.jpg')
         """
+        if self._dbx is None:
+            return
+
+        self._check_and_refresh_access_token()
+
         mode = (WriteMode.overwrite if overwrite else WriteMode.add)
 
         with open(from_path, "rb") as from_file:
@@ -384,6 +431,11 @@ class rpiImageDbxClass(rpiBaseClass):
         Examples:
         _mkdirImage('/dropbox_dir_test')
         """
+        if self._dbx is None:
+            return
+
+        self._check_and_refresh_access_token()
+
         try:
             self._dbx.files_create_folder('/' + os.path.normpath(path))
 
@@ -416,6 +468,11 @@ class rpiImageDbxClass(rpiBaseClass):
         Examples:
         _mvImage('./path1/dropbox-move-test.jpg', '/path2/dropbox-move-test.jpg')
         """
+        if self._dbx is None:
+            return
+
+        self._check_and_refresh_access_token()
+
         try:
             self._dbx.files_move( '/' + os.path.normpath(from_path), '/' +  os.path.normpath(to_path) )
 

@@ -613,7 +613,7 @@ class rpiCamClass(rpiBaseClass):
                             piexif.ImageIFD.Artist: self.camid,
                             piexif.ImageIFD.ImageDescription: "Time-lapse with Rasberry Pi controlled (pi)camera",
                             piexif.ImageIFD.Copyright: self.exif_tags_copyr, 
-                            piexif.ImageIFD.Orientation: _orientation,
+                            piexif.ImageIFD.Orientation: 1,
                             piexif.ImageIFD.XResolution: (self.resolution[0],1),
                             piexif.ImageIFD.YResolution: (self.resolution[1],1),
                         },

@@ -1,38 +1,39 @@
-# YAML
----
+# RPICAM Configurations 
 #timerConfig:
-  start_year: 2022
-  stop_year: 2022
-  start_month: 1
-  stop_month: 12
-  start_day: 1
-  stop_day: 31
-  start_hour: [0]
-  start_min: [1]
-  stop_hour: [23] 
-  stop_min: [55] 
-  interval_sec: [150, 30]
-  token_file: ''
---- 
-#camImgConfig:
+  start_date: '2025-01-01'
+  stop_date:  '2025-12-31'
+  start_times: ['00:00:00', '08:00:00', '16:00:00']
+  stop_times:  ['07:59:00', '15:59:00', '23:59:00']
+  start_dark_time: 2,
+  stop_dark_time: 0,
+  interval_sec: [15, 30, 15]
+---
+#camConfig:
+  cam_id: 'CAM1'
+  cam_type: 'V1'
+  cam_sensor: 'daylight'
+  rec_type: 'still'
   image_dir: './webcam'
-  image_id: 'CAM1'
   image_rot: 180
-  use_irl: 1
-  bcm_irlport: 19
-  use_pir: 1
+  image_res: [1024, 768]
+  jpg_qual: 85
+  use_ovltxt: yes
+  use_irlv: yes
+  bcm_irlvport: 19
+  use_pir: no
   bcm_pirport: 16
   pirtd_sec: 15
-  dark_hours: [17, 8] 
-  dark_mins: [0, 0]
-  dark_loc: ['57.0774992' , '9.9117876']
-  interval_sec: [10]
+  lat_lon: ['57:04:39.4', '09:54:42.6']
 ---
-#dirImgConfig:
+#dirConfig:
   list_size: 10
-  interval_sec: [30.3]
+  interval_sec: [15.3, 30.3, 15.3]
 ---
-#dbImgConfig:
+#dbConfig:
   image_snap: 'cam.jpg'
-  interval_sec: [60.5]
-  token_file: 'token_key.txt'
+  interval_sec: [31.3, 61.3, 31.3]
+  token_file: 'tokens.pkl'
+---
+#rcConfig:
+  interval_sec: [150, 30]
+  token_file: ''

@@ -66,7 +66,7 @@ SYSTEMDUSE  = True
 PY39 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 9)
 if not PY39:
     rpiLogger.error("This program requires minimum Python 3.9!")
-    os._exit()
+    os._exit(1)
 
 ### Hostname
 HOST_NAME = subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8')
@@ -152,12 +152,98 @@ try:
     import yaml
 
     with open(YAMLCFG_FILE, 'r') as stream:
-        timerConfig, camConfig, dirConfig, dbxConfig = yaml.load_all(stream, Loader=yaml.SafeLoader)
+        timerConfigYaml, camConfig, dirConfig, dbxConfig, _ = list(yaml.load_all(stream, Loader=yaml.SafeLoader))
 
-    # Add/copy config keys
-    dbxConfig['image_dir']  = camConfig['image_dir']
-    dirConfig['image_dir']  = camConfig['image_dir']
-    camConfig['list_size']  = dirConfig['list_size']
+    # Extract date and time period values from timerConfigYaml
+    timerConfig = {}
+    _ymd = timerConfigYaml['start_date'].split('-')
+    timerConfig['start_year']  = int(_ymd[0])
+    timerConfig['start_month'] = int(_ymd[1])
+    timerConfig['start_day']   = int(_ymd[2]) 
+
+    _ymd = timerConfigYaml['stop_date'].split('-')
+    timerConfig['stop_year']  = int(_ymd[0])
+    timerConfig['stop_month'] = int(_ymd[1])
+    timerConfig['stop_day']   = int(_ymd[2])
+
+    if len(timerConfigYaml['start_times']) != len(timerConfigYaml['stop_times']):
+        rpiLogger.error("Configuration file error: number of start_times and stop_times entries do not match!")
+        os._exit(1)
+
+    for _tper, _time in enumerate(timerConfigYaml['start_times']):
+        _hms = _time.split(':')
+        timerConfig['start_hour'][_tper]  = int(_hms[0])
+        timerConfig['start_min'][_tper]   = int(_hms[1])  
+
+    for _tper, _time in enumerate(timerConfigYaml['stop_times']):
+        _hms = _time.split(':')
+        timerConfig['stop_hour'][_tper]  = int(_hms[0])
+        timerConfig['stop_min'][_tper]   = int(_hms[1])
+
+    # Extract dark time values from timerConfigYaml
+    if timerConfigYaml['start_dark_time'] < 0:
+        camConfig['start_dark_hour'] = -1
+        camConfig['start_dark_min']  = -1
+    elif timerConfigYaml['start_dark_time'] > (len(timerConfigYaml['start_times']) - 1):
+        rpiLogger.error("Configuration file error: start_dark_time index out of range!")
+        os._exit(1)
+
+    _time = timerConfigYaml['start_times'][timerConfigYaml['start_dark_time']]
+    _hms = _time.split(':')
+    camConfig['start_dark_hour'] = int(_hms[0])
+    camConfig['start_dark_min']  = int(_hms[1])
+
+    if timerConfigYaml['stop_dark_time'] < 0:
+        camConfig['stop_dark_hour'] = -1
+        camConfig['stop_dark_min']  = -1
+    elif timerConfigYaml['stop_dark_time'] > (len(timerConfigYaml['stop_times']) - 1):
+        rpiLogger.error("Configuration file error: stop_dark_time index out of range!")
+        os._exit(1)
+
+    _time = timerConfigYaml['stop_times'][timerConfigYaml['stop_dark_time']]
+    _hms = _time.split(':')
+    camConfig['stop_dark_hour'] = int(_hms[0])
+    camConfig['stop_dark_min']  = int(_hms[1])
+
+    # Add/copy other config keys
+    if len(timerConfigYaml['interval_sec']) != len(timerConfigYaml['start_times']):
+        rpiLogger.error("Configuration file error: number of timerConfig['interval_sec'] entries and number of time periods entries do not match!")
+        os._exit(1)
+
+    timerConfig['interval_sec'] =  timerConfigYaml['interval_sec']
+    camConfig['interval_sec']   = timerConfig['interval_sec']
+
+    if len(dirConfig['interval_sec']) > len(timerConfigYaml['start_times']):
+        rpiLogger.warning("Configuration file error: number of dirConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))
+        dirConfig['interval_sec'] = dirConfig['interval_sec'][:len(timerConfigYaml['start_times'])]
+
+    if len(dbxConfig['interval_sec']) > len(timerConfigYaml['start_times']):
+        rpiLogger.warning("Configuration file error: number of dbxConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))
+        dbxConfig['interval_sec'] = dbxConfig['interval_sec'][:len(timerConfigYaml['start_times'])]
+
+    camConfig['list_size'] = dirConfig['list_size']
+    dbxConfig['image_dir'] = camConfig['image_dir']
+    dirConfig['image_dir'] = camConfig['image_dir']
+
+    # Convert geolocation string to decimal value
+    def _geo2dec(geo_str):
+        """ Convert geolocation string to decimal format """
+        _geo = geo_str.split(':')
+        if len(_geo) != 3:
+            rpiLogger.error("Configuration file error: wrong geolocation format!")
+            os._exit(1)
+
+        _deg = float(_geo[0])
+        _min = float(_geo[1])
+        _sec = float(_geo[2])
+
+        if _deg < 0:
+            return _deg - (_min / 60.0) - (_sec / 3600.0)
+        else:
+            return _deg + (_min / 60.0) + (_sec / 3600.0)
+
+    camConfig['lat_lon'][0] = _geo2dec(camConfig['lat_lon'][0])
+    camConfig['lat_lon'][1] = _geo2dec(camConfig['lat_lon'][1])
 
     # Add timer operation control flags
     timerConfig['enabled'] = True
@@ -165,15 +251,16 @@ try:
     timerConfig['stateval']= 0
     timerConfig['status']  = ''
 
+    del timerConfigYaml, _time, _ymd, _hms, _tper
     rpiLogger.info("Configuration file read.")
 
 except yaml.YAMLError as e:
     rpiLogger.error("Error in configuration file:" % e)
-    os._exit()
+    os._exit(1)
 
 except ImportError as e:
     rpiLogger.error("YAML module could not be loaded!")
-    os._exit()
+    os._exit(1)
 
 # Display config info
 rpiLogger.debug("timerConfig: %s" % timerConfig)

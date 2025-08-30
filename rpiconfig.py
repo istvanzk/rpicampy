@@ -170,6 +170,11 @@ try:
         rpiLogger.error("Configuration file error: number of start_times and stop_times entries do not match!")
         os._exit(1)
 
+    timerConfig['start_hour'] = [0] * len(timerConfigYaml['start_times'])
+    timerConfig['start_min']  = [0] * len(timerConfigYaml['start_times'])
+    timerConfig['stop_hour']  = [0] * len(timerConfigYaml['stop_times'])
+    timerConfig['stop_min']   = [0] * len(timerConfigYaml['stop_times'])
+
     for _tper, _time in enumerate(timerConfigYaml['start_times']):
         _hms = _time.split(':')
         timerConfig['start_hour'][_tper]  = int(_hms[0])
@@ -210,7 +215,7 @@ try:
         rpiLogger.error("Configuration file error: number of timerConfig['interval_sec'] entries and number of time periods entries do not match!")
         os._exit(1)
 
-    timerConfig['interval_sec'] =  timerConfigYaml['interval_sec']
+    timerConfig['interval_sec'] = timerConfigYaml['interval_sec']
     camConfig['interval_sec']   = timerConfig['interval_sec']
 
     if len(dirConfig['interval_sec']) > len(timerConfigYaml['start_times']):

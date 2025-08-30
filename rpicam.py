@@ -508,7 +508,7 @@ class rpiCamClass(rpiBaseClass):
         self._del_cam_gpio()
               
         ### Init the FIFO buffer
-        self.imageFIFO.camID = self._config['image_id']
+        self.imageFIFO.camID = self._config['cam_id']
         self.imageFIFO.clear()
         self.crtlenFIFO = 0
 
@@ -560,7 +560,7 @@ class rpiCamClass(rpiBaseClass):
 
         ### Configuration for the image capture
         self._camera         = None
-        self.camid           = self._config['image_id']
+        self.camid           = self._config['cam_id']
         self.exif_tags_copyr = 'Copyright (c) 2025 Istvan Z. Kovacs - All rights reserved'
         self.resolution      = (1024, 768)
         self.jpgqual         = 85

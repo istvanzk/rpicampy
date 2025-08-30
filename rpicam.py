@@ -176,10 +176,10 @@ class rpiCamClass(rpiBaseClass):
 
             ### Clean up GPIO on exit
             if not FAKESNAP and GPIO.getmode() is not None:
-                if self._config['use_pir'] == 1:
+                if self._config['use_pir']:
                     GPIO.remove_event_detect(self.PIRport)
 
-                if self._config['use_irl'] == 1:
+                if self._config['use_irl']:
                     self._switchIR(False)
 
                 time.sleep(5)
@@ -195,7 +195,7 @@ class rpiCamClass(rpiBaseClass):
     def jobRun(self):
 
         ### Check flag indicating that PIR sensor has detected movement since last picture has been captured
-        if self._config['use_pir'] == 1:
+        if self._config['use_pir']:
             if self.pirDetected.is_set():
                 self.pirDetected.clear()
             else:
@@ -225,7 +225,7 @@ class rpiCamClass(rpiBaseClass):
         ### Take a new snapshot and save the image locally
         try:
             ### Switch ON/OFF IR
-            if (not FAKESNAP) and (self._config['use_irl'] == 1):
+            if (not FAKESNAP) and self._config['use_irl']:
                 self._switchIR(self._isDark())
 
             ### Reset list of cmd arguments
@@ -267,7 +267,7 @@ class rpiCamClass(rpiBaseClass):
                 # When in 'dark' time
                 # Calculate brightness and adjust shutter speed when not using IR light
                 if self.bDarkExp:
-                    if self._config['use_irl'] == 0:
+                    if not self._config['use_irl']:
 
                         # Calculate brightness
                         #self._grayscaleAverage(image)
@@ -307,7 +307,7 @@ class rpiCamClass(rpiBaseClass):
                 draw.rectangle([0,image.size[1]-20,image.size[0],image.size[1]], fill=(150,200,150,100))
                 sN = ': '
                 if self.bDarkExp:
-                    if self._config['use_irl'] == 1:
+                    if self._config['use_irl']:
                         sN = ' (NI)' + sN
                     else:
                         sN = ' (N)' + sN
@@ -385,7 +385,7 @@ class rpiCamClass(rpiBaseClass):
                 if self.bDarkExp:
                     sN = 'n' + sN
 
-                    if self._config['use_irl'] == 0:
+                    if not self._config['use_irl']:
 
                         # Calculate brightness
                         #self._grayscaleAverage(image)
@@ -516,13 +516,13 @@ class rpiCamClass(rpiBaseClass):
         self.IRLport = None
         self.PIRport = None
         if not FAKESNAP:
-            if self._config['use_irl'] == 1 or self._config['use_pir'] == 1:
+            if self._config['use_irl'] or self._config['use_pir']:
                 try:
                     GPIO.setmode(GPIO.BCM)
                     rpiLogger.info(f"{self.name}::: GPIO BCM mode configured ({GPIO.BCM})")
                     if GPIO.getmode() is not None: 
 
-                        if self._config['use_irl'] == 1:
+                        if self._config['use_irl']:
                             self.IRLport = self._config['bcm_irlport']
                             GPIO.setup(self.IRLport, GPIO.OUT, initial=0)
                             rpiLogger.info(f"{self.name}::: GPIO IRLport configured (BCM {self.IRLport})")
@@ -530,7 +530,7 @@ class rpiCamClass(rpiBaseClass):
                             self.IRLport = None
                             rpiLogger.warning(f"{self.name}::: GPIO IRLport is not used")  
 
-                        if self._config['use_pir'] == 1:
+                        if self._config['use_pir']:
                             self.PIRport = self._config['bcm_pirport']
                             self.pirTimeDelta = timedelta(seconds=self._config['pirtd_sec'])
                             GPIO.setup(self.PIRport, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
@@ -725,7 +725,7 @@ class rpiCamClass(rpiBaseClass):
             # The 'dark' mode settings
             if self._isDark():
                 self.bDarkExp = True
-                if self._config['use_irl'] == 1:
+                if self._config['use_irl']:
                     self.gain       = 4.0
                     self.contrast   = 1.5 
                     self.brightness = 20/50  
@@ -771,7 +771,7 @@ class rpiCamClass(rpiBaseClass):
             # The 'dark' mode settings
             if self._isDark():
                 self.bDarkExp = True
-                if self._config['use_irl'] == 1:
+                if self._config['use_irl']:
                     self._camera.set_controls( # pyright: ignore[reportOptionalMemberAccess]
                     {
                         "AeEnable": True,
@@ -806,7 +806,7 @@ class rpiCamClass(rpiBaseClass):
             # The 'dark' mode settings
             if self._isDark():
                 self.bDarkExp = True
-                if self._config['use_irl'] == 1:
+                if self._config['use_irl']:
                     self._camera.awb_mode = 'auto'
                     self._camera.iso = 0
                     self._camera.contrast = 50 #-100 ... 0 ... 100
@@ -860,11 +860,11 @@ class rpiCamClass(rpiBaseClass):
         '''
         Switch ON/OFF the IR lights
         '''
-        if self._config['use_irl'] == 1:
+        if self._config['use_irl']:
             if bONOFF:
-                GPIO.output(self.IRLport,GPIO.HIGH)
+                GPIO.output(self.IRLport, GPIO.HIGH)
             else:
-                GPIO.output(self.IRLport,GPIO.LOW)
+                GPIO.output(self.IRLport, GPIO.LOW)
 
     ### The following 4 functions are based on:
     # https://github.com/andrevenancio/brightnessaverage
@@ -876,7 +876,7 @@ class rpiCamClass(rpiBaseClass):
         '''
         Convert image to greyscale, return average pixel brightness.
         '''
-        if self._config['use_irl'] == 0:
+        if not self._config['use_irl']:
             # Upper-right ~1/3 image is masked out (black), not used in the statistics
             mask = Image.new('1', (image.size[0], image.size[1]))
             draw = ImageDraw.Draw(mask,'1')
@@ -903,7 +903,7 @@ class rpiCamClass(rpiBaseClass):
         '''
         Average pixels, then transform to "perceived brightness".
         '''
-        if self._config['use_irl'] == 0:
+        if not self._config['use_irl']:
             # Upper-right ~1/3 image is masked out (black), not used in the statistics
             mask = Image.new('1', (image.size[0], image.size[1]))
             draw = ImageDraw.Draw(mask,'1')

@@ -4,8 +4,8 @@
   stop_date:  '2025-12-31'
   start_times: ['00:00:00', '08:00:00', '16:00:00']
   stop_times:  ['07:59:00', '15:59:00', '23:59:00']
-  start_dark_time: 2,
-  stop_dark_time: 0,
+  start_dark_time: 2
+  stop_dark_time: 0
   interval_sec: [15, 30, 15]
 ---
 #camConfig:

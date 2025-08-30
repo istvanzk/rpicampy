@@ -216,7 +216,7 @@ try:
         os._exit(1)
 
     timerConfig['interval_sec'] = timerConfigYaml['interval_sec']
-    camConfig['interval_sec']   = timerConfig['interval_sec']
+    camConfig['interval_sec']   = timerConfigYaml['interval_sec']
 
     if len(dirConfig['interval_sec']) > len(timerConfigYaml['start_times']):
         rpiLogger.warning("Configuration file error: number of dirConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))

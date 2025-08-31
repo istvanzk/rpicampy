@@ -69,19 +69,43 @@ def _setCamExp(is_dark: bool, use_irl: bool):
     Set camera exposure according to the 'dark' time threshold.
     See Apendix C in Picamera2 API documentation. 
     """
+    # print("camera_controls:\n{camera.camera_controls}")
+    # {'AnalogueGainMode': (0, 1, 0), 'HdrMode': (0, 4, 0), 'AwbEnable': (False, True, None), 
+    # 'ScalerCrop': ((0, 0, 64, 64), (0, 0, 2592, 1944), (0, 0, 2592, 1944)), 
+    # 'AeMeteringMode': (0, 3, 0), 'ExposureTime': (130, 3066985, 20000), 'FrameDurationLimits': (63965, 3067365, 33333), 
+    # 'SyncMode': (0, 2, 0), 'SyncFrames': (1, 1000000, 100), 
+    # 'Saturation': (0.0, 32.0, 1.0), 'StatsOutputEnable': (False, True, False), 'CnnEnableInputTensor': (False, True, False), 
+    # 'AwbMode': (0, 7, 0), 'Contrast': (0.0, 32.0, 1.0), 'AeEnable': (False, True, True), 
+    # 'Sharpness': (0.0, 16.0, 1.0), 'NoiseReductionMode': (0, 4, 0), 'ColourTemperature': (100, 100000, None), 
+    # 'AeFlickerPeriod': (100, 1000000, None), 
+    # 'AnalogueGain': (1.0, 63.9375, 1.0), 'ColourGains': (0.0, 32.0, None), 
+    # 'AeFlickerMode': (0, 1, 0), 'ExposureTimeMode': (0, 1, 0), 
+    # 'AeExposureMode': (0, 3, 0), 'ExposureValue': (-8.0, 8.0, 0.0), 
+    # 'Brightness': (-1.0, 1.0, 0.0), 'AeConstraintMode': (0, 3, 0)}
+
+    # Get current exposure time and gain
+    # https://github.com/raspberrypi/picamera2/discussions/131
+    camera.start()
+    time.sleep(2)
+    metadata = camera.capture_metadata()
+    exposure = metadata["ExposureTime"]
+    gain = metadata["AnalogueGain"] * metadata["DigitalGain"]
+    camera.stop()
+    print(f"Current exposure time: {exposure} usec, gain: {gain:.2f}")  
 
     if is_dark:
 
         if use_irl:
             camera.set_controls(
             {
-                "AeEnable": True, 
-                "AeExposureMode": controls.AeExposureModeEnum.Normal,
-                #"ExposureTime": 120000, #usec
-                "ExposureValue": 1, #Floating point number between -8.0 and 8.0
-                "Contrast": 5.0, # Floating point number from 0.0 to 32.0
+                #"AeEnable": True, 
+                #"AeExposureMode": controls.AeExposureModeEnum.Long,
+                #"AeConstraintMode": controls.AeConstraintModeEnum.Shadows,
+                "ExposureTime": 400000, #usec
+                #"ExposureValue": 1, #Floating point number between -8.0 and 8.0
+                #"AnalogueGain": 1.0,
+                "Contrast": 4.0, # Floating point number from 0.0 to 32.0
                 #"Brightness": 0.2, # Floating point number from -1.0 to 1.0
-                #"AnalogueGain": 8.0,
                 #"AwbEnable": False, 
                 #"AwbMode": controls.AwbModeEnum.Auto,
                 #"FrameDurationLimits": (2000000,1000000), #usec
@@ -92,13 +116,13 @@ def _setCamExp(is_dark: bool, use_irl: bool):
             #    "AeExposureMode": controls.AeExposureModeEnum.Custom, requires definition in /usr/share/libcamera/ipa/rpi/vc4/ov5647_noir.json
             camera.set_controls(
             {
-                "AeEnable": False, 
+                #"AeEnable": False, 
                 #"AeExposureMode": controls.AeExposureModeEnum.Long,
-                "ExposureTime": 500000, #usec
-                "ExposureValue": 2, #Floating point number between -8.0 and 8.0
+                "ExposureTime":1000000, #usec
+                #"ExposureValue": 0, #Floating point number between -8.0 and 8.0
+                #"AnalogueGain": 1.0,
                 "Contrast": 3.0, # Floating point number from 0.0 to 32.0
                 #"Brightness": 0.2, # Floating point number from -1.0 to 1.0
-                #"AnalogueGain": 8.0,
                 #"AwbEnable": False, 
                 #"AwbMode": controls.AwbModeEnum.Auto,
                 #"FrameDurationLimits": (2000000,2000000), #usec
@@ -200,6 +224,7 @@ def main():
         }
 
     # Set camera exposure according to the 'dark' mode
+    # Setting a new exposure time and gain before restarting the camera means it takes effect immediately.
     _setCamExp(useDark, useIRL)
 
     # Enable IRL if used

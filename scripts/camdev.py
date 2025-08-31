@@ -76,12 +76,12 @@ def _setCamExp(is_dark: bool, use_irl: bool):
             camera.set_controls(
             {
                 "AeEnable": True, 
-                "AeExposureMode": controls.AeExposureModeEnum.Long,
+                "AeExposureMode": controls.AeExposureModeEnum.Normal,
                 #"ExposureTime": 120000, #usec
                 "ExposureValue": 1, #Floating point number between -8.0 and 8.0
-                "Contrast": 5, # Floating point number from 0.0 to 32.0
-                #"Brightness": 0.3, # Floating point number from -1.0 to 1.0
-                "AnalogueGain": 8.0,
+                "Contrast": 5.0, # Floating point number from 0.0 to 32.0
+                #"Brightness": 0.2, # Floating point number from -1.0 to 1.0
+                #"AnalogueGain": 8.0,
                 #"AwbEnable": False, 
                 #"AwbMode": controls.AwbModeEnum.Auto,
                 #"FrameDurationLimits": (2000000,1000000), #usec
@@ -92,13 +92,13 @@ def _setCamExp(is_dark: bool, use_irl: bool):
             #    "AeExposureMode": controls.AeExposureModeEnum.Custom, requires definition in /usr/share/libcamera/ipa/rpi/vc4/ov5647_noir.json
             camera.set_controls(
             {
-                "AeEnable": True, 
-                "AeExposureMode": controls.AeExposureModeEnum.Long,
-                #"ExposureTime": 300000, #usec
+                "AeEnable": False, 
+                #"AeExposureMode": controls.AeExposureModeEnum.Long,
+                "ExposureTime": 500000, #usec
                 "ExposureValue": 2, #Floating point number between -8.0 and 8.0
-                "Contrast": 5, # Floating point number from 0.0 to 32.0
-                #"Brightness": 0.4, # Floating point number from -1.0 to 1.0
-                "AnalogueGain": 8.0,
+                "Contrast": 3.0, # Floating point number from 0.0 to 32.0
+                #"Brightness": 0.2, # Floating point number from -1.0 to 1.0
+                #"AnalogueGain": 8.0,
                 #"AwbEnable": False, 
                 #"AwbMode": controls.AwbModeEnum.Auto,
                 #"FrameDurationLimits": (2000000,2000000), #usec

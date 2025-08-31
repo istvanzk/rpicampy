@@ -97,6 +97,21 @@ def daemon_notify(msg_str):
     if SYSTEMDUSE:
         daemon.notify(msg_str)
 
+def _geo2dec(geo_str):
+    """ Convert geolocation string to decimal format """
+    _geo = geo_str.split(':')
+    if len(_geo) != 3:
+        rpiLogger.error("Configuration file error: wrong geolocation format!")
+        os._exit(1)
+
+    _deg = float(_geo[0])
+    _min = float(_geo[1])
+    _sec = float(_geo[2])
+
+    if _deg < 0:
+        return _deg - (_min / 60.0) - (_sec / 3600.0)
+    else:
+        return _deg + (_min / 60.0) + (_sec / 3600.0)
 
 
 ### When the DNS server google-public-dns-a.google.com is reachable on port 53/tcp,
@@ -187,8 +202,8 @@ try:
 
     # Extract dark time values from timerConfigYaml
     if timerConfigYaml['start_dark_time'] < 0:
-        camConfig['start_dark_hour'] = -1
-        camConfig['start_dark_min']  = -1
+        camConfig['start_dark_hour'] = None
+        camConfig['start_dark_min']  = None
     elif timerConfigYaml['start_dark_time'] > (len(timerConfigYaml['start_times']) - 1):
         rpiLogger.error("Configuration file error: start_dark_time index out of range!")
         os._exit(1)
@@ -199,8 +214,8 @@ try:
     camConfig['start_dark_min']  = int(_hms[1])
 
     if timerConfigYaml['stop_dark_time'] < 0:
-        camConfig['stop_dark_hour'] = -1
-        camConfig['stop_dark_min']  = -1
+        camConfig['stop_dark_hour'] = None
+        camConfig['stop_dark_min']  = None
     elif timerConfigYaml['stop_dark_time'] > (len(timerConfigYaml['stop_times']) - 1):
         rpiLogger.error("Configuration file error: stop_dark_time index out of range!")
         os._exit(1)
@@ -230,25 +245,9 @@ try:
     dbxConfig['image_dir'] = camConfig['image_dir']
     dirConfig['image_dir'] = camConfig['image_dir']
 
-    # Convert geolocation string to decimal value
-    def _geo2dec(geo_str):
-        """ Convert geolocation string to decimal format """
-        _geo = geo_str.split(':')
-        if len(_geo) != 3:
-            rpiLogger.error("Configuration file error: wrong geolocation format!")
-            os._exit(1)
-
-        _deg = float(_geo[0])
-        _min = float(_geo[1])
-        _sec = float(_geo[2])
-
-        if _deg < 0:
-            return _deg - (_min / 60.0) - (_sec / 3600.0)
-        else:
-            return _deg + (_min / 60.0) + (_sec / 3600.0)
-
-    camConfig['lat_lon'][0] = _geo2dec(camConfig['lat_lon'][0])
-    camConfig['lat_lon'][1] = _geo2dec(camConfig['lat_lon'][1])
+    # PyEphem needs '57:04:39.4' format!!!
+    #camConfig['lat_lon'][0] = _geo2dec(camConfig['lat_lon'][0])
+    #camConfig['lat_lon'][1] = _geo2dec(camConfig['lat_lon'][1])
 
     # Add timer operation control flags
     timerConfig['enabled'] = True

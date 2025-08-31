@@ -39,30 +39,39 @@ from rpilogger import rpiLogger
 from rpibase import rpiBaseClass, rpiBaseClassError
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 
-### Camera input to use
+
+### Image copyright info (saved in EXIF tag)
+IMAGE_COPYRIGHT = 'Copyright (c) 2025 Istvan Z. Kovacs - All rights reserved'
+
+### Camera capture 'back-end' to be use
 # When none selected, then the fswebcam -d /dev/video0 is attemped to be used to capture an image
 # FAKESNAP generates an empty file!
 FAKESNAP   = False
 
-# The real image 'back-end' to use
-# RPICAM2 is using the Picamera2 API and is the preferred/recommended option since 2022
-# See https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf)
+# The real image capture 'back-end' to use
+# The use of picamera (v1) API is depracated since 2022! Use picamera2 (v2) instead!
+# See https://picamera.readthedocs.io/en/release-1.13/api_camera.html
+# RPICAM2 is using the Picamera2 API and is the preferred/recommended
+# See https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf
 RPICAM2    = True
 # LIBCAMERA is using the rpicam-still (from rpicam-apps installed with picamera2) since 2022 
 # See https://www.raspberrypi.com/documentation/computers/camera_software.html#rpicam-still
 LIBCAMERA  = False
-# The use of picamera (v1) API is depracated since 2022! Use picamera2 (v2) instead!
-RPICAM     = False
 
 # LIBCAMERA_JSON has to be set to the JSON file name corresponding to the used camera (see docs above)
 LIBCAMERA_JSON = "ov5647_noir.json" # Cam V1 Noir: dtoverlay=ov5647 in /boot/config.txt
 #LIBCAMERA_JSON = "imx219.json" # Cam V2: dtoverlay=imx219 in /boot/config.txt
 
+
+### Initialize camera capture 'back-end' used
+if not(FAKESNAP or LIBCAMERA or RPICAM2):
+    rpiLogger.error("rpicam::: No camera input selected! Exiting!")
+    raise rpiBaseClassError("rpicam::: No camera input selected! Exiting!", ERRCRIT)
+
 if FAKESNAP:
     # Dummy (no image capture!)
     LIBCAMERA  = False
     RPICAM2    = False
-    RPICAM     = False
     rpiLogger.warning("rpicam::: The FAKESNAP option is used!")
 
 elif RPICAM2:
@@ -78,21 +87,8 @@ elif RPICAM2:
     import io
     from PIL import Image, ImageDraw, ImageFont, ImageStat
 
-elif RPICAM:
-    # PIcamera (V1) API
-    rpiLogger.warning("rpicam::: The use of picamera (v1) module is deprecated since 2022! Use picamera2 (v2) instead!")
-    try:
-        import picamera
-    except ImportError:
-        rpiLogger.error("rpicam::: The picamera (v1) module could not be loaded!")
-        RPICAM = False
-
-    #from fractions import Fraction
-    import io
-    from PIL import Image, ImageDraw, ImageFont, ImageStat
-
-### GPIO
-if LIBCAMERA or RPICAM2 or RPICAM:
+### GPIO initialization
+if LIBCAMERA or RPICAM2:
     # Requires rpi-lgpio compatibility package for rpi.gpio on kernels which support /dev/gpiochipX
     # See https://rpi-lgpio.readthedocs.io/en/latest/index.html
     try:
@@ -110,9 +106,6 @@ else:
     rpiLogger.warning("rpicam::: The RPi.GPIO module is not used!")
     raise rpiBaseClassError(f"rpicam::: The RPi.GPIO module is not used!", ERRCRIT)
 
-if not(FAKESNAP or LIBCAMERA or RPICAM2 or RPICAM):
-    rpiLogger.error("rpicam::: No camera input selected! Exiting!")
-    raise rpiBaseClassError("rpicam::: No camera input selected! Exiting!", ERRCRIT)
 
 class rpiCamClass(rpiBaseClass):
     """
@@ -138,8 +131,8 @@ class rpiCamClass(rpiBaseClass):
         ### The flag indicating that PIR sensor has detected movement since last picture has been captured
         self.pirDetected = Event()
         self.pirDetected.clear()
-        self.pirTimeDelta = None
-        self.lastPirDetected = None
+        self.pirTimeDelta = timedelta(seconds=0)
+        self.lastPirDetected = datetime.now()
 
         ### Camera capture parameters
         self.camexp_list     = list()
@@ -153,8 +146,8 @@ class rpiCamClass(rpiBaseClass):
 
     def __str__(self):
         msg = super().__str__()
-        return "%s::: %s, config: %s, FAKESNAP: %s, LIBCAMERA: %s, RPiCAM: %s\nimageFIFO: %s\n%s" % \
-            (self.name, self.camid, self._config, FAKESNAP, LIBCAMERA, RPICAM, self.imageFIFO, msg)
+        return "%s::: %s, config: %s, FAKESNAP: %s, LIBCAMERA: %s, RPICAM2: %s\nimageFIFO: %s\n%s" % \
+            (self.name, self.camid, self._config, FAKESNAP, LIBCAMERA, RPICAM2, self.imageFIFO, msg)
 
     def __del__(self):
         ### Clean up Camera and GPIO
@@ -167,9 +160,7 @@ class rpiCamClass(rpiBaseClass):
         try:
             ### Close and delete the picamera object
             if self._camera is not None:
-                if RPICAM:
-                    self._camera.close()
-                elif RPICAM2:
+                if RPICAM2:
                     self._camera.stop()
                 del self._camera
                 self._camera = None
@@ -240,8 +231,6 @@ class rpiCamClass(rpiBaseClass):
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
 
             elif RPICAM2:
-                # Note: Picamera2 API is the recommended option since 2022!
-
                 # Set exif data
                 crt_time = time.strftime('%Y:%m:%d %H:%M:%S', time.localtime())
                 self._custom_exif['0th'][piexif.ImageIFD.DateTime] = crt_time
@@ -299,6 +288,7 @@ class rpiCamClass(rpiBaseClass):
                             self.imageFIFO.acquireSemaphore()
 
                 # Apply +/-90 degree rotation with PIL (CCW)
+                # Rotation with 180 degree is done in the camera configuration!
                 if self.rotation in [90, -90, 270, -270]:
                     image = image.rotate(self.rotation, expand=True)
                 
@@ -361,83 +351,7 @@ class rpiCamClass(rpiBaseClass):
                 # https://www.raspberrypi.com/documentation/accessories/camera.html#writing-your-own-post-processing-stages
 
 
-            elif RPICAM:
-                # Note: V1 API is deprecated since 2022!
-                # https://picamera.readthedocs.io/en/release-1.13/api_camera.html
-
-                # Set camera exposure according to the 'dark' time threshold
-                self._setCamExp()
-
-                # Create the in-memory stream
-                stream = io.BytesIO()
-
-                # Camera warm-up time and capture
-                self.cmd_str.extend(["format", "jpeg", "quality", f"{self.imgqual}"])
-                self._camera.capture(stream, format='jpeg', quality=self.imgqual)
-
-                # Read stream to a PIL image
-                stream.seek(0)
-                image = Image.open(stream)
-
-                # When in 'dark' time
-                # Calculate brightness and adjust shutter speed when not using IR light
-                sN = ': '
-                if self.bDarkExp:
-                    sN = 'n' + sN
-
-                    if not self._config['use_irl']:
-
-                        # Calculate brightness
-                        #self._grayscaleAverage(image)
-                        self._averagePerceived(image)
-
-                        # Recapture image with new shutter speed if needed
-                        if self.imgbr < 118 or \
-                            self.imgbr > 138:
-
-                            # Release the buffer (this capture could take a few seconds)
-                            self.imageFIFO.releaseSemaphore()
-
-                            # Shutter speed (micro seconds)
-                            ss = self._camera.shutter_speed
-                            rpiLogger.debug('Before: Br=%d, Ss=%dus' % (self.imgbr, ss))
-
-                            # Re-capture the picture
-                            time.sleep(3)
-                            self._camera.shutter_speed = int(ss*(2 - float(self.imgbr)/128))
-                            self._camera.capture(stream, format='jpeg')
-                            stream.seek(0)
-                            image = Image.open(stream)
-
-                            # Re-calculate brightness
-                            self._averagePerceived(image)
-                            rpiLogger.debug('After: Br=%d, Ss=%dus' % (self.imgbr, self._camera.shutter_speed))
-
-                            # Lock the buffer
-                            self.imageFIFO.acquireSemaphore()
-
-
-                # Add overlay text to the final image
-                draw = ImageDraw.Draw(image,'RGBA')
-                draw.rectangle([0,image.size[1]-20,image.size[0],image.size[1]], fill=(150,200,150,100))
-                draw.text((2,image.size[1]-18), self.camid + sN + time.strftime('%b %d %Y, %H:%M', time.localtime()), fill=(0,0,0,0), font=self._TXTfont)
-                #n_width, n_height = TXTfont.getsize('#XX')
-                #draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=self._TXTfont)
-                del draw
-
-                # Save image and close the stream
-                image.save( self.image_path, format='jpeg', quality=95 )
-                #image.close()
-
-                # Close BytesIO stream
-                stream.close()
-
-                # Set output indicators
-                self._camoutput = self.image_path
-                self._camerrors = ''
-
             else:
-
                 # Generate the arguments
                 self.cmd_str.extend(["fswebcam", 
                     "-d", "/dev/video0",
@@ -561,16 +475,12 @@ class rpiCamClass(rpiBaseClass):
         ### Configuration for the image capture
         self._camera         = None
         self.camid           = self._config['cam_id']
-        self.exif_tags_copyr = 'Copyright (c) 2025 Istvan Z. Kovacs - All rights reserved'
+        self.exif_tags_copyr = IMAGE_COPYRIGHT
         self.resolution      = (1024, 768)
         self.jpgqual         = 85
         self.rotation        = self._config['image_rot']
-        # Init the font to use in the overlay text
-        if RPICAM or RPICAM2:
-            self._TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
 
         ### Init the "dark" time flag and reference image brightness
-        # (used only when RPICAM or RASPISTILL= True)
         self.bDarkExp = False
         self.imgbr = 128
 
@@ -622,27 +532,8 @@ class rpiCamClass(rpiBaseClass):
                         }
                 }
             
-        elif RPICAM:
-            # Picamera API, depracated since 2022!
-            self._camera = picamera.PiCamera()
-            self._camera.resolution = self.resolution
-
-            # Set camera image rotation
-            if self.rotation == 180:
-                self._camera.hflip = True
-                self._camera.vflip = True
-            self._camera.rotation = self.rotation
-
-            # Set custom EXIF/TIFF tags
-            self._camera.exif_tags['IFD0.Make'] = "Raspberry Pi"
-            self._camera.exif_tags['IFD0.Software'] = "rpicampy"
-            self._camera.exif_tags['IFD0.DateTime'] = time.strftime('%Y:%m:%d %H:%M:%S', time.localtime())
-            self._camera.exif_tags['IFD0.Artist'] = self.camid
-            self._camera.exif_tags['IFD0.ImageDescription'] = "Time-lapse with Rasberry Pi controlled (pi)camera"
-            self._camera.exif_tags['IFD0.Copyright'] = self.exif_tags_copyr
-            self._camera.exif_tags['IFD0.Orientation'] = _orientation
-            self._camera.exif_tags['IFD0.XResolution'] = (self.resolution[0],1)
-            self._camera.exif_tags['IFD0.YResolution'] = (self.resolution[1],1)
+            # Init the font to use in the overlay text
+            self._TXTfont = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
 
         ### Create output folder
         try:
@@ -671,6 +562,7 @@ class rpiCamClass(rpiBaseClass):
         # A negative value of horizon can be used when an observer is high off of the ground.
         self._sun = ephem.Sun()
         self._loc = ephem.Observer()
+        self._loc.date = datetime.now()
         self._loc.lat = self._config['lat_lon'][0]
         self._loc.lon = self._config['lat_lon'][1]
         self._loc.pressure = 0
@@ -704,8 +596,8 @@ class rpiCamClass(rpiBaseClass):
 
     def _setCamExp(self):
         '''
-        Set camera exposure according to the 'dark' time threshold.
-        Used only with LIBCAMERA or RPICAM/RPICAM2
+        Set camera exposure according to the 'daylight'/'dark' time threshold.
+        Used only with LIBCAMERA or RPICAM2
         '''
         if LIBCAMERA:
             # See Apendix C in Picamera2 API documentation.
@@ -756,15 +648,16 @@ class rpiCamClass(rpiBaseClass):
         elif RPICAM2:
             # See Apendix C in Picamera2 API documentation. 
 
-            # The 'daylight' default settings
+            # The 'daylight' default setting 
             self._camera.set_controls( # pyright: ignore[reportOptionalMemberAccess]
             {
-                "AeEnable": True,
-                "AeExposureMode": controls.AeExposureModeEnum.Normal,
-                "AwbEnable": True, 
-                "AwbMode": controls.AwbModeEnum.Auto,
-                "Contrast": 1.0, # Floating point number from 0.0 to 32.0
-                "Brightness": 0.0, # Floating point number from -1.0 to 1.0
+                "AwbEnable":        self._config['cam_expday']['AwbEnable'], 
+                "AwbMode":          eval(f"controls.AwbModeEnum.{self._config['cam_expday']['AwbMode']}"),
+                "AeEnable":         self._config['cam_expday']['AeEnable'],
+                "AeExposureMode":   eval(f"controls.AeExposureModeEnum.{self._config['cam_expday']['AeExposureMode']}"),
+                "ExposureValue":    self._config['cam_expday']['ExposureValue'], #Floating point number between -8.0 and 8.0
+                "Contrast":         self._config['cam_expday']['Conrast'], # Floating point number from 0.0, 1.0 to 32.0
+                "Brightness":       self._config['cam_expday']['Brightness'], # Floating point number from -1.0 to 1.0
             })
             self.bDarkExp = False
 
@@ -774,55 +667,62 @@ class rpiCamClass(rpiBaseClass):
                 if self._config['use_irl']:
                     self._camera.set_controls( # pyright: ignore[reportOptionalMemberAccess]
                     {
-                        "AeEnable": True,
-                        "AeExposureMode": controls.AeExposureModeEnum.Long,
-                        "Contrast": 5.0, # Floating point number from 0.0 to 32.0
-                        "Brightness": 0.3, # Floating point number from -1.0 to 1.0
-                        "AnalogueGain": 4.0,
+                        "AwbEnable":        self._config['cam_expnight-irl']['AwbEnable'], 
+                        "AwbMode":          eval(f"controls.AwbModeEnum.{self._config['cam_expnight-irl']['AwbMode']}"),
+                        "AeEnable":         self._config['cam_expnight-irl']['AeEnable'],
+                        "AeExposureMode":   eval(f"controls.AwbModeEnum.{self._config['cam_expnight-irl']['AeExposureMode']}"),
+                        "ExposureValue":    self._config['cam_expnight-irl']['ExposureValue'],
+                        "Contrast":         self._config['cam_expnight-irl']['Conrast'],
+                        "Brightness":       self._config['cam_expnight-irl']['Brightness'],
+                        #"AnalogueGain": 4.0,
                     })
                 else:
                     self._camera.set_controls( # pyright: ignore[reportOptionalMemberAccess]
                     {
-                        "AeEnable": True,
-                        "AeExposureMode": controls.AeExposureModeEnum.Normal,
-                        "ExposureTime": 300000, #usec
-                        "Contrast": 5.0, # Floating point number from 0.0 to 32.0
-                        "Brightness": 0.4, # Floating point number from -1.0 to 1.0
-                        "AnalogueGain": 8.0,
+                        "AwbEnable":        self._config['cam_expnight']['AwbEnable'], 
+                        "AwbMode":          eval(f"controls.AwbModeEnum.{self._config['cam_expnight']['AwbMode']}"),
+                        "AeEnable":         self._config['cam_expnight']['AeEnable'],
+                        "AeExposureMode":   eval(f"controls.AwbModeEnum.{self._config['cam_expnight']['AeExposureMode']}"),
+                        "ExposureValue":    self._config['cam_expnight']['ExposureValue'],
+                        "ExposureTime":     self._config['cam_expnight']['ExposoreTime'],
+                        "Contrast":         self._config['cam_expnight']['Conrast'],
+                        "Brightness":       self._config['cam_expnight']['Brightness'],
+                        #"AnalogueGain": 8.0,
                     })
   
-        elif RPICAM:
-            # Note: V1 API is deprecated since 2022!
-            # https://picamera.readthedocs.io/en/release-1.13/api_camera.html
-            # The 'daylight' default settings
-            self._camera.awb_mode = 'auto'
-            self._camera.iso = 0
-            self._camera.contrast = 30
-            self._camera.brightness = 50
-            self._camera.exposure_mode = 'auto'
-            time.sleep(2)
-            self.bDarkExp = False
-        
-            # The 'dark' mode settings
-            if self._isDark():
-                self.bDarkExp = True
-                if self._config['use_irl']:
-                    self._camera.awb_mode = 'auto'
-                    self._camera.iso = 0
-                    self._camera.contrast = 50 #-100 ... 0 ... 100
-                    self._camera.brightness = 70 #0 ... 50 ... 100
-                    self._camera.exposure_mode = 'auto'
-                    time.sleep(2)
-                else:
-                    self._camera.awb_mode = 'auto'
-                    self._camera.iso = 800
-                    self._camera.contrast = 30
-                    self._camera.brightness = 70
-                    #self._camera.framerate = Fraction(1, 2)
-                    self._camera.exposure_mode = 'off'
-                    #self._camera.meter_mode = 'spot'
-                    self._camera.shutter_speed = 5000000
-                    time.sleep(5)
+
+        # The following code is for picamera V1 API
+        # and is kept for reference only, it is not to be used anymore
+
+        # # The 'daylight' default settings
+        # self._camera.awb_mode = 'auto'
+        # self._camera.iso = 0
+        # self._camera.contrast = 30
+        # self._camera.brightness = 50
+        # self._camera.exposure_mode = 'auto'
+        # time.sleep(2)
+        # self.bDarkExp = False
+    
+        # # The 'dark' mode settings
+        # if self._isDark():
+        #     self.bDarkExp = True
+        #     if self._config['use_irl']:
+        #         self._camera.awb_mode = 'auto'
+        #         self._camera.iso = 0
+        #         self._camera.contrast = 50 #-100 ... 0 ... 100
+        #         self._camera.brightness = 70 #0 ... 50 ... 100
+        #         self._camera.exposure_mode = 'auto'
+        #         time.sleep(2)
+        #     else:
+        #         self._camera.awb_mode = 'auto'
+        #         self._camera.iso = 800
+        #         self._camera.contrast = 30
+        #         self._camera.brightness = 70
+        #         #self._camera.framerate = Fraction(1, 2)
+        #         self._camera.exposure_mode = 'off'
+        #         #self._camera.meter_mode = 'spot'
+        #         self._camera.shutter_speed = 5000000
+        #         time.sleep(5)
                 
     
 
@@ -831,29 +731,45 @@ class rpiCamClass(rpiBaseClass):
         Determine if current time is in the "dark" period.
         '''
 
-        # Check the current time against the (auto or manual) 'dark' time period
-        if (self._config['start_dark_hour'] < 0 ) or (self._config['stop_dark_hour'] < 0):
-            self._loc.date = datetime.now(timezone.utc)
-            self._tdark_start = self._loc.previous_setting(self._sun)
-            self._tdark_stop = self._loc.previous_rising(self._sun)
+        # Check the current time against the (auto or manual/fixed) 'dark' time period
+        if (self._config['start_dark_hour'] is None ) or (self._config['stop_dark_hour'] is None):
+            # Determine current 'dark' time period using ephem
+            self._loc.date = time.strftime('%Y/%m/%d %H:%M:%S',time.localtime())
+            _ps = list(self._loc.previous_setting(self._sun).tuple())
+            # Set seconds to zero and extend to 9 elements
+            _ps.pop()  
+            _ps.extend([0,0,0,time.localtime().tm_isdst])
+            _nr = list(self._loc.next_rising(self._sun).tuple())
+            _nr.pop() 
+            _nr.extend([0,0,0,time.localtime().tm_isdst])
+            # Convert to local time, considering timezone offset
+            _tdark_start = time.localtime(time.mktime(tuple(_ps)) - time.timezone)
+            _tdark_stop = time.localtime(time.mktime(tuple(_nr)) - time.timezone)
+            # Extract hour and minute values
+            _start_dark_hour = _tdark_start.tm_hour
+            _start_dark_min  = _tdark_start.tm_min
+            _stop_dark_hour  = _tdark_stop.tm_hour
+            _stop_dark_min   = _tdark_stop.tm_min
 
-            if (self._tdark_start > self._tdark_stop):
-                return True
-            else:
-                return False
         else:
-            self._tlocal = time.localtime()
-            self._tdark_start = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
-                        self._config['start_dark_hour'], self._config['start_dark_min'], 0,
-                        self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
-            self._tdark_stop = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
-                        self._config['stop_dark_hour'], self._config['stop_dark_min'], 0,
-                        self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
+            # Manual/fixed 'dark' time period was configured
+            _start_dark_hour = self._config['start_dark_hour']
+            _start_dark_min  = self._config['start_dark_min']
+            _stop_dark_hour  = self._config['stop_dark_hour']
+            _stop_dark_min   = self._config['stop_dark_min']
 
-            if (time.time() >= self._tdark_start) or (time.time() <= self._tdark_stop):
-                return True
-            else:
-                return False
+        self._tlocal = time.localtime()
+        self._tdark_start = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
+                    _start_dark_hour, _start_dark_min, 0,
+                    self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
+        self._tdark_stop = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,
+                    _stop_dark_hour, _stop_dark_min, 0,
+                    self._tlocal.tm_wday, self._tlocal.tm_yday, self._tlocal.tm_isdst ))
+
+        if (time.time() >= self._tdark_start) or (time.time() <= self._tdark_stop):
+            return True
+        else:
+            return False
 
 
     def _switchIR(self, bONOFF):

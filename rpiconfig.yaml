@@ -10,6 +10,7 @@ interval_sec: [15, 30, 15]
 ---
 #camConfig:
 cam_id: 'CAM1'
+lat_lon: ['57:04:39.4', '09:54:42.6']
 cam_type: 'V1'
 cam_sensor: 'daylight'
 rec_type: 'still'
@@ -17,17 +18,17 @@ image_dir: './webcam'
 image_rot: 180
 image_res: [1024, 768]
 jpg_qual: 85
+use_dynctrl: yes
 use_ovltxt: yes
 use_irl: yes
 bcm_irlport: 19
 use_pir: no
 bcm_pirport: 16
 pirtd_sec: 15
-lat_lon: ['57:04:39.4', '09:54:42.6']
 # Camera controls. See Apendix C in Picamera2 API documentation. 
 cam_expday:
   AwbEnable: True  # Turn AWB algorithm on and off
-  AwbMode:  'Auto' # controls.AwbModeEnum.Auto, Tungsten, Fluorescent, Incandescent, Indoor, Daylight, Cloudy
+  AwbMode:  'Daylight' # controls.AwbModeEnum.Auto, Tungsten, Fluorescent, Incandescent, Indoor, Daylight, Cloudy
   AeEnable: True   # Turn AEC/AGC algorithm on and off
   AeExposureMode: 'Normal' # controls.AeExposureModeEnum.Normal, Short, Long
   ExposureValue: 0 # EV compensation value. Floating point number between -8.0 and 8.0
@@ -36,10 +37,11 @@ cam_expday:
 cam_expnight-irl:
   AwbEnable: True  # Turn AWB algorithm on and off
   AwbMode:  'Auto' # controls.AwbModeEnum.Auto, Tungsten, Fluorescent, Incandescent, Indoor, Daylight, Cloudy
-  AeEnable: True   # Turn AEC/AGC algorithm on and off
+  AeEnable: False   # Turn AEC/AGC algorithm on and off
   AeExposureMode: 'Normal' # controls.AeExposureModeEnum.Normal, Short, Long
   ExposureValue: 1 # EV compensation value. Floating point number between -8.0 and 8.0
-  Contrast:  5.0   # Floating point number from 0.0, 1.0 to 32.0
+  ExposureTime: 400000 # Exposure time for the sensor to use, measured in microseconds
+  Contrast:  4.0   # Floating point number from 0.0, 1.0 to 32.0
   Brightness: 0.0  # Floating point number from -1.0 to 1.0
 cam_expnight:
   AwbEnable: True  # Turn AWB algorithm on and off
@@ -47,7 +49,7 @@ cam_expnight:
   AeEnable: False  # Turn AEC/AGC algorithm on and off
   AeExposureMode: 'Normal' # controls.AeExposureModeEnum.Normal, Short, Long
   ExposureValue: 0 # EV compensation value. Floating point number between -8.0 and 8.0
-  ExposureTime: 500000 # Exposure time for the sensor to use, measured in microseconds
+  ExposureTime: 1000000 # Exposure time for the sensor to use, measured in microseconds
   Contrast: 3.0    # Floating point number from 0.0, 1.0 to 32.0
   Brightness: 0.0  # Floating point number from -1.0 to 1.0
 ---

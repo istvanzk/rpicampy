@@ -372,7 +372,7 @@ class rpiCamClass(rpiBaseClass):
                 ### Check return/errors
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
 
-        except OSError as e:
+        except (OSError, TypeError) as e:
             raise rpiBaseClassError(f"{self.name}::: jobRun(): Snapshot {self.image_path} could not be created!\n{e}", ERRLEV2)
 
         except subprocess.TimeoutExpired:

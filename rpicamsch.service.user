@@ -1,5 +1,6 @@
-## systemd unit file for rpicam_sch.py service (user)
-## V2.0, 10.01.2025
+## Time-lapse with Raspberry Pi controlled camera - User service systemd unit file
+## VER 7.0 for Python 3.12+
+## Copyright (C) 2016- Istvan Z. Kovacs
 
 ## Install user service: 
 # sudo cp rpicamsch.service.user /etc/systemd/user/rpicamsch.service 

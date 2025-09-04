@@ -2,8 +2,8 @@
 
 ![Exp](https://img.shields.io/badge/Dev-Experimental-orange.svg)
 [![Lic](https://img.shields.io/badge/License-Apache2.0-green)](http://www.apache.org/licenses/LICENSE-2.0)
-![Py](https://img.shields.io/badge/Python-3.9+-green)
-![Ver](https://img.shields.io/badge/Version-6.0-blue)
+![Py](https://img.shields.io/badge/Python-3.12+-green)
+![Ver](https://img.shields.io/badge/Version-7.0-blue)
 
 ## Implementation (rpicampy)
 
@@ -23,7 +23,7 @@
 
   - When `RPICAM2` is set in the `rpicam.py` module, then the [Picamera2 API](https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf) is used.
 
-  - Example testing the installation with 'camtest.sh`
+  - Example testing the installation with [camtest.sh](./scripts/camtest.sh)
 
 - Gracefull exit is implemented for SIGINT, SIGTERM and SIGABRT.
 
@@ -39,6 +39,8 @@ When running, all messages are logged to a (rotated) `rpicam.log` file.
 
 #### rpiconfig.yaml:	The configuration file with parameters for the functionalities described below.
 
+See comments in the [rpiconfig.yaml](./rpiconfig.yaml) file for all available configuration parameters.
+
 #### rpicamsch.service.user: systemd user service unit, to be copied to /etc/systemd/user/rpicamsch.service
 
 #### rpicam:	Manage (pi)camera and save images locally.
@@ -49,19 +51,18 @@ When running, all messages are logged to a (rotated) `rpicam.log` file.
 
 - USB web camera using fswebcam utility. 
 
-- Implement infra-red (IR) or visible light (VL) reflector control via GPIO (configured with `use_irl` and `bcm_irlport` parameters)
+- Implement infra-red (IR) or visible light (VL) reflector control via GPIO (configured with `use_irl` and `bcm_irlport` parameters in the configuration file under the `camConfig` section)
 
-- Implement PIR sensor as external trigger for the camera job, which replaces the job scheduler (configured with `use_pir` and `bcm_pirport` parameters)
+- Implement PIR sensor as external trigger via GPIO for the camera job, which replaces the job scheduler (configured with `use_pir` and `bcm_pirport` parameters in the configuration file under the `camConfig` section)
 
-The image file names are:  '%d%m%y-%H%M%S-CAMID.jpg', where CAMID is the image/camera identification string `image_id` specified in the configuration file.
-The images are saved locally in a sub-folder under the root `image_dir` folder specified in the cofiguration file. The sub-folder name is the current date `%d%m%y`.
-When using picamera module, the images are automatically rotated with the `image_rot` angle (degrees) specified in the configuration file. 
+The captured images are stored locally in a sub-folder with the current date 'DDMMY' as name, under the `image_dir` folder, specified in the configuration file under the `dirConfig` section.
+The captured image local file names are 'DDMMYY-HHMMSS-CAMID.jpg', where CAMID is the camera identification string `cam_id`, specified in the configuration file under the `camConfig` section.
 
 The rpicam module implements a 'dark' time long exposure time or an IR/VL reflector ON/OFF switch. 
-The 'dark' time period (start and stop) can be configured manually using the hour/min parameters set in the configuration file.
+The 'dark' time period (start and stop) can be configured manually using the hour/min parameters set in the configuration file under the `timerConfig` section.
 Alternatively, the 'dark' time period can be configured automatically using the [PyEphem](http://rhodesmill.org/pyephem/) 
-and the location parameters (latitude and longitude) set in the configuration file.
-During the 'dark' time period the IR light is controlled via the GPIO BCM port number `bcm_irport` when `use_ir=1` set in the configuration file.
+and the location parameters (latitude and longitude) `lat_lon` set in the configuration file under the `camConfig` section.
+During the 'dark' time period the IR light is controlled via the GPIO BCM port number `bcm_irport` when `use_ir=1` set in the configuration file under the `camConfig` section.
 
 Note: GPIO access is via the [rpi.gpio compatibility package](https://rpi-lgpio.readthedocs.io/en/latest/index.html) on Linux kernels which support [/dev/gpiochipX](https://www.thegoodpenguin.co.uk/blog/stop-using-sys-class-gpio-its-deprecated/).
 
@@ -69,7 +70,11 @@ Note: GPIO access is via the [rpi.gpio compatibility package](https://rpi-lgpio.
 
 #### rpimgdb:	Manage images in a Dropbox remote directory (API V2).
 
-The images are saved remotely in a sub-folder under the root `image_dir` folder specified in the cofiguration file. The sub-folder name is the current date `%d%m%y`.
+The current/last captured image is always uploaded with the name `image_snap`, specified in the configuration file under the `dbConfig` section,
+under the `image_dir` folder, under the Dropbox App folder.
+The captured images are uploaded to a sub-folder with the current date 'DDMMYY' as name, under the `image_dir` folder, under the Dropbox App folder.
+The captured image upload file names are 'DDMMYY-HHMMSS-CAMID.jpg', where CAMID is the camera identification string `cam_id`, specified in the configuration file under the `camConfig` section.
+All uploaded images file names are stored in in a local `upldlog.json` file when the configured capture sequence ends or at the end of each day.
 
 #### rpibase:	Base class for rpicam, rpimgdir and rpimgdb (see above).
 
@@ -121,8 +126,9 @@ Installed with `sudo apt install --upgrade <package>`
 Run full system update with `sudo apt-get update && sudo apt-get full-upgrade -y`
 
 ### Helper scripts
+(in [scripts](.scripts) folder)
 
-#### dbauth: Perform Dropbox authentication, token refresh, and save to local file of the OAuth2 tokens.
+#### dbauth: Perform Dropbox authentication, token refresh, and saving to local file the OAuth2 tokens.
 
 #### camdet: Detect camera with Picamera2 API.
 

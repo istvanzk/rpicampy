@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Time-lapse with Rasberry Pi controlled camera - Main method
-VER 6.0 for Python 3.9+
-Copyright (C) 2016-2025 Istvan Z. Kovacs
+Time-lapse with Raspberry Pi controlled camera - Main method
+VER 7.0 for Python 3.12+
+Copyright (C) 2016- Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

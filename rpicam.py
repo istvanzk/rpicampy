@@ -32,6 +32,7 @@ import ephem
 import math
 import json
 from threading import Event
+from typing import Any, Dict, List, Tuple
 
 ### The rpi(cam)py modules
 import rpififo
@@ -566,12 +567,15 @@ class rpiCamClass(rpiBaseClass):
         #self.imageFIFO.releaseSemaphore()
 
         # Ephem parameters
-        # The ephem.localtime() function converts a PyEphem date into a Python datetime object
-        # expressed in your local time zone.
+        # The ephem.localtime() function converts a PyEphem date into a Python datetime object and locatimelizes it,
+        # so that the resulting datetime object can be used with other Python libraries that expect dates and times
+        # to be in local time. Note that the ephem.now() function returns the current date and time in UTC, so
+        # if you want to use local time, you need to convert it using ephem.localtime().
+        # The observer's latitude and longitude are specified
         # A negative value of horizon can be used when an observer is high off of the ground.
         self._sun = ephem.Sun()
         self._loc = ephem.Observer()
-        self._loc.date = datetime.now()
+        self._loc.date = ephem.now()
         self._loc.lat = self._config['lat_lon'][0]
         self._loc.lon = self._config['lat_lon'][1]
         self._loc.pressure = 0
@@ -759,6 +763,20 @@ class rpiCamClass(rpiBaseClass):
         except (json.JSONDecodeError, FileNotFoundError, ValueError) as e:
             rpiLogger.error(f"Error loading dynamic camera controls configuration file {self._dynconfig_path}:\n{e}")
             raise rpiBaseClassError(f"{self.name}::: _load_dynconfig(): Error loading dynamic camera controls configuration file {self._dynconfig_path}!", ERRCRIT)
+    
+    def _save_dynconfig(self):
+        """ 
+        Save the dynamic camera configuration JSON file. 
+        """
+        try:
+            with open(self._dynconfig_path, "w") as f:
+                json.dump(self._dynconfig_exp, f, indent=2)
+            self._dynconfig_lastmodified = os.path.getmtime(self._dynconfig_path)
+            rpiLogger.info(f"Dynamic camera controls configuration file {self._dynconfig_path} saved (last modified {time.ctime(self._dynconfig_lastmodified)}).")
+
+        except (FileNotFoundError, ValueError) as e:
+            rpiLogger.error(f"Error saving dynamic camera controls configuration file {self._dynconfig_path}:\n{e}")
+            raise rpiBaseClassError(f"{self.name}::: _save_dynconfig(): Error saving dynamic camera controls configuration file {self._dynconfig_path}!", ERRCRIT)  
         
     def _get_dynconfig(self, exp_cfg:str = ''):
         """ 
@@ -797,22 +815,28 @@ class rpiCamClass(rpiBaseClass):
         # Check the current time against the (auto or manual/fixed) 'dark' time period
         if (self._config['start_dark_hour'] is None ) or (self._config['stop_dark_hour'] is None):
             # Determine current 'dark' time period using ephem
-            self._loc.date = time.strftime('%Y/%m/%d %H:%M:%S',time.localtime())
-            _ps = list(self._loc.previous_setting(self._sun).tuple())
-            # Set seconds to zero and extend to 9 elements
-            _ps.pop()  
-            _ps.extend([0,0,0,time.localtime().tm_isdst])
-            _nr = list(self._loc.next_rising(self._sun).tuple())
-            _nr.pop() 
-            _nr.extend([0,0,0,time.localtime().tm_isdst])
-            # Convert to local time, considering timezone offset
-            _tdark_start = time.localtime(time.mktime(tuple(_ps)) - time.timezone)
-            _tdark_stop = time.localtime(time.mktime(tuple(_nr)) - time.timezone)
+            # self._loc.date = time.strftime('%Y/%m/%d %H:%M:%S',time.localtime())
+            # _ps = list(self._loc.previous_setting(self._sun).tuple())
+            # # Set seconds to zero and extend to 9 elements
+            # _ps.pop()  
+            # _ps.extend([0,0,0,time.localtime().tm_isdst])
+            # _nr = list(self._loc.next_rising(self._sun).tuple())
+            # _nr.pop() 
+            # _nr.extend([0,0,0,time.localtime().tm_isdst])
+            # # Convert to local time, considering timezone offset
+            # _tdark_start = time.localtime(time.mktime(tuple(_ps)) - time.timezone)
+            # _tdark_stop = time.localtime(time.mktime(tuple(_nr)) - time.timezone)
+            
+            # The ephem.localtime() function converts a PyEphem date into a Python datetime object and locatimelizes it
+            self._loc.date = ephem.now()
+            _ps = ephem.localtime(self._loc.previous_setting(self._sun))
+            _nr = ephem.localtime(self._loc.next_rising(self._sun))
+
             # Extract hour and minute values
-            _start_dark_hour = _tdark_start.tm_hour
-            _start_dark_min  = _tdark_start.tm_min
-            _stop_dark_hour  = _tdark_stop.tm_hour
-            _stop_dark_min   = _tdark_stop.tm_min
+            _start_dark_hour = _ps.hour
+            _start_dark_min  = _ps.minute
+            _stop_dark_hour  = _nr.hour
+            _stop_dark_min   = _nr.minute
 
         else:
             # Manual/fixed 'dark' time period was configured

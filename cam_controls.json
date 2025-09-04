@@ -1,0 +1,31 @@
+{
+  "cam_expday": {
+    "AwbEnable": true,
+    "AwbMode": "Daylight",
+    "AeEnable": true,
+    "AeExposureMode": "Normal",
+    "ExposureValue": 0,
+    "Contrast": 1.0,
+    "Brightness": 0.0
+  },
+  "cam_expnight-irl": {
+    "AwbEnable": true,
+    "AwbMode": "Auto",
+    "AeEnable": false,
+    "AeExposureMode": "Normal",
+    "ExposureValue": 1,
+    "ExposureTime": 400000,
+    "Contrast": 4.0,
+    "Brightness": 0.0
+  },
+  "cam_expnight": {
+    "AwbEnable": false,
+    "AwbMode": "Auto",
+    "AeEnable": false,
+    "AeExposureMode": "Normal",
+    "ExposureValue": 0,
+    "ExposureTime": 1000000,
+    "Contrast": 3.0,
+    "Brightness": 0.0
+  }
+}

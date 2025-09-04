@@ -738,14 +738,14 @@ class rpiCamClass(rpiBaseClass):
         """ 
         Set the camera controls parameter _c to value _v
         where _c and _v are the keys and values in the self._config[exp_cfg] dict.
-        Only valid keys exp_cfg listed in self._valid_expkeys are considered.
+        Only valid exp_cfg keys listed in self._valid_expkeys are considered.
         """
         if exp_cfg in self._valid_expkeys:
             for _c, _v in self._config[exp_cfg].items():
                 if isinstance(_v, bool) or isinstance(_v, float) or isinstance(_v, int):
-                    self._camera.set_controls[_c] = _v
+                    self._camera.set_controls({_c: _v})
                 elif isinstance(_v, str) and _c in ['AwbMode', 'AeMode']:
-                    self._camera.set_controls[_c] = eval(f"controls.{_c}Enum.{_v}"),
+                    self._camera.set_controls({_c: eval(f"controls.{_c}Enum.{_v}")})
 
     def _load_dynconfig(self):
         """ 

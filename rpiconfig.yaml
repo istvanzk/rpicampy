@@ -18,14 +18,18 @@ image_dir: './webcam'
 image_rot: 180
 image_res: [1024, 768]
 jpg_qual: 85
-use_dynctrl: yes
 use_ovltxt: yes
 use_irl: yes
 bcm_irlport: 19
 use_pir: no
 bcm_pirport: 16
 pirtd_sec: 15
+# If use_dynctrl is yes, the camera controls in cam_expday, cam_expnight-irl and cam_expnight
+# for each image are read from cam_controls.json file and applied based on time of day and IRL usage status.
+use_dynctrl: yes
 # Camera controls. See Apendix C in Picamera2 API documentation. 
+# The control groups are selected in the code based on time of day and IRL usage status.
+# The parameters under each group are applied in the order listed here!
 cam_expday:
   AwbEnable: True  # Turn AWB algorithm on and off
   AwbMode:  'Daylight' # controls.AwbModeEnum.Auto, Tungsten, Fluorescent, Incandescent, Indoor, Daylight, Cloudy
@@ -49,7 +53,7 @@ cam_expnight:
   AeEnable: False  # Turn AEC/AGC algorithm on and off
   AeExposureMode: 'Normal' # controls.AeExposureModeEnum.Normal, Short, Long
   ExposureValue: 0 # EV compensation value. Floating point number between -8.0 and 8.0
-  ExposureTime: 1000000 # Exposure time for the sensor to use, measured in microseconds
+  ExposureTime: 10000000 # Exposure time for the sensor to use, measured in microseconds
   Contrast: 3.0    # Floating point number from 0.0, 1.0 to 32.0
   Brightness: 0.0  # Floating point number from -1.0 to 1.0
 ---

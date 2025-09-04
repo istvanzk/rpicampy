@@ -220,6 +220,7 @@ class rpiCamClass(rpiBaseClass):
 
 
         ### Take a new snapshot and save the image locally
+        self._camerrors = ''
         try:
             ### Switch ON/OFF IR
             if (not FAKESNAP) and self._config['use_irl']:
@@ -377,7 +378,6 @@ class rpiCamClass(rpiBaseClass):
         except subprocess.TimeoutExpired:
             rpiLogger.warning(f"{self.name}::: jobRun(): Libcamera-still timeout!")
             self._grab_cam.kill()
-            self._camoutput, self._camerrors = self._grab_cam.communicate()
 
         finally:
 
@@ -395,7 +395,8 @@ class rpiCamClass(rpiBaseClass):
             else:
                 rpiLogger.warning(f"{self.name}::: jobRun(): Snapshot NOT saved: {self.image_name:s}!")
                 rpiLogger.warning(f"{self.name}::: jobRun(): List of args: {self.cmd_str}")
-                rpiLogger.debug(f"{self.name}::: jobRun(): Error was: {self._camerrors.decode()}")
+                if self._camerrors:
+                    rpiLogger.debug(f"{self.name}::: jobRun(): Error was: {self._camerrors.decode()}")
 
             ### Info about the FIFO buffer
             if self.crtlenFIFO > 0:
@@ -678,16 +679,14 @@ class rpiCamClass(rpiBaseClass):
                 if self._config['use_dynctrl']:
                     self._get_dynconfig('cam_expnight-irl')
 
-                for _c, _v in self._config['cam_expnight-irl']:
-                    self._set_controls(_c, _v)
+                self._set_controls('cam_expnight-irl')
 
             else:
 
                 if self._config['use_dynctrl']:
                     self._get_dynconfig('cam_expnight')
 
-                for _c, _v in self._config['cam_expnight']:
-                    self._set_controls(_c, _v)
+                self._set_controls('cam_expnight')
 
             self.bDarkExp = True
 
@@ -697,8 +696,7 @@ class rpiCamClass(rpiBaseClass):
             if self._config['use_dynctrl']:
                 self._get_dynconfig('cam_expday')
 
-            for _c, _v in self._config['cam_expday']:
-                self._set_controls(_c, _v)
+            self._set_controls('cam_expday')
 
             self.bDarkExp = False
 
@@ -736,12 +734,18 @@ class rpiCamClass(rpiBaseClass):
         #         self._camera.shutter_speed = 5000000
         #         time.sleep(5)
                 
-    def _set_controls(self, _c: str, _v: Any):
-        """ Set the camera controls parameter _c to value _v """
-        if isinstance(_v, bool) or isinstance(_v, float) or isinstance(_v, int):
-            self._camera.set_controls[_c] = _v
-        elif isinstance(_v, str) and _c in ['AwbMode', 'AeMode']:
-            self._camera.set_controls[_c] = eval(f"controls.{_c}Enum.{_v}"),
+    def _set_controls(self, exp_cfg:str = ''):
+        """ 
+        Set the camera controls parameter _c to value _v
+        where _c and _v are the keys and values in the self._config[exp_cfg] dict.
+        Only valid keys exp_cfg listed in self._valid_expkeys are considered.
+        """
+        if exp_cfg in self._valid_expkeys:
+            for _c, _v in self._config[exp_cfg].items():
+                if isinstance(_v, bool) or isinstance(_v, float) or isinstance(_v, int):
+                    self._camera.set_controls[_c] = _v
+                elif isinstance(_v, str) and _c in ['AwbMode', 'AeMode']:
+                    self._camera.set_controls[_c] = eval(f"controls.{_c}Enum.{_v}"),
 
     def _load_dynconfig(self):
         """ 

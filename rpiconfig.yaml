@@ -1,20 +1,50 @@
-# RPICAM Configurations 
-#timerConfig:
+# Time-lapse with Raspberry Pi controlled camera - Configuration file
+# VER 7.0 for Python 3.12+
+# Copyright (C) 2016- Istvan Z. Kovacs
+#
+# The configuration file is in YAML format and contains five 'documents' separated by '---'.
+# Each document contains a section of the configuration parameters as described below.
+# The configuration file is read in rpiconfig.py and the parameters are stored in dictionaries:
+# mainConfig, timerConfig, camConfig, dirConfig, dbxConfig and rcConfig.
+# The name of this configuration file is set in rpiconfig.py in the YAMLCFG_FILE variable.
+# See the comments below for description of each parameter.
+
+# Main configuration parameters.
+# Loaded into mainConfig.
+
+# All internet use (Dropbox and ThingSpeak)
+INTERNETUSE:  yes
+# Local USB storage (instead of SD card) - not implemented yet!
+LOCUSBUSE:    no
+
+---
+# Date period configuration. 
+# Loaded into timerConfig.
+
+# The date period for activating the camera. The dates are in YYYY-MM-DD format.
 start_date: '2025-01-01'
 stop_date:  '2025-12-31'
+# Daily time periods configuration. The times are in HH:MM:SS format.
 start_times: ['00:00:00', '08:00:00', '16:00:00']
 stop_times:  ['07:59:00', '15:59:00', '23:59:00']
-start_dark_time: 2
-stop_dark_time: 0
+# Dark time start and stop times indeces, indicating times from the start_times and stop_times.
+# If any of them is set -1 and if lat_lon is configured in the camConfig section below,
+# the dark time period is auto-determined with pyephem based on the lat & lon camera location,
+# else dark time period is not used.
+start_dark_time: -1
+stop_dark_time: -1
+# Camera activation interval configuration in seconds for each time period above.
 interval_sec: [15, 30, 15]
+
 ---
-#camConfig:
+# Camera configurations.
+# Loaded into camConfig.
+
 cam_id: 'CAM1'
 lat_lon: ['57:04:39.4', '09:54:42.6']
 cam_type: 'V1'
 cam_sensor: 'daylight'
 rec_type: 'still'
-image_dir: './webcam'
 image_rot: 180
 image_res: [1024, 768]
 jpg_qual: 85
@@ -56,16 +86,49 @@ cam_expnight:
   ExposureTime: 10000000 # Exposure time for the sensor to use, measured in microseconds
   Contrast: 3.0    # Floating point number from 0.0, 1.0 to 32.0
   Brightness: 0.0  # Floating point number from -1.0 to 1.0
+
 ---
-#dirConfig:
+# Directory configuration for saving images locally.
+# Loaded into dirConfig.
+
+# The captured images are stored locally in a sub-folder with the current date `DDMMYY` as name, under the image_dir folder.
+image_dir: './webcam'
+# The number of images to keep in the directory (last list_size images).
 list_size: 10
+# Images list/indexing interval configuration in seconds for each time period above.
 interval_sec: [15.3, 30.3, 15.3]
+
 ---
-#dbConfig:
-image_snap: 'cam.jpg'
-interval_sec: [31.3, 61.3, 31.3]
+# Dropbox configuration for uploading images to a Dropbox App folder.
+# Loaded into dbConfig.
+
+# Requires App key and App secret from Dropbox developer account.
+# Use scripts/dbauth.py to create the token file after creating the Dropbox App.
+# If INTERNETUSE or DROPBOXUSE = False in rpiconfig.py, dropbox upload is disabled regadless of these settings.
+# Token/authentication pkl file created with dbauth.py script.
+# If token_file is empty '', dropbox upload is disabled.
 token_file: 'tokens.pkl'
+# The current/last captured image is always uploaded with the name image_snap when uploaded to Dropbox App folder.
+# The captured images are uploaded to a sub-folder with the current date `DDMMYY` as name, under the image_dir folder, under Dropbox App folder.
+# with the filename format 'DDMMYY-HHMMSS-<cam_id>.jpg' (cam_id from camConfig section above).
+image_snap: 'cam.jpg'
+image_dir: './webcam'
+# Images upload interval configuration in seconds for each time period above.
+interval_sec: [31.3, 61.3, 31.3]
+
 ---
-#rcConfig:
+# Remote controls configuration for sending info and receiving control commands.
+# Loaded into rcConfig.
+
+# The list of RC options for remote control commands.
+# For now, only 'thingspeak' (upload REST feed) and 'thingspeak-tb' (download TalkBack REST feed) are supported.
+# If rc_type is empty [], any upload and remote control is disabled.
+rc_type: ['thingspeak', 'thingspeak-tb'] 
+# Token/authentication txt file for 'thingspeak' rc_type only
+# If rc_type is not 'thingspeak' or 'thingspeak-tb', this value is ignored.
+# If token_file is empty '', any upload and remote control is disabled.
+token_file: '' 
+# Intervals in seconds for checking new remote control commands when 'thingspeak-tb' rc_type is used.
+# first value is for normal (background) operation, 
+# second value is for fast checking mode, while RC mode is activated.
 interval_sec: [150, 30]
-token_file: ''

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
     Time-lapse with Rasberry Pi controlled camera
-    Copyright (C) 2017 Istvan Z. Kovacs
+    Copyright (C) 2016- Istvan Z. Kovacs
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,32 +33,36 @@ __all__ = ('HOST_NAME', 'timerConfig', 'camConfig', 'dirConfig', 'dbxConfig',
             'TSPKFIELDNAMES', 'DROPBOXUSE', 'LOCUSBUSE', 'SYSTEMDUSE', 'WATCHDOG_USEC',
             'rpigexit');
 
-### Custom configuration START
-
 # Configuration file
 YAMLCFG_FILE = 'rpiconfig.yaml'
 
 # RPi Job names
 RPIJOBNAMES = {'timer':'TIMERJob', 'cam':'CAMJob', 'dir':'DIRJob', 'dbx':'DBXJob'}
 
+# SystemD use
+# Requires the python-systemd module installed.
+# When SYSTEMDUSE is True, the program will send READY=1, STATUS=, WATCHDOG=1 and STOPPING=1 messages to the systemd daemon.
+# The WATCHDOG=1 message is sent only when the systemd watchdog is enabled (WATCHDOG_USEC environment variable is set).
+# If set to False, the program will not use any systemd features.
+SYSTEMDUSE  = True
+
+
+
+
 # Internet connection
 INTERNETUSE = True
 
 # Dropbox storage
+# Requires internet connection and token_file in the configuration file.
 DROPBOXUSE  = True
 
 # ThingSpeak API and TalkBack APP
+# Requires internet connection and rc_type 'thingspeak' in the configuration file.
 TSPKFEEDUSE = False
 TSPKTBUSE   = False
 
 # Local USB storage
 LOCUSBUSE   = False
-
-# SystemD use
-SYSTEMDUSE  = True
-
-### Custom configuration END
-
 
 
 
@@ -72,6 +76,7 @@ if not PY39:
 HOST_NAME = subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8')
 
 ### Gracefull exit handler
+# The program will also handle SIGINT, SIGTERM and SIGABRT signals for gracefull exit.
 # http://stackoverflow.com/questions/18499497/how-to-process-sigterm-signal-gracefully
 class GracefulKiller:
     """ Gracefull exit function """
@@ -162,12 +167,19 @@ else:
     rpiLogger.info("SystemD features not used.")
 
 
-### Read the configuration parameters
+### Read the configuration parameters from the YAML file
 try:
     import yaml
 
+    # The configuration file has 5 sections, separated by ---
     with open(YAMLCFG_FILE, 'r') as stream:
-        timerConfigYaml, camConfig, dirConfig, dbxConfig, _ = list(yaml.load_all(stream, Loader=yaml.SafeLoader))
+        mainConfigYaml, timerConfigYaml, camConfig, dirConfig, dbxConfig, rcConfig = list(yaml.load_all(stream, Loader=yaml.SafeLoader))
+
+    # Extract main configuration parameters from mainConfigYaml
+    if 'INTERNETUSE' in mainConfigYaml:
+        INTERNETUSE = bool(mainConfigYaml['INTERNETUSE'])
+    if 'LOCUSBUSE' in mainConfigYaml:
+        LOCUSBUSE = bool(mainConfigYaml['LOCUSBUSE'])
 
     # Extract date and time period values from timerConfigYaml
     timerConfig = {}
@@ -241,9 +253,9 @@ try:
         rpiLogger.warning("Configuration file error: number of dbxConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))
         dbxConfig['interval_sec'] = dbxConfig['interval_sec'][:len(timerConfigYaml['start_times'])]
 
+    # Dupllicate some configurations to camConfig
     camConfig['list_size'] = dirConfig['list_size']
-    dbxConfig['image_dir'] = camConfig['image_dir']
-    dirConfig['image_dir'] = camConfig['image_dir']
+    camConfig['image_dir'] = dirConfig['image_dir']
 
     # PyEphem needs '57:04:39.4' format!!!
     #camConfig['lat_lon'][0] = _geo2dec(camConfig['lat_lon'][0])
@@ -255,15 +267,48 @@ try:
     timerConfig['stateval']= 0
     timerConfig['status']  = ''
 
-    del timerConfigYaml, _time, _ymd, _hms, _tper
+    # Final checks
+    if INTERNETUSE:
+        # Check Drobox configuration
+        DROPBOXUSE = True
+        if 'token_file' not in dbxConfig or dbxConfig['token_file'] == '' or \
+            'interval_sec' not in dbxConfig or len(dbxConfig['interval_sec']) == 0:
+            DROPBOXUSE = False
+            rpiLogger.info("Dropbox not used.")
+
+        # Check ThingSpeak configuration
+        TSPKFEEDUSE = True
+        TSPKTBUSE   = True
+        if 'rc_type' not in rcConfig or not rcConfig['rc_type'] or \
+            'token_file' not in rcConfig or rcConfig['token_file'] == '' or \
+            'interval_sec' not in rcConfig or len(rcConfig['interval_sec']) == 0:
+            TSPKFEEDUSE = False
+            TSPKTBUSE   = False
+            rpiLogger.info("ThingSpeak feed and Talkback not used.")
+        elif 'thingspeak' not in rcConfig['rc_type'].lower():
+            TSPKFEEDUSE = False
+            rpiLogger.info("ThingSpeak feed not used.") 
+        elif 'thingspeak-tb' not in rcConfig['rc_type'].lower():
+            TSPKTBUSE   = False
+            rpiLogger.info("ThingSpeak TalkBack not used.") 
+
+    else:
+        DROPBOXUSE  = False
+        TSPKFEEDUSE = False
+        TSPKTBUSE   = False
+        rpiLogger.info("Internet connection not used. Dropbox and ThingSpeak disabled.")
+
+    del mainConfigYaml, timerConfigYaml, _time, _ymd, _hms, _tper
     rpiLogger.info("Configuration file read.")
 
 except yaml.YAMLError as e:
-    rpiLogger.error("Error in configuration file:" % e)
+    rpiLogger.error("Error in configuration file:\n" % e)
     os._exit(1)
-
+except KeyError as e:
+    rpiLogger.error("Configuration file error: key %s not found!\n" % e)
+    os._exit(1)
 except ImportError as e:
-    rpiLogger.error("YAML module could not be loaded!")
+    rpiLogger.error("YAML module could not be loaded!\n" % e)
     os._exit(1)
 
 # Display config info
@@ -273,61 +318,44 @@ rpiLogger.debug("dirConfig: %s" % dirConfig)
 rpiLogger.debug("dbxConfig: %s" % dbxConfig)
 
 
-### Dropbox API use
-if DROPBOXUSE :
-    if not INTERNETUSE or \
-        dbxConfig['token_file'] is None or \
-        dbxConfig['token_file'] == '':
-        DROPBOXUSE = False
-else:
-    rpiLogger.info("Dropbox not used.")
-
-
 ### ThingSpeak API and TalkBack APP use
 TSPKFIELDNAMES = None
 RESTfeed       = None
 RESTTalkB      = None
 if TSPKFEEDUSE or TSPKTBUSE:
-    if not INTERNETUSE or \
-        timerConfig['token_file'] is None or \
-        timerConfig['token_file'] == '':
-        TSPKFEEDUSE = False
-        TSPKTBUSE   = False
+    import thingspk
+
+    if TSPKFEEDUSE:
+        RESTfeed = thingspk.ThingSpeakAPIClient(rcConfig['token_file'])
+
+        if RESTfeed is not None:
+            TSPKFIELDNAMES = {}
+            for indx, item in enumerate(RPIJOBNAMES, start=1):
+                TSPKFIELDNAMES[item] = 'field%d' % indx
+
+            for tsf in TSPKFIELDNAMES.values():
+                RESTfeed.setfield(tsf, 0)
+
+            RESTfeed.setfield('status', '---')
+            rpiLogger.info("ThingSpeak Channel ID %d initialized. Fields: %s" % (RESTfeed.channel_id, TSPKFIELDNAMES))
+
+        else:
+            TSPKFEEDUSE = False
+            rpiLogger.warning("ThingSpeak API could not be initialized.")
 
     else:
-        import thingspk
+        rpiLogger.info("ThingSpeak API not used.")
 
-        if TSPKFEEDUSE:
-            RESTfeed = thingspk.ThingSpeakAPIClient(timerConfig['token_file'])
-
-            if RESTfeed is not None:
-                TSPKFIELDNAMES = {}
-                for indx, item in enumerate(RPIJOBNAMES, start=1):
-                    TSPKFIELDNAMES[item] = 'field%d' % indx
-
-                for tsf in TSPKFIELDNAMES.values():
-                    RESTfeed.setfield(tsf, 0)
-
-                RESTfeed.setfield('status', '---')
-                rpiLogger.info("ThingSpeak Channel ID %d initialized. Fields: %s" % (RESTfeed.channel_id, TSPKFIELDNAMES))
-
-            else:
-                TSPKFEEDUSE = False
-                rpiLogger.warning("ThingSpeak API could not initialized.")
+    if TSPKTBUSE:
+        RESTTalkB = thingspk.ThingSpeakTBClient(rcConfig['token_file'])
+        if RESTTalkB is not None:
+            rpiLogger.info("ThingSpeak TalkBack ID %d initialized." % RESTTalkB.talkback_id)
 
         else:
-            rpiLogger.info("ThingSpeak API not used.")
+            rpiLogger.warning("ThingSpeak TalkBack could not be initialized.")
 
-        if TSPKTBUSE:
-            RESTTalkB = thingspk.ThingSpeakTBClient(timerConfig['token_file'])
-            if RESTTalkB is not None:
-                rpiLogger.info("ThingSpeak TalkBack ID %d initialized." % RESTTalkB.talkback_id)
-
-            else:
-                rpiLogger.warning("ThingSpeak TalkBack could not be initialized.")
-
-        else:
-            rpiLogger.info("ThingSpeak TalkBack APP not used.")
+    else:
+        rpiLogger.info("ThingSpeak TalkBack APP not used.")
 
 else:
     rpiLogger.info("ThingSpeak not used.")

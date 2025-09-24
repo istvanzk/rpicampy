@@ -24,6 +24,7 @@ TODOs:
 import os
 import sys
 import time
+import logging
 from datetime import datetime, timedelta
 
 #from apscheduler.schedulers.blocking import BlockingScheduler
@@ -88,7 +89,7 @@ def jobListener(event):
         eventsRPi.eventErrcountList[e_jobid] += 1
         eventsRPi.eventRuncountList[e_jobid] += 1
 
-        rpiLogger.error("rpicamsch:: The job %s crashed %d times (%s)!", e_jobid, eventsRPi.eventErrcountList[e_jobid], time.ctime(eventsRPi.eventErrtimeList[e_jobid]))
+        rpiLogger.error("rpicamsch:: jobListener - the job %s crashed %d times (%s)!", e_jobid, eventsRPi.eventErrcountList[e_jobid], time.ctime(eventsRPi.eventErrtimeList[e_jobid]))
         status_str = "%s: Crash %d" % (e_jobid, eventsRPi.eventErrcountList[e_jobid])
 
     elif e_code == EVENT_JOB_EXECUTED:
@@ -105,15 +106,15 @@ def jobListener(event):
             for jb in sch_jobs:
                 if not (jb.id == e_jobid):
                     if not jb.pending:
-                        rpiLogger.debug("rpicamsch:: Job %s (%s): %s", jb.id, jb.name, jb.next_run_time)
+                        rpiLogger.debug("rpicamsch:: jobListener - job %s (%s): %s", jb.id, jb.name, jb.next_run_time)
                         status_str = "%s: Add (%d)" % (jb.name, len(sch_jobs))
                     else:
-                        rpiLogger.debug("%rpicamsch:: Job %s (%s): waiting to be added", jb.id, jb.name)
+                        rpiLogger.debug("%rpicamsch:: jobListener - job %s (%s): waiting to be added", jb.id, jb.name)
                         status_str = "%s: Pen (%d)" % (jb.name, len(sch_jobs))
 
     elif e_code == EVENT_JOB_REMOVED:
         if len(sch_jobs) == 1:
-            rpiLogger.info("rpicamsch:: All %s jobs have been removed!", eventsRPi.event_ids.values())
+            rpiLogger.info("rpicamsch:: jobListener - all %s jobs have been removed!", eventsRPi.event_ids.values())
             eventsRPi.eventAllJobsEnd.set()
             status_str = "NoRPIJobs"
 
@@ -121,7 +122,7 @@ def jobListener(event):
             status_str = "%s: Rem (%d)" % (e_jobid, len(sch_jobs))
 
     else:
-        rpiLogger.warning("rpicamsch:: Unhandled event.code = %s", e_code)
+        rpiLogger.warning("rpicamsch:: jobListener - unhandled event.code = %s", e_code)
 
     # Update timer status message
     timerConfig['status'] = status_str
@@ -285,13 +286,15 @@ def main():
                     pass
 
                 except RuntimeError as e:
-                    eventsRPi.eventEnd.set()
-                    rpiLogger.exception("rpicamsch:: RuntimeError: %s! Exiting!", str(e))
+                    eventsRPi.eventAllJobsEnd.set()
+                    mainTimer.jobs_enabled = False
+                    rpiLogger.exception("rpicamsch:: RuntimeError: Exiting!\n%s\n", str(e))
                     raise
 
-                except:
-                    eventsRPi.eventEnd.set()
-                    rpiLogger.exception("rpicamsch:: Unhandled Exception:! Exiting!")
+                except Exception as e:
+                    eventsRPi.eventAllJobsEnd.set()
+                    mainTimer.jobs_enabled = False
+                    rpiLogger.exception("rpicamsch:: Unhandled Exception: Exiting!\n%s\n", str(e))
                     raise
 
                 finally:
@@ -340,7 +343,8 @@ def main():
     rpiLogger.debug("rpicamsch:: Image capture scheduler stopped on: %s", time.ctime(time.time()))
 
     # Shutdown logging
-    rpiLogger.shutdown()
+    rpiLogger.handlers.clear()
+    logging.shutdown()
     time.sleep( 10 )
 
 if __name__ == "__main__":

@@ -474,10 +474,6 @@ class rpiBaseClass:
         self.eventDayEnd.clear()
         self.eventEnd.clear()
 
-        ### User defined init method
-        self.initClass()
-
-
         ### Add the self._proccmd() job to the scheduler
         if self._sched is not None:
             with self._sched_lock:

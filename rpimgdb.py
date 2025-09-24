@@ -60,6 +60,9 @@ class rpiImageDbxClass(rpiBaseClass):
 
     def __init__(self, name, rpi_apscheduler, rpi_events, rpi_config, cam_rpififo):
 
+        ### Init base class
+        super().__init__(name, rpi_apscheduler, rpi_events, rpi_config)
+
         ### Get the Dbx error event
         #self._eventDbErr   = rpi_events.eventErrList["DBXJob"]
 
@@ -70,8 +73,8 @@ class rpiImageDbxClass(rpiBaseClass):
         self.imageUpldFIFO = rpififo.rpiFIFOClass([], 576)
         self.imageUpldFIFO.crtSubDir = ''
 
-        ### Init base class
-        super().__init__(name, rpi_apscheduler, rpi_events, rpi_config)
+        ### As last step, run automatically the initClass()
+        self.initClass()
 
     def __repr__(self):
         return "<%s (name=%s, rpi_apscheduler=%s, rpi_events=dict(), rpi_config=%s, dbuff_rpififo=%s)>" % (self.__class__.__name__, self.name, self._sched, self._config, self._imageFIFO)

@@ -38,6 +38,9 @@ class rpiTimerClass(rpiBaseClass):
 
     def __init__(self, name, rpi_apscheduler, rpi_events, rpi_config, rc_config, imgcam, imgdbx, imgdir):
 
+        ### Init base class
+        super().__init__(name, rpi_apscheduler, rpi_events, rpi_config)
+
         ### Get events defined (for all the other jobs)
         self._rpi_events: rpiEventsClass  = rpi_events
 
@@ -55,9 +58,8 @@ class rpiTimerClass(rpiBaseClass):
         ### Custom config parameters for Websocket monitoring and remote control option
         self._ws_config: Dict = dict()
 
-        ### Init base class
-        # As last step, it runs automatically the initClass()
-        super().__init__(name, rpi_apscheduler, rpi_events, rpi_config)
+        ### As last step, run automatically the initClass()
+        self.initClass()
 
     def __repr__(self):
         return "<%s (name=%s, rpi_apscheduler=%s, rpi_events=dict(), config=%s, TS config=%s, WS config=%s)>" % \

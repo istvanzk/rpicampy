@@ -3,19 +3,17 @@
     Time-lapse with Rasberry Pi controlled camera
     Copyright (C) 2016- Istvan Z. Kovacs
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 Implements the rpicampy configuration
 """
@@ -28,10 +26,14 @@ import signal
 
 from rpilogger import rpiLogger
 
-__all__ = ('HOST_NAME', 'timerConfig', 'camConfig', 'dirConfig', 'dbxConfig',
-            'RPIJOBNAMES', 'INTERNETUSE', 'TSPKFEEDUSE', 'RESTfeed', 'TSPKTBUSE', 'RESTTalkB',
-            'TSPKFIELDNAMES', 'DROPBOXUSE', 'LOCUSBUSE', 'SYSTEMDUSE', 'WATCHDOG_USEC',
-            'rpigexit');
+__all__ = ('HOST_NAME', 'RPICAMPY_VER',
+            'timerConfig', 'camConfig', 'dirConfig', 'dbxConfig', 'rcConfig',
+            'RPIJOBNAMES', 'INTERNETUSE', 'DROPBOXUSE', 'LOCUSBUSE', 
+            'SYSTEMDUSE', 'WATCHDOG_USEC',
+            'rpigexit')
+
+# The version string
+RPICAMPY_VER = 'RPiCamPy/V8'
 
 # Configuration file
 YAMLCFG_FILE = 'rpiconfig.yaml'
@@ -46,20 +48,12 @@ RPIJOBNAMES = {'timer':'TIMERJob', 'cam':'CAMJob', 'dir':'DIRJob', 'dbx':'DBXJob
 # If set to False, the program will not use any systemd features.
 SYSTEMDUSE  = True
 
-
-
-
 # Internet connection
 INTERNETUSE = True
 
 # Dropbox storage
 # Requires internet connection and token_file in the configuration file.
 DROPBOXUSE  = True
-
-# ThingSpeak API and TalkBack APP
-# Requires internet connection and rc_type 'thingspeak' in the configuration file.
-TSPKFEEDUSE = False
-TSPKTBUSE   = False
 
 # Local USB storage
 LOCUSBUSE   = False
@@ -73,7 +67,7 @@ if not PY39:
     os._exit(1)
 
 ### Hostname
-HOST_NAME = subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8')
+HOST_NAME = socket.gethostname() # subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8')
 
 ### Gracefull exit handler
 # The program will also handle SIGINT, SIGTERM and SIGABRT signals for gracefull exit.
@@ -212,6 +206,13 @@ try:
         timerConfig['stop_hour'][_tper]  = int(_hms[0])
         timerConfig['stop_min'][_tper]   = int(_hms[1])
 
+    # Add main timer operation control prameters
+    timerConfig['interval_sec'] = timerConfigYaml['interval_sec']
+    timerConfig['enabled'] = True
+    timerConfig['cmd_run'] = False
+    timerConfig['stateval']= 0
+    timerConfig['status']  = ''
+
     # Extract dark time values from timerConfigYaml
     if timerConfigYaml['start_dark_time'] < 0:
         camConfig['start_dark_hour'] = None
@@ -242,8 +243,10 @@ try:
         rpiLogger.error("Configuration file error: number of timerConfig['interval_sec'] entries and number of time periods entries do not match!")
         os._exit(1)
 
-    timerConfig['interval_sec'] = timerConfigYaml['interval_sec']
-    camConfig['interval_sec']   = timerConfigYaml['interval_sec']
+    # Scheduling (activation) intervals
+    if len(camConfig['interval_sec']) > len(timerConfigYaml['start_times']):
+        rpiLogger.warning("Configuration file error: number of camConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))
+        camConfig['interval_sec'] = camConfig['interval_sec'][:len(timerConfigYaml['start_times'])]
 
     if len(dirConfig['interval_sec']) > len(timerConfigYaml['start_times']):
         rpiLogger.warning("Configuration file error: number of dirConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))
@@ -253,50 +256,13 @@ try:
         rpiLogger.warning("Configuration file error: number of dbxConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))
         dbxConfig['interval_sec'] = dbxConfig['interval_sec'][:len(timerConfigYaml['start_times'])]
 
-    # Dupllicate some configurations to camConfig
+    # Duplicate some configurations to camConfig
     camConfig['list_size'] = dirConfig['list_size']
     camConfig['image_dir'] = dirConfig['image_dir']
 
-    # PyEphem needs '57:04:39.4' format!!!
+    # PyEphem uses the '57:04:39.4' format!!!
     #camConfig['lat_lon'][0] = _geo2dec(camConfig['lat_lon'][0])
     #camConfig['lat_lon'][1] = _geo2dec(camConfig['lat_lon'][1])
-
-    # Add timer operation control flags
-    timerConfig['enabled'] = True
-    timerConfig['cmd_run'] = False
-    timerConfig['stateval']= 0
-    timerConfig['status']  = ''
-
-    # Final checks
-    if INTERNETUSE:
-        # Check Drobox configuration
-        DROPBOXUSE = True
-        if 'token_file' not in dbxConfig or dbxConfig['token_file'] == '' or \
-            'interval_sec' not in dbxConfig or len(dbxConfig['interval_sec']) == 0:
-            DROPBOXUSE = False
-            rpiLogger.info("Dropbox not used.")
-
-        # Check ThingSpeak configuration
-        TSPKFEEDUSE = True
-        TSPKTBUSE   = True
-        if 'rc_type' not in rcConfig or not rcConfig['rc_type'] or \
-            'token_file' not in rcConfig or rcConfig['token_file'] == '' or \
-            'interval_sec' not in rcConfig or len(rcConfig['interval_sec']) == 0:
-            TSPKFEEDUSE = False
-            TSPKTBUSE   = False
-            rpiLogger.info("ThingSpeak feed and Talkback not used.")
-        elif 'thingspeak' not in rcConfig['rc_type'].lower():
-            TSPKFEEDUSE = False
-            rpiLogger.info("ThingSpeak feed not used.") 
-        elif 'thingspeak-tb' not in rcConfig['rc_type'].lower():
-            TSPKTBUSE   = False
-            rpiLogger.info("ThingSpeak TalkBack not used.") 
-
-    else:
-        DROPBOXUSE  = False
-        TSPKFEEDUSE = False
-        TSPKTBUSE   = False
-        rpiLogger.info("Internet connection not used. Dropbox and ThingSpeak disabled.")
 
     del mainConfigYaml, timerConfigYaml, _time, _ymd, _hms, _tper
     rpiLogger.info("Configuration file read.")
@@ -311,54 +277,53 @@ except ImportError as e:
     rpiLogger.error("YAML module could not be loaded!\n" % e)
     os._exit(1)
 
-# Display config info
-rpiLogger.debug("timerConfig: %s" % timerConfig)
-rpiLogger.debug("camConfig: %s" % camConfig)
-rpiLogger.debug("dirConfig: %s" % dirConfig)
-rpiLogger.debug("dbxConfig: %s" % dbxConfig)
 
+### Check internet connection usage and remote control configurations
+DROPBOXUSE  = False
+if INTERNETUSE:
+    # Check Drobox use
+    if 'token_file' not in dbxConfig or dbxConfig['token_file'] == '' or \
+        'interval_sec' not in dbxConfig or len(dbxConfig['interval_sec']) == 0:
+        rpiLogger.info("Dropbox not used.")
+    else:
+        DROPBOXUSE = True
 
-### ThingSpeak API and TalkBack APP use
-TSPKFIELDNAMES = None
-RESTfeed       = None
-RESTTalkB      = None
-if TSPKFEEDUSE or TSPKTBUSE:
-    import thingspk
-
-    if TSPKFEEDUSE:
-        RESTfeed = thingspk.ThingSpeakAPIClient(rcConfig['token_file'])
-
-        if RESTfeed is not None:
-            TSPKFIELDNAMES = {}
-            for indx, item in enumerate(RPIJOBNAMES, start=1):
-                TSPKFIELDNAMES[item] = 'field%d' % indx
-
-            for tsf in TSPKFIELDNAMES.values():
-                RESTfeed.setfield(tsf, 0)
-
-            RESTfeed.setfield('status', '---')
-            rpiLogger.info("ThingSpeak Channel ID %d initialized. Fields: %s" % (RESTfeed.channel_id, TSPKFIELDNAMES))
-
-        else:
-            TSPKFEEDUSE = False
-            rpiLogger.warning("ThingSpeak API could not be initialized.")
+    # Check Remote Control use
+    if 'rc_type' not in rcConfig or not rcConfig['rc_type']:
+        rpiLogger.info("No Remote Control option used.")
 
     else:
-        rpiLogger.info("ThingSpeak API not used.")
+        # Check ThingSpeak API and TalkBack APP use
+        if ('ts-status' in rcConfig['rc_type'] \
+            or 'ts-cmd' in rcConfig['rc_type'] ) \
+            and (
+                'token_file' not in rcConfig \
+                 or rcConfig['token_file'] == []
+            ):
+            try:
+                rcConfig['rc_type'].remove('ts-status')
+                rcConfig['rc_type'].remove('ts-cmd')
+            except ValueError as e:
+                pass
+            rpiLogger.info("No 'token_file' configured. ThingSpeak feed and Talkback cannot be used.")
 
-    if TSPKTBUSE:
-        RESTTalkB = thingspk.ThingSpeakTBClient(rcConfig['token_file'])
-        if RESTTalkB is not None:
-            rpiLogger.info("ThingSpeak TalkBack ID %d initialized." % RESTTalkB.talkback_id)
-
-        else:
-            rpiLogger.warning("ThingSpeak TalkBack could not be initialized.")
-
-    else:
-        rpiLogger.info("ThingSpeak TalkBack APP not used.")
-
+        # Check Websocket use
+        if ('ws-status' in rcConfig['rc_type'] \
+            or 'ws-cmd' in rcConfig['rc_type'] ) \
+            and (
+                'port' not in rcConfig or rcConfig['port'] == 0 \
+                or 'token_file' not in rcConfig \
+                or rcConfig['token_file'] == []
+            ):
+            try:
+                rcConfig['rc_type'].remove('ws-status')
+                rcConfig['rc_type'].remove('ws-cmd')
+            except ValueError as e:
+                pass
+            rpiLogger.info("No 'port' or 'token_file' configured. WebSocket cannot be used.")
+            
 else:
-    rpiLogger.info("ThingSpeak not used.")
+    rpiLogger.info("Internet connection not used!")
 
 ### Local USB storage
 #if LOCUSBUSE:
@@ -367,9 +332,18 @@ else:
 #else:
 #   rpiLogger.info("USB storage not used.")
 
+
+### Display config info
+rpiLogger.debug("timerConfig: %s" % timerConfig)
+rpiLogger.debug("camConfig: %s" % camConfig)
+rpiLogger.debug("dirConfig: %s" % dirConfig)
+rpiLogger.debug("dbxConfig: %s" % dbxConfig)
+rpiLogger.debug("rcConfig: %s" % rcConfig)
+
+
 ### Gracefull killer/exit
 rpigexit = GracefulKiller()
 
 ### Initialization info message
-rpiLogger.info("\n\n=== Initialized on %s (INTERNETUSE:%s, DROPBOXUSE:%s, TSPKFEEDUSE:%s, TSPKTBUSE:%s, SYSTEMDUSE:%s) ===\n" % (HOST_NAME, INTERNETUSE, DROPBOXUSE, TSPKFEEDUSE, TSPKTBUSE, SYSTEMDUSE))
+rpiLogger.info("\n\n=== Initialized on %s (INTERNETUSE:%s, DROPBOXUSE:%s, SYSTEMDUSE:%s) ===\n" % (HOST_NAME, INTERNETUSE, DROPBOXUSE, SYSTEMDUSE))
 

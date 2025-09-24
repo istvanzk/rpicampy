@@ -1,39 +1,30 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Time-lapse with Raspberry Pi controlled camera - Main method
-VER 7.0 for Python 3.12+
-Copyright (C) 2016- Istvan Z. Kovacs
+    Time-lapse with Raspberry Pi controlled camera - Main method
+    VER 8 for Python 3.12+
+    Copyright (C) 2016- Istvan Z. Kovacs
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 TODOs:
-Using systemd functionalities:
-1) Use JournalHandler logging (https://www.freedesktop.org/software/systemd/python-systemd/journal.html)
-Nice to have:
-2) Use "Automatically reload python module / package on file change" from https://gist.github.com/eberle1080/1013122
-and pyinotify module, http://www.saltycrane.com/blog/2010/04/monitoring-filesystem-python-and-pyinotify/
-3) Automatically reload configuration file
-"""
+1) Enable & debug PIR usage
 
+"""
 import os
 import sys
 import time
 from datetime import datetime, timedelta
-from collections import deque
-import logging
 
 #from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -47,19 +38,21 @@ import rpievents
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 import rpimgdir
 import rpicam
-from rpicam import LIBCAMERA
+import rpitimer
+
 if DROPBOXUSE:
     # Dropbox
     from rpimgdb import rpiImageDbxClass
-#elif LOCUSBUSE:
-#   # USB storage
-#   from rpimgusb import rpiImageUSBClass as rpiImageDbxClass
 else:
     # Dummy
     from rpibase import rpiBaseClass as rpiImageDbxClass
 
+#if LOCUSBUSE:
+#   # USB storage
+#   from rpimgusb import rpiImageUSBClass
+
 ###
-### Methods
+### Local functions
 ###
 
 def jobListener(event):
@@ -95,7 +88,7 @@ def jobListener(event):
         eventsRPi.eventErrcountList[e_jobid] += 1
         eventsRPi.eventRuncountList[e_jobid] += 1
 
-        rpiLogger.error("%s: The job crashed %d times (%s)!" % (e_jobid, eventsRPi.eventErrcountList[e_jobid], time.ctime(eventsRPi.eventErrtimeList[e_jobid])))
+        rpiLogger.error("rpicamsch:: The job %s crashed %d times (%s)!", e_jobid, eventsRPi.eventErrcountList[e_jobid], time.ctime(eventsRPi.eventErrtimeList[e_jobid]))
         status_str = "%s: Crash %d" % (e_jobid, eventsRPi.eventErrcountList[e_jobid])
 
     elif e_code == EVENT_JOB_EXECUTED:
@@ -112,15 +105,15 @@ def jobListener(event):
             for jb in sch_jobs:
                 if not (jb.id == e_jobid):
                     if not jb.pending:
-                        rpiLogger.debug("%s (%s): %s" % (jb.id, jb.name, jb.next_run_time))
+                        rpiLogger.debug("rpicamsch:: Job %s (%s): %s", jb.id, jb.name, jb.next_run_time)
                         status_str = "%s: Add (%d)" % (jb.name, len(sch_jobs))
                     else:
-                        rpiLogger.debug("%s (%s): waiting to be added" % (jb.id, jb.name))
+                        rpiLogger.debug("%rpicamsch:: Job %s (%s): waiting to be added", jb.id, jb.name)
                         status_str = "%s: Pen (%d)" % (jb.name, len(sch_jobs))
 
     elif e_code == EVENT_JOB_REMOVED:
         if len(sch_jobs) == 1:
-            rpiLogger.info("All %s jobs have been removed!" % eventsRPi.event_ids.values())
+            rpiLogger.info("rpicamsch:: All %s jobs have been removed!", eventsRPi.event_ids.values())
             eventsRPi.eventAllJobsEnd.set()
             status_str = "NoRPIJobs"
 
@@ -128,154 +121,14 @@ def jobListener(event):
             status_str = "%s: Rem (%d)" % (e_jobid, len(sch_jobs))
 
     else:
-        logging.warning("Unhandled event.code = %s" % e_code)
+        rpiLogger.warning("rpicamsch:: Unhandled event.code = %s", e_code)
 
     # Update timer status message
     timerConfig['status'] = status_str
 
 
-
-def procStateVal():
-    """
-    Calculate the combined state (cmd and err) values for all rpi jobs.
-    """
-    timer_stateval = 0
-    # Add the timer job error state (lower 4 bits)
-
-    # Add the timer job cmd state (upper 4 bits)
-    if timerConfig['enabled']:
-        timer_stateval += 16*1
-    if timerConfig['cmd_run']:
-        timer_stateval += 16*2
-
-    # Store state values
-    eventsRPi.stateValList[imgCam.name] = imgCam.stateValue
-    eventsRPi.stateValList[imgDir.name] = imgDir.stateValue
-    eventsRPi.stateValList[imgDbx.name] = imgDbx.stateValue
-    eventsRPi.stateValList[RPIJOBNAMES['timer']]  = timer_stateval
-
-    # The combined state (cmd 4bits + err 4bits) values for all jobs
-    timerConfig['stateval'] = 256*256*256*eventsRPi.stateValList[RPIJOBNAMES['timer']]
-    timerConfig['stateval'] += eventsRPi.stateValList[imgCam.name] + 256*eventsRPi.stateValList[imgDir.name] + 256*256*eventsRPi.stateValList[imgDbx.name]
-
-
-def getMessageVal():
-    """
-    Retrieve the latest messages and message values from all rpi jobs.
-    Map messages to the ThingSpeak feed fields.
-    """
-    st_all = {}
-    st_all['timer'] = (timerConfig['status'], timerConfig['stateval']) #has to be changed to use a deque?
-    st_all[[k for k,v in RPIJOBNAMES.items() if v == imgCam.name][0]] = imgCam.statusUpdate
-    st_all[[k for k,v in RPIJOBNAMES.items() if v == imgDir.name][0]] = imgDir.statusUpdate
-    st_all[[k for k,v in RPIJOBNAMES.items() if v == imgDbx.name][0]] = imgDbx.statusUpdate
-
-    status_message = None
-    messages = []
-    message_values = {}
-    for k, (msg, val) in st_all.items():
-        if msg is not None:
-            messages.append(msg)
-
-        if RESTfeed is not None and \
-            ( val > ERRNONE or \
-            ( val == ERRNONE and msg is not None ) ):
-            message_values[TSPKFIELDNAMES[k]] = val
-
-    if not messages==[]:
-        status_message = ' || '.join(messages)
-
-    return status_message, message_values
-
-def timerJob():
-    """
-    Collect and combine the status messages from the rpi scheduled jobs.
-    ThingSpeak TalkBack APP command handler and dispatcher for the rpi scheduled jobs.
-    ThingSpeak REST API post data for all feeds and status.
-    """
-
-    ### Default
-    cmdstr = u'none'
-    cmdval = -1
-
-    ### Get command from ThingSpeak TalkBack APP
-    if RESTTalkB is not None:
-        RESTTalkB.talkback.execcmd()
-        res = RESTTalkB.talkback.response
-        if res:
-            rpiLogger.debug("TB response: %s" % RESTTalkB.talkback.response)
-            cmdrx = res.get('command_string')
-
-            # Get cmd string and value
-            cmdstr = cmdrx.split('/',1)[0]
-            cmdval = int(cmdrx.split('/',1)[1])
-
-
-    ### Handle and dispatch the received commands
-    # Timer job commands
-    if cmdstr==u'sch':
-        if cmdval==1 and not timerConfig['enabled']:
-            timerConfig['enabled'] = True
-            rpiLogger.debug("JobSch enabled.")
-            timerConfig['status'] = "JobSch enabled"
-
-        elif cmdval==0 and timerConfig['enabled']:
-            timerConfig['enabled'] = False
-            rpiLogger.debug("JobSch disabled.")
-            timerConfig['status'] = "JobSch disabled"
-
-    # Cmd mode
-    elif cmdstr==u'cmd':
-        if cmdval==1 and not timerConfig['cmd_run']:
-            timerConfig['cmd_run'] = True
-            schedRPi.reschedule_job(job_id="TIMERJob", trigger='interval', seconds=timerConfig['interval_sec'][1])
-            rpiLogger.debug("TBCmd fast mode enabled.")
-            timerConfig['status'] = "TBCmd activated"
-
-        elif cmdval==0 and timerConfig['cmd_run']:
-            timerConfig['cmd_run'] = False
-            schedRPi.reschedule_job(job_id="TIMERJob", trigger='interval', seconds=timerConfig['interval_sec'][0])
-            rpiLogger.debug("TBCmd fast mode disabled.")
-            timerConfig['status'] = "TBCmd standby"
-
-    # Commands for other modules
-    # These commands are active only in cmd_run mode
-    if timerConfig['cmd_run']:
-
-        # Cam control
-        if cmdstr == u'cam':
-            imgCam.queueCmd((cmdstr,cmdval))
-
-        # Dir control
-        elif cmdstr == u'dir':
-            imgDir.queueCmd((cmdstr,cmdval))
-
-        # Dbx control
-        elif cmdstr == u'dbx':
-            imgDbx.queueCmd((cmdstr,cmdval))
-
-
-    ### Get the combined state value (all rpi jobs)
-    procStateVal()
-
-    ### Get status messages and message values (all rpi jobs)
-    status_message, message_values = getMessageVal()
-
-
-    ### Update ThingSpeak feed
-    if RESTfeed is not None:
-        for k in message_values:
-            RESTfeed.setfield(k, message_values[k])
-
-        if status_message is not None:
-            RESTfeed.setfield('status', status_message)
-
-        RESTfeed.update()
-
-
 ### The APScheduler
 schedRPi = BackgroundScheduler(alias='BkgScheduler', timezone="Europe/Berlin")
-#schedRPi = BlockingScheduler(alias='BlkScheduler')
 
 # Add job execution event handler
 schedRPi.add_listener(jobListener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_JOB_ADDED | EVENT_JOB_REMOVED)
@@ -283,7 +136,7 @@ schedRPi.add_listener(jobListener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_
 
 ### The rpicampy events
 eventsRPi = rpievents.rpiEventsClass(RPIJOBNAMES)
-rpiLogger.info(eventsRPi)
+rpiLogger.info("rpicamsch:: %s", eventsRPi)
 
 ### Instantiate the rpicampy job classes
 # Camera
@@ -291,87 +144,83 @@ rpiLogger.info(eventsRPi)
 #    # The PIR sensor is used as external trigger for the job
 #    imgCam = rpicam.rpiCamClass(RPIJOBNAMES['cam'], None, eventsRPi, camConfig)
 #else:
-# The time-based trigger is used for the job
+
+# Camera capture and image buffering
 imgCam = rpicam.rpiCamClass(RPIJOBNAMES['cam'], schedRPi, eventsRPi, camConfig)
-rpiLogger.info(imgCam)
+rpiLogger.info("rpicamsch:: %s", imgCam)
 
-# Storage (Dropbox, local USB, etc.)
+# Remote storage management (Dropbox)
 imgDbx = rpiImageDbxClass(RPIJOBNAMES['dbx'], schedRPi, eventsRPi, dbxConfig, imgCam.imageFIFO)
-rpiLogger.info(imgDbx)
+rpiLogger.info("rpicamsch:: %s", imgDbx)
 
-# Local image files management
-imgDir = rpimgdir.rpiImageDirClass(RPIJOBNAMES['dir'], schedRPi, eventsRPi, dirConfig, imgCam.imageFIFO, imgDbx.imageUpldFIFO) # pyright: ignore[reportAttributeAccessIssue]
-rpiLogger.info(imgDir)
+# Local image storage management
+imgDir = rpimgdir.rpiImageDirClass(RPIJOBNAMES['dir'], schedRPi, eventsRPi, dirConfig, imgCam.imageFIFO, imgDbx.imageUpldFIFO)
+rpiLogger.info("rpicamsch:: %s", imgDir)
 
+# The main timer job (to run continously, regardless of the other jobs)
+# This job acts as a collector and dispatcher for status messages from, and the received remote commands to
+# all the other jobs above
+mainTimer = rpitimer.rpiTimerClass(RPIJOBNAMES['timer'], 
+                                   schedRPi, eventsRPi, timerConfig, 
+                                   rcConfig,
+                                   imgCam, imgDbx, imgDir)
+rpiLogger.info("rpicamsch:: %s", mainTimer)
 
 ### Main
 def main():
     """
-    Runs the APScheduler with the Jobs on every day in the set time periods.
+    Runs the APScheduler with the Jobs scheduled during every specified time period.
     """
 
-    ### Time period start/stop
+    # Time period start/stop for image capture and image files management
     tstart_all = datetime(timerConfig['start_year'], timerConfig['start_month'], timerConfig['start_day'], timerConfig['start_hour'][0], timerConfig['start_min'][0], 0, 0)
     tstop_all  = datetime(timerConfig['stop_year'], timerConfig['stop_month'], timerConfig['stop_day'], timerConfig['stop_hour'][-1], timerConfig['stop_min'][-1], 59, 0)
 
-
-    ### Check if the time period is valid
+    # Check if the stop time is valid
     tnow = datetime.now()
     if tnow >= tstop_all:
-        warn_str = "Current time (%s) is after the end of schedRPiuler activity period (%s)! Scheduler was not started! Bye!" % (tnow, tstop_all)
-        rpiLogger.warning(warn_str)
+        warn_str = f"Current time ({tnow}}) is after the end of scheduler activity period ({tstop?all})! No image capture jobs will be scheduled! Bye!"
+        rpiLogger.error("rpicamsch:: %s", warn_str)
         journal_send(warn_str)
-
-        # Update status
-        timerConfig['status'] = 'NoStart'
-        timerJob()
-        time.sleep( 60 )
-
+        time.sleep(2.0*WATCHDOG_USEC/2000000.0)
         return
 
-    ### Add the main timer client job; run every preset (long) interval
-    schedRPi.add_job(timerJob, 'interval', id=RPIJOBNAMES['timer'], seconds=timerConfig['interval_sec'][0], misfire_grace_time=10, name='TIMER' )
-
-    ### Start background scheduler
-    rpiLogger.debug("Scheduler started on: %s" % (time.ctime(time.time())))
+    # Start background scheduler
+    rpiLogger.debug("rpicamsch:: Image capture scheduler started on: %s", time.ctime(time.time()))
     schedRPi.start()
 
-    info_str = "Scheduler will be active in the period: %s - %s" % (tstart_all, tstop_all)
-    rpiLogger.info(info_str)
+    # Add the main timer job to run it continously, regardless of the other scheduled jobs.
+    mainTimer.setInit()
+    mainTimer.errorDelay = 2*timerConfig['interval_sec']
+    mainTimer.setRun((None, None, timerConfig['interval_sec']))
+
+    # Notify systemd.daemon and log messsage
+    daemon_notify("READY=1")
+    info_str = f"Image capture scheduler will be active in the period: {tstart_all} - {tstop_all}"
+    rpiLogger.info("rpicamsch:: %s", info_str)
     journal_send(info_str)
 
-    # Update status
-    timerConfig['status'] = 'SchStart'
-    timerJob()
+    # Enable all jobs
+    mainTimer.jobs_enabled = True
 
-    # Notify systemd.daemon
-    daemon_notify("READY=1")
-
-    # Main loop
+    # Start main loop
     MainRun = True
     while MainRun:
-
-        while not timerConfig['enabled']:
-            # Wait until timer is enabled
-            time.sleep( timerConfig['interval_sec'][1] )
-            timerConfig['status'] ='Waiting'
-            MainRun = False
-            continue
 
         # Enable all day periods
         bValidDayPer = []
         for tper in range(len(timerConfig['start_hour'])):
             bValidDayPer.append(True)
 
-        # Check the validity of the periods on the first day (tnow)
+        # Check the validity of the time periods on the specified first day
         tcrt = datetime.now()
         if tcrt >= tstart_all:
             for tper in range(len(timerConfig['start_hour'])):
                 if (60*tcrt.hour + tcrt.minute) >= (60*timerConfig['stop_hour'][tper] + timerConfig['stop_min'][tper]):
                     bValidDayPer[tper] = False
-                    rpiLogger.info("The daily period %02d:%02d - %02d:%02d was skipped." % (timerConfig['start_hour'][tper], timerConfig['start_min'][tper], timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper]))
+                    rpiLogger.info("rpicamsch:: The daily period %02d:%02d - %02d:%02d was skipped.", timerConfig['start_hour'][tper], timerConfig['start_min'][tper], timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper])
 
-        # The scheduling period: every day in the given time periods
+        # The daily scheduling loop: every day in the specified time periods
         while tcrt < tstop_all:
 
             # Initialize jobs (will run only after EoD, when not initialized already)
@@ -408,13 +257,13 @@ def main():
                     journal_send("Running current day period: %s - %s" % (tstart_per, tstop_per))
 
                     # The eventsRPi.eventAllJobsEnd is set when all jobs have been removed/finished
-                    while timerConfig['enabled'] and \
+                    while mainTimer.jobs_enabled and \
                         not eventsRPi.eventAllJobsEnd.is_set() and \
                         not rpigexit.kill_now:
 
                         # Do something else while the schedRPi is running
                         # ...
-                        time.sleep(10)
+                        time.sleep(3.14159)
 
                         # Update the systemd watchdog timestamp
                         time.sleep(1.0*WATCHDOG_USEC/2000000.0)
@@ -422,7 +271,7 @@ def main():
 
 
                     # Go to next daily period only if timer is still enabled
-                    if not timerConfig['enabled'] or rpigexit.kill_now:
+                    if not mainTimer.jobs_enabled or rpigexit.kill_now:
 
                         # Stop all the jobs
                         imgCam.setStop()
@@ -437,12 +286,12 @@ def main():
 
                 except RuntimeError as e:
                     eventsRPi.eventEnd.set()
-                    rpiLogger.error("RuntimeError: %s! Exiting!" % str(e), exc_info=True)
+                    rpiLogger.exception("rpicamsch:: RuntimeError: %s! Exiting!", str(e))
                     raise
 
                 except:
                     eventsRPi.eventEnd.set()
-                    rpiLogger.error("Exception: %s! Exiting!" %  str(sys.exc_info()), exc_info=True)
+                    rpiLogger.exception("rpicamsch:: Unhandled Exception:! Exiting!")
                     raise
 
                 finally:
@@ -463,8 +312,7 @@ def main():
             imgDbx.setEndDayOAM()
 
             # Go to next day only if timer is still enabled
-            if not timerConfig['enabled'] or \
-                rpigexit.kill_now:
+            if not mainTimer.jobs_enabled or rpigexit.kill_now:
                 break # end the while tcrt loop
 
 
@@ -474,38 +322,25 @@ def main():
         imgDbx.setEndOAM()
 
         # Normal end of the scheduling period or kill/exit, else enter wait loop
-        if timerConfig['enabled'] or \
-            rpigexit.kill_now:
-            MainRun = False
+        if not mainTimer.jobs_enabled or rpigexit.kill_now:
+            MainRun = False # end/exit program
 
         else:
-            rpiLogger.info("All job schedules were ended. Enter waiting loop.")
+            rpiLogger.info("rpicamsch:: All job schedules were ended. Enter waiting loop.")
             journal_send("All job schedules were ended. Enter waiting loop.")
 
     # Notify systemd.daemon
     daemon_notify("STOPPING=1")
 
+    # Disable all jobs
+    mainTimer.jobs_enabled = False
+
     # End scheduling
-    timerConfig['enabled'] = False
     schedRPi.shutdown(wait=True)
-    rpiLogger.debug("Scheduler stop on: %s" % time.ctime(time.time()))
-
-    # Update REST feed (now)
-    timerConfig['status'] = 'SchStop'
-    timerJob()
-
-    # Reset GPIO
-    if LIBCAMERA:
-        import RPi.GPIO as GPIO
-
-        if GPIO.getmode() is not None: 
-            if camConfig['use_pir'] == 1:
-                GPIO.remove_event_detect(camConfig['bcm_pirport'])
-
-            GPIO.cleanup()
+    rpiLogger.debug("rpicamsch:: Image capture scheduler stopped on: %s", time.ctime(time.time()))
 
     # Shutdown logging
-    logging.shutdown()
+    rpiLogger.shutdown()
     time.sleep( 10 )
 
 if __name__ == "__main__":

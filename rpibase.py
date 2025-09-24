@@ -3,19 +3,17 @@
     Time-lapse with Rasberry Pi controlled camera
     Copyright (C) 2016- Istvan Z. Kovacs
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 Implements the rpiBase class to provide the base with common functionalities for all rpi classes.
 """
@@ -26,16 +24,22 @@ from threading import Event
 from collections import deque
 from threading import RLock
 import atexit
+from threading import Event
+from typing import Any, Dict, List, Tuple
 
 ### The rpi(cam)py modules
 from rpilogger import rpiLogger
 
 __all__ = ('CMDRUN', 'CMDSTOP', 'CMDPAUSE', 'CMDINIT', 'CMDRESCH', 'CMDEOD', 'CMDEND',
             'ERRCRIT', 'ERRLEV2', 'ERRLEV1', 'ERRLEV0', 'ERRNONE',
-            'rpiBaseClassError', 'rpiBaseClass',
-            'initClass', 'jobRun', 'endDayOAM', 'endOAM',
-            'queueCmd', 'setInit', 'setRun', 'setStop', 'setPause', 'setResch', 'setEndDayOAM', 'setEndOAM',
-            'statusUpdate', 'errorDelay', 'timerPeriodIntv', 'errorTime', 'errorCount', 'errorDelay', 'stateValue')
+            'rpiBaseClassError', 'rpiBaseClass')
+
+
+# Default job run time interval
+INTERVAL_SEC = 10
+
+# Default time interval for the internal cmd processing job
+PROCCMD_INTERVAL_SEC = 3
 
 # Command and state values (remote job control, 4 bits)
 CMDRUN   = 3
@@ -76,27 +80,35 @@ class rpiBaseClass:
     Implements the base class for common functionalities.
     """
 
-    def __init__(self, name, rpi_apscheduler, rpi_events, *args, **kwargs):
+    def __init__(self, name, rpi_apscheduler, rpi_events, rpi_config, *args, **kwargs):
 
         # Public
 
         # Custom name
-        self.name    = name or "Job"
+        self.name: str    = name or "Job"
+
 
         # EoD and End OAM events
-        self.eventDayEnd = Event()
+        self.eventDayEnd: Event = Event()
         self.eventDayEnd.clear()
-        self.eventEnd    = Event()
+        self.eventEnd: Event    = Event()
         self.eventEnd.clear()
 
         # Private
 
+        # Get the custom config parameters
+        self._config: Dict = rpi_config
+
         # Reference to the APScheduler
         self._sched  = rpi_apscheduler or None
-        self._sched_lock = self._create_lock()
+        self._sched_lock: RLock = self._create_lock()
  
-        # Reference to eventErr (can be accessed via the rpi_events)
-        self._eventErr      = rpi_events.eventErrList[self.name]
+        # Reference to own entry in eventErr from the rpi_events
+        self._eventErr: Event = rpi_events.eventErrList[self.name]
+        # Reference to stateValList from the rpi_events and init own entry
+        self._stateValList: Dict[str, int] = rpi_events.stateValList
+        self._stateValList[self.name] = 0
+        self._stateVal = 0
 
         # Error event related
         self._eventErrdelay = 0
@@ -106,27 +118,26 @@ class rpiBaseClass:
         # Job start/stop and interval times
         self._dtstart = None
         self._dtstop  = None
-        self._interval_sec = 13
+        self._interval_sec = INTERVAL_SEC
 
         # The commands queue, check/process interval, job name
-        self._cmds = Queue(10)
-        self._proccmd_interval_sec = 11
-        self._cmdname = "%s_Cmd%d" % (self.name, self._proccmd_interval_sec)
+        self._cmds: Queue = Queue(10)
+        self._proccmd_interval_sec = PROCCMD_INTERVAL_SEC
+        self._cmdname: str = "%s_Cmd%d" % (self.name, self._proccmd_interval_sec)
 
         # The state flags and state/cmd value codes
-        self._state          = {}
+        self._state: Dict    = dict()
         self._state['run']   = False
         self._state['stop']  = False
         self._state['pause'] = False
         self._state['init']  = False
         self._state['resch'] = False
-        self._state['cmdval'] = -1
+        self._state['cmdval'] = 0
         self._state['errval'] = 0
-        self._stateVal       = 0
-        self._state_lock = self._create_lock()
+        self._state_lock: RLock = self._create_lock()
 
         # The last 10 status messages
-        self._statusmsg = deque([],10)
+        self._statusmsg: deque = deque([],10)
 
         # ATExit handler
         atexit.register(self._clean_exit)
@@ -138,7 +149,7 @@ class rpiBaseClass:
         return "<%s (name=%s, rpi_apscheduler=%s, rpi_events=dict())>" % (self.__class__.__name__, self._sched, self.name)
 
     def __str__(self):
-        return "%s::: Cmd(tstart_per:%s, tstop_per:%s, interval_sec=%d), eventErr(count: %d, time: %s, delay: %s), state: %s, stateVal: %d, cmds: %s, statusmsg: %s" % \
+        return "rpibase for %s::: Cmd(tstart_per:%s, tstop_per:%s, interval_sec=%d), eventErr(count: %d, time: %s, delay: %s), state: %s, stateVal: %d, cmds: %s, statusmsg: %s" % \
             (self.name, self._dtstart, self._dtstop, self._interval_sec, self._eventErrcount, time.ctime(self._eventErrtime), self._eventErrdelay, self._state, self._stateVal, self._cmds, self._statusmsg)
 
     def __del__(self):
@@ -149,8 +160,8 @@ class rpiBaseClass:
                 if self._sched.get_job(self.name) is not None:
                     self._sched.remove_job(self.name)
 
-        rpiLogger.debug("%s::: Deleted!" % self.name)
-        self._statusmsg.append(("%s Deleted" % self.name, ERRNONE))
+        rpiLogger.debug("rpibase for %s::: Deleted!", self.name)
+        self._statusmsg.append((f"{self.name} Deleted", ERRNONE))
 
     #
     # Subclass interface methods to be overriden by user defined methods.
@@ -202,7 +213,7 @@ class rpiBaseClass:
 
         if self._cmds.full():
             self._seteventerr('queueCmd()',ERRLEV0)
-            rpiLogger.warning("%s::: Cmd queue is full: %s" % (self.name, self._cmds))
+            rpiLogger.warning("rpibase for %s::: Cmd queue is full: %s", self.name, self._cmds)
             return False
 
         self._cmds.put(cmdrx_tuple, True, 5)
@@ -214,7 +225,7 @@ class rpiBaseClass:
         Return boolean to indicate state change.
         """
         if self._state['init'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
-            rpiLogger.debug("%s::: %s: _initclass not run" % (self.name, sys._getframe().f_code.co_filename))
+            rpiLogger.debug("rpibase for %s::: %s: _initclass not run", self.name, sys._getframe().f_code.co_filename)
             return False
         else:
             self._initclass()
@@ -227,7 +238,7 @@ class rpiBaseClass:
         Return boolean to indicate state change.
         """
         if self._state['run'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
-            rpiLogger.debug("%s::: %s: add/resume_run not run" % (self.name, sys._getframe().f_code.co_filename))
+            rpiLogger.debug("rpibase for %s::: %s: add/resume_run not run", self.name, sys._getframe().f_code.co_filename)
             return False
         else:
             if tstartstopintv is not None:
@@ -244,7 +255,7 @@ class rpiBaseClass:
         Return boolean to indicate state change.
         """
         if self._state['stop'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
-            rpiLogger.debug("%s::: %s: _remove_run not run" % (self.name, sys._getframe().f_code.co_filename))
+            rpiLogger.debug("rpibase for %s::: %s: _remove_run not run", self.name, sys._getframe().f_code.co_filename)
             return False
         else:
             self._remove_run()
@@ -256,7 +267,7 @@ class rpiBaseClass:
         Return boolean to indicate state change.
         """
         if self._state['pause'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
-            rpiLogger.debug("%s::: %s: _pause_run not run" % (self.name, sys._getframe().f_code.co_filename))
+            rpiLogger.debug("rpibase for %s::: %s: _pause_run not run", self.name, sys._getframe().f_code.co_filename)
             return False
         else:
             self._pause_run()
@@ -280,7 +291,7 @@ class rpiBaseClass:
         """
         if self._state['run'] or self._state['pause'] or self._state['resch'] or \
             self.eventDayEnd.is_set() or self.eventEnd.is_set():
-            rpiLogger.debug("%s::: %s: _enddayoam_run not run" % (self.name, sys._getframe().f_code.co_filename))
+            rpiLogger.debug("rpibase for %s::: %s: _enddayoam_run not run", self.name, sys._getframe().f_code.co_filename)
             return False
         else:
             self._enddayoam_run()
@@ -293,7 +304,7 @@ class rpiBaseClass:
         """
         if self._state['run'] or self._state['pause'] or self._state['resch'] or \
             self.eventDayEnd.is_set() or self.eventEnd.is_set():
-            rpiLogger.debug("%s::: %s: _endoam_run not run" % (self.name, sys._getframe().f_code.co_filename))
+            rpiLogger.debug("rpibase for %s::: %s: _endoam_run not run", self.name, sys._getframe().f_code.co_filename)
             return False
         else:
             self._endoam_run()
@@ -390,9 +401,9 @@ class rpiBaseClass:
             # after self._eventErrdelay seconds from the last failed access/run attempt
             if self._eventErr.is_set():
                 self._eventErrcount += 1
-                rpiLogger.info("%s::: eventErr is set (run %d)!" % (self.name, self._eventErrcount))
+                rpiLogger.info("rpibase for %s::: eventErr is set (run %d)!", self.name, self._eventErrcount)
                 if (time.time() - self._eventErrtime) < self._eventErrdelay:
-                    rpiLogger.debug("%s::: eventErr was set at %s (run %d)!" % (self.name, time.ctime(self._eventErrtime), self._eventErrcount))
+                    rpiLogger.debug("rpibase for %s::: eventErr was set at %s (run %d)!", self.name, time.ctime(self._eventErrtime), self._eventErrcount)
                     return
 
                 self._initclass()
@@ -409,24 +420,24 @@ class rpiBaseClass:
             if  e.errval > ERRNONE:
                 if e.errval < ERRCRIT:
                     self._seteventerr('_run()', e.errval)
-                    rpiLogger.warning("%s" % e.errmsg)
+                    rpiLogger.warning("rpibase for %s::: %s", self.name, e.errmsg)
                     pass
                 else:
                     self._seteventerr('_run()', ERRCRIT)
-                    rpiLogger.error("%s\nExiting job!" % e.errmsg, exc_info=True)
+                    rpiLogger.exception("rpibase for %s::: %s\nExiting job!", self.name, e.errmsg)
                     raise
             else:
-                rpiLogger.warning("A non-error was raised: %s" % e.errmsg)
+                rpiLogger.warning("rpibase for %s::: A non-error was raised: %s", self.name, e.errmsg)
                 pass
 
         except RuntimeError as e:
             self._seteventerr('_run()',ERRCRIT)
-            rpiLogger.error("RuntimeError: %s\nExiting!" % str(e), exc_info=True)
+            rpiLogger.exception("rpibase for %s::: RuntimeError: \nExiting!", self.name)
             raise
 
         except:
             self._seteventerr('_run()',ERRCRIT)
-            rpiLogger.error("Unhandled Exception: %s\nExiting!" % str(sys.exc_info()), exc_info=True)
+            rpiLogger.exception("rpibase for %s::: Unhandled Exception: \nExiting!", self.name)
             raise
 
         finally:
@@ -438,7 +449,7 @@ class rpiBaseClass:
         (re)Initialize the class.
         """
 
-        rpiLogger.info("%s::: Initialize class" % self.name)
+        rpiLogger.info("rpibase for %s::: Initialize class", self.name)
 
         ### Stop and remove the self._run()  and self._proccmd() jobs from the scheduler
         self._remove_run()
@@ -490,14 +501,14 @@ class rpiBaseClass:
 
         # Process and act upon received commands.
         if self._cmds.empty():
-            rpiLogger.debug("%s::: _proccmd: Cmd queue is empty!" % self.name)
+            rpiLogger.debug("rpibase for %s::: _proccmd: Cmd queue is empty!", self.name)
 
         elif (not self.eventDayEnd.is_set()) and (not self.eventEnd.is_set()):
 
             # Process the command
             (cmdstr, cmdval) = self._cmds.get()
 
-            rpiLogger.debug("%s::: _proccmd: Get cmdstr:%s, cmdval:%d" % (self.name, cmdstr, cmdval))
+            rpiLogger.debug("rpibase for %s::: _proccmd: Get cmdstr:%s, cmdval:%d", self.name, cmdstr, cmdval)
 
             if cmdval==CMDRUN and self.setRun():
                 self._statusmsg.append(("%s run" % self.name, ERRNONE))
@@ -526,11 +537,14 @@ class rpiBaseClass:
 
     def _setstateval(self):
         """
-        Set the combined/encoded state value corresponding to the cmd and err states (4 bits each).
+        Set the combined/encoded state value corresponding to the cmd and err states (8bits):
+        job error state in lower 4 bits
+        job cmd state in upper 4 bits
         """
         if self._sched is not None:
             with self._state_lock:
                 self._stateVal = self._state['errval'] + 16*self._state['cmdval']
+                self._stateValList[self.name] = self._stateVal
 
 
     def _seteventerr(self,str_func,err_val=ERRLEV0):
@@ -540,7 +554,7 @@ class rpiBaseClass:
         if err_val > ERRNONE:
             str = "%s: %s SetError %d" % (self.name, str_func, err_val)
             self._statusmsg.append((str, -1*err_val))
-            rpiLogger.debug("%s::: Set eventErr %d in %s at %s!" % (self.name, err_val, str_func, time.ctime(self._eventErrtime)))
+            rpiLogger.debug("rpibase for %s::: Set eventErr %d in %s at %s!", self.name, err_val, str_func, time.ctime(self._eventErrtime))
             self._eventErr.set()
             self._eventErrtime = time.time()
             self._state['errval'] = err_val
@@ -552,7 +566,7 @@ class rpiBaseClass:
         """
         str = "%s: %s ClrError %d" % (self.name, str_func, self._state['errval'])
         self._statusmsg.append((str, ERRNONE))
-        rpiLogger.debug("%s::: Clear eventErr %d in %s!" % (self.name, self._state['errval'], str_func))
+        rpiLogger.debug("rpibase for %s::: Clear eventErr %d in %s!", self.name, self._state['errval'], str_func)
         self._eventErr.clear()
         self._eventErrtime = 0
         self._state['errval'] = ERRNONE
@@ -566,11 +580,27 @@ class rpiBaseClass:
         if self._sched is not None:
             with self._sched_lock:
                 if self._sched.get_job(self.name) is None:
-                    self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
+                    self._add_job()
                 else:
                     self._reschedule_run()
 
         self._run_state()
+
+    def _add_job(self):
+        """ 
+        Schedule/add the self._run() job depending on the specified start/stop times. 
+        """
+        if self._dtstart is not None:
+            if self._dtstop is not None:
+                self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
+            else:
+                self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, misfire_grace_time=10, name=self.name )
+        else: 
+            if self._dtstop is not None:
+                self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, end_date=self._dtstop, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
+            else:
+                self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, misfire_grace_time=10, name=self.name )
+
 
     def _init_state(self):
         """
@@ -585,7 +615,7 @@ class rpiBaseClass:
 
         self._setstateval()
 
-        rpiLogger.debug("%s::: Init state." % self.name)
+        rpiLogger.debug("rpibase for %s::: Init state.", self.name)
 
     def _run_state(self):
         """
@@ -600,7 +630,7 @@ class rpiBaseClass:
 
         self._setstateval()
 
-        rpiLogger.debug("%s::: Run state." % self.name)
+        rpiLogger.debug("rpibase for %s::: Run state.", self.name)
 
     def _pause_state(self):
 
@@ -613,7 +643,7 @@ class rpiBaseClass:
 
         self._setstateval()
 
-        rpiLogger.debug("%s::: Pause state." % self.name)
+        rpiLogger.debug("rpibase for %s::: Pause state.", self.name)
 
     def _stop_state(self):
         """
@@ -628,7 +658,7 @@ class rpiBaseClass:
 
         self._setstateval()
 
-        rpiLogger.debug("%s::: Stop state." % self.name)
+        rpiLogger.debug("rpibase for %s::: Stop state.", self.name)
 
     def _resume_run(self):
         """
@@ -676,7 +706,7 @@ class rpiBaseClass:
         if self._sched is not None and not self._state['resch']:
             with self._sched_lock:
                 if self._sched.get_job(self.name) is not None:
-                    self._sched.reschedule_job(job_id=self.name, trigger='interval', seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, name=self.name)
+                    self._reschedule_job()
 
         self._state['run']   = False
         self._state['stop']  = False
@@ -687,7 +717,23 @@ class rpiBaseClass:
 
         self._setstateval()
 
-        rpiLogger.debug("%s::: Rescheduled state." % self.name)
+        rpiLogger.debug("rpibase for %s::: Rescheduled state." % self.name)
+
+    def _reschedule_job(self):
+        """ 
+        Re-schedule the self._run() job depending on the specified start/stop times. 
+        """
+        if self._dtstart is not None:
+            if self._dtstop is not None:
+                self._sched.reschedule_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
+            else:
+                self._sched.reschedule_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, misfire_grace_time=10, name=self.name )
+        else: 
+            if self._dtstop is not None:
+                self._sched.reschedule_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, end_date=self._dtstop, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
+            else:
+                self._sched.reschedule_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, misfire_grace_time=10, name=self.name )
+
 
     def _enddayoam_run(self):
         """
@@ -703,13 +749,13 @@ class rpiBaseClass:
             ### User defined EoD
             self.endDayOAM()
 
-            rpiLogger.info("%s::: endDayOAM(): Maintenance sequence run" % self.name)
+            rpiLogger.info("rpibase for %s::: endDayOAM(): Maintenance sequence run", self.name)
 
             ### Clear the event
             self.eventDayEnd.clear()
 
         else:
-            rpiLogger.debug("%s::: _enddayoam(): eventErr is set" % self.name)
+            rpiLogger.debug("rpibase for %s::: _enddayoam(): eventErr is set", self.name)
 
 
     def _endoam_run(self):
@@ -726,16 +772,16 @@ class rpiBaseClass:
             ### User defined EoD
             self.endOAM()
 
-            rpiLogger.info("%s::: endOAM(): Maintenance sequence run" % self.name)
+            rpiLogger.info("rpibase for %s::: endOAM(): Maintenance sequence run", self.name)
 
             ### Clear the event
             self.eventEnd.clear()
 
         else:
-            rpiLogger.debug("%s::: _endoam(): eventErr is set" % self.name)
+            rpiLogger.debug("rpibase for %s::: _endoam(): eventErr is set", self.name)
 
 
-    def _create_lock(self):
+    def _create_lock(self) -> RLock:
         """
         Creates a reentrant lock object.
         """
@@ -746,7 +792,7 @@ class rpiBaseClass:
         An atexit handler for the current job.
         Stop and remove the self._run()  and self._proccmd() jobs from the scheduler.
         """
-        rpiLogger.warning("The %s job is exiting!" % self.name)
+        rpiLogger.warning("rpibase for %s::: The job is exiting!", self.name)
 
         self._remove_run()
         
@@ -755,5 +801,5 @@ class rpiBaseClass:
                 if self._sched.get_job(self._cmdname) is not None:
                     self._sched.remove_job(self._cmdname)
 
-        rpiLogger.debug("%s::: Exit!" % self.name)
-        self._statusmsg.append(("%s Exit" % self.name, ERRNONE))
+        rpiLogger.debug("rpibase for %s::: Exit!", self.name)
+        self._statusmsg.append((f"{self.name} Exit", ERRNONE))

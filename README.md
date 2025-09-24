@@ -3,9 +3,9 @@
 ![Exp](https://img.shields.io/badge/Dev-Experimental-orange.svg)
 [![Lic](https://img.shields.io/badge/License-Apache2.0-green)](http://www.apache.org/licenses/LICENSE-2.0)
 ![Py](https://img.shields.io/badge/Python-3.12+-green)
-![Ver](https://img.shields.io/badge/Version-7.0-blue)
+![Ver](https://img.shields.io/badge/Version-8.0rc1-blue)
 
-## Implementation (rpicampy)
+## Implementation and configuration
 
 ### Components
 
@@ -27,54 +27,60 @@
 
 - Gracefull exit is implemented for SIGINT, SIGTERM and SIGABRT.
 
-Run manually with: 
+**Run manually**: 
+
+Use 
 ```
 RPI_LGPIO_REVISION=800012 python3 rpicam_sch.py &
 ```
-NOTE: The `RPI_LGPIO_REVISION` environment variable must be set due the use of the user-space GPIO (see below the details).
+NOTE: The `RPI_LGPIO_REVISION` environment variable must be set due the use of the user-space GPIO access is via the [rpi.gpio compatibility package](https://rpi-lgpio.readthedocs.io/en/latest/index.html), on Linux kernels which support [/dev/gpiochipX](https://www.thegoodpenguin.co.uk/blog/stop-using-sys-class-gpio-its-deprecated/).
 
-Auto-start as service, using the systemd user service unit `rpicamsch.service.user`.
+**Auto-start as service**: 
 
-When running, all messages are logged to a (rotated) `rpicam.log` file.
+Use the systemd user service unit `rpicamsch.service.user`.
+The `rpicamsch.service.user` systemd user service unit is to be copied to /etc/systemd/user/rpicamsch.service.
 
-#### rpiconfig.yaml:	The configuration file with parameters for the functionalities described below.
+While running, all messages are logged to a (rotated) `rpicam.log` file. The log level is configured in `rpilogger.py`.
 
-See comments in the [rpiconfig.yaml](./rpiconfig.yaml) file for all available configuration parameters.
+#### rpiconfig.yaml:	The configuration file with parameters for most of the functionalities.
 
-#### rpicamsch.service.user: systemd user service unit, to be copied to /etc/systemd/user/rpicamsch.service
+  - The parameters are grouped in 6 sections: *Main*, *timerConfig*, *camConfig*, *dirConfig*, *dbxConfig* and *rcConfig*. 
+  See comments in the [rpiconfig.yaml](./rpiconfig.yaml) file for all available configuration parameters and their use.
 
-#### rpicam:	Manage (pi)camera and save images locally.
+
+#### rpicam:	Manage image capture with (pi)camera and save images locally.
+
+Image capture options (selected in `rpicam.py`):
+- Raspberry PI camera using the Picamera2 API python module (new libcamera stack) - preferred option, or
 
 - Raspberry PI camera using rpicam-still (from rpicam-apps), or
 
-- Raspberry PI camera using the Picamera2 API python module (new libcamera stack), or
-
 - USB web camera using fswebcam utility. 
-
-- Implement infra-red (IR) or visible light (VL) reflector control via GPIO (configured with `use_irl` and `bcm_irlport` parameters in the configuration file under the `camConfig` section)
-
-- Implement PIR sensor as external trigger via GPIO for the camera job, which replaces the job scheduler (configured with `use_pir` and `bcm_pirport` parameters in the configuration file under the `camConfig` section)
 
 The captured images are stored locally in a sub-folder with the current date 'DDMMY' as name, under the `image_dir` folder, specified in the configuration file under the `dirConfig` section.
 The captured image local file names are 'DDMMYY-HHMMSS-CAMID.jpg', where CAMID is the camera identification string `cam_id`, specified in the configuration file under the `camConfig` section.
 
-The rpicam module implements a 'dark' time long exposure time or an IR/VL reflector ON/OFF switch. 
-The 'dark' time period (start and stop) can be configured manually using the hour/min parameters set in the configuration file under the `timerConfig` section.
-Alternatively, the 'dark' time period can be configured automatically using the [PyEphem](http://rhodesmill.org/pyephem/) 
-and the location parameters (latitude and longitude) `lat_lon` set in the configuration file under the `camConfig` section.
-During the 'dark' time period the IR light is controlled via the GPIO BCM port number `bcm_irport` when `use_ir=1` set in the configuration file under the `camConfig` section.
+The module implements a 'dark' time long exposure time or an IR/VL reflector ON/OFF switch. The module implements the infra-red (IR) or visible light (VL) reflector control via GPIO (configured with `use_irl: yes` and `bcm_irlport` parameters in the configuration file under the `camConfig` section).
 
-Note: GPIO access is via the [rpi.gpio compatibility package](https://rpi-lgpio.readthedocs.io/en/latest/index.html) on Linux kernels which support [/dev/gpiochipX](https://www.thegoodpenguin.co.uk/blog/stop-using-sys-class-gpio-its-deprecated/).
+- The 'dark' time period (start and stop) can be configured manually using the hour/min parameters set in the configuration file under the `timerConfig` section.
+- Alternatively, the 'dark' time period can be configured automatically using the [PyEphem](http://rhodesmill.org/pyephem/) 
+and the location parameters (latitude and longitude) `lat_lon` set in the configuration file under the `camConfig` section.
+
+PIR sensor support, as external trigger via GPIO for the camera job, is in BETA. (replaces the normal camera job scheduler when configured with `use_pir: yes` and `bcm_pirport` parameters in the configuration file under the `camConfig` section).
+
+
+<details>
+<summary>Further info about the other implemenation modules</summary>
 
 #### rpimgdir:	Manage the set of locally saved images by rpicam.  
 
 #### rpimgdb:	Manage images in a Dropbox remote directory (API V2).
 
-The current/last captured image is always uploaded with the name `image_snap`, specified in the configuration file under the `dbConfig` section,
-under the `image_dir` folder, under the Dropbox App folder.
-The captured images are uploaded to a sub-folder with the current date 'DDMMYY' as name, under the `image_dir` folder, under the Dropbox App folder.
-The captured image upload file names are 'DDMMYY-HHMMSS-CAMID.jpg', where CAMID is the camera identification string `cam_id`, specified in the configuration file under the `camConfig` section.
-All uploaded images file names are stored in in a local `upldlog.json` file when the configured capture sequence ends or at the end of each day.
+  - The captured images are uploaded to a sub-folder with the current date 'DDMMYY' as name, under the `image_dir` folder, under the Dropbox App folder.
+  - The captured image upload file names are 'DDMMYY-HHMMSS-CAMID.jpg', where CAMID is the camera identification string `cam_id`, specified in the configuration file under the `camConfig` section.
+  - The current/last captured image is always uploaded with the name `image_snap`, specified in the configuration file under the `dbConfig` section,
+  under the `image_dir` folder, under the Dropbox App folder.
+  - All uploaded images file names are stored in in a local `upldlog.json` file when the configured capture sequence ends or at the end of each day.
 
 #### rpibase:	Base class for rpicam, rpimgdir and rpimgdb (see above).
 
@@ -82,15 +88,45 @@ All uploaded images file names are stored in in a local `upldlog.json` file when
 
 #### rpififo:	Implements the FIFO buffer for the image file names (full path) generated in the rpicam.
 
-#### thingspk:	A simple REST request abstraction layer and a light ThingSpeak API and TalkBack App SDK. 
+#### thingspk:	A simple REST request abstraction layer and a light client ThingSpeak API and TalkBack API. 
 
-The implementation of the thingspk module follows the [ThingSpeak API documentation](https://www.mathworks.com/help/thingspeak/)
-and the [TalkBack API documentation](https://www.mathworks.com/help/thingspeak/talkback-app.html)
-The REST client implementation follows the model of the older [Python Xively API client](https://github.com/xively/xively-python).
+  - The implementation of the thingspk module follows the [ThingSpeak API documentation](https://www.mathworks.com/help/thingspeak/)
+  and the [TalkBack API documentation](https://www.mathworks.com/help/thingspeak/talkback-app.html)
+  - The REST client implementation follows the model of the older [Python Xively API client](https://github.com/xively/xively-python).
+
+  - The use of the ThingSpeak API (to send status messages) and ThingSpeak TalkBack API (to receive remote control commands) requires
+  in the 6th section (rcConfig) of the `rpiconfig.yaml` the configuration of:
+```
+  rc_type: ['ts-status', 'ts-cmd']
+  token_file: ['ts_tokens.txt']
+```
+
+  where `ts_tokens.txt` (only example file name) is a text file which contains 2 lines with the necessary ThingSpeak API client access keys, as follows:
+
+```
+  <channel_id>,<write_key>,<read_key>
+  <talkback_id>,<talkback_key>
+```
+
+#### rpiwsocket: A simple threaded WebSocket server implementation to send status messages and receive remote control commands.
+
+  - The use of the WebSocket server to send status messages and/or receive remote control commands requires in the 6th section (rcConfig) of the `rpiconfig.yaml` the configuration of:
+```
+  rc_type: ['ws-status', 'ws-cmd']
+  token_file: ['ws_tokens.txt']
+```
+
+where `ws_tokens.txt` (only example file name) is a text file with the access tokens which need to be provided by each client during the initial authoriastion handshake, when connecting to this server, as follows:
+
+```
+  <recv_status_token>,<send_cmd_token>
+```
 
 #### rpiconfig:	Implements the rpicampy configuration (read `rpiconfig.yaml`) and performs system checks.
 
 #### rpilogger:	Implements the custom logging for the rpicampy.
+
+</details>
 
 
 ### Dependencies 
@@ -114,6 +150,8 @@ Installed with `sudo apt install --upgrade python3-<package>`
 - rpi-lgpio: [rpi.gpio compatibility package](https://rpi-lgpio.readthedocs.io/en/latest/index.html) on Linux kernels which support /dev/gpiochipX
 
 - systemd: [python3-systemd](https://github.com/systemd/python-systemd)
+
+- websockets: [python3-websockets](https://pypi.org/project/websockets/)
 
 #### System dependencies
 

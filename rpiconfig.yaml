@@ -1,5 +1,5 @@
 # Time-lapse with Raspberry Pi controlled camera - Configuration file
-# VER 7.0 for Python 3.12+
+# VER 8.0 for Python 3.12+
 # Copyright (C) 2016- Istvan Z. Kovacs
 #
 # The configuration file is in YAML format and contains five 'documents' separated by '---'.
@@ -10,7 +10,7 @@
 # See the comments below for description of each parameter.
 
 # Main configuration parameters.
-# Loaded into mainConfig.
+# Loaded in rpiconfig.
 
 # All internet use (Dropbox and ThingSpeak)
 INTERNETUSE:  yes
@@ -18,13 +18,13 @@ INTERNETUSE:  yes
 LOCUSBUSE:    no
 
 ---
-# Date period configuration. 
+# Datetime periods configuration. 
 # Loaded into timerConfig.
 
-# The date period for activating the camera. The dates are in YYYY-MM-DD format.
+# The date period for activating the camera jobs. The dates are in YYYY-MM-DD format.
 start_date: '2025-01-01'
 stop_date:  '2025-12-31'
-# Daily time periods configuration. The times are in HH:MM:SS format.
+# Main time periods configuration during each day. The times are in HH:MM:SS format.
 start_times: ['00:00:00', '08:00:00', '16:00:00']
 stop_times:  ['07:59:00', '15:59:00', '23:59:00']
 # Dark time start and stop times indeces, indicating times from the start_times and stop_times.
@@ -33,8 +33,8 @@ stop_times:  ['07:59:00', '15:59:00', '23:59:00']
 # else dark time period is not used.
 start_dark_time: -1
 stop_dark_time: -1
-# Camera activation interval configuration in seconds for each time period above.
-interval_sec: [15, 30, 15]
+# Main timer execution interval configuration in seconds for all time period above.
+interval_sec: 10
 
 ---
 # Camera configurations.
@@ -47,6 +47,8 @@ cam_sensor: 'daylight'
 rec_type: 'still'
 image_rot: 180
 image_res: [1024, 768]
+# Image capture intervals configuration in seconds for each time period above.
+interval_sec: [15, 30, 15]
 jpg_qual: 85
 use_ovltxt: yes
 use_irl: yes
@@ -95,7 +97,7 @@ cam_expnight:
 image_dir: './webcam'
 # The number of images to keep in the directory (last list_size images).
 list_size: 10
-# Images list/indexing interval configuration in seconds for each time period above.
+# Images list/indexing execution interval configuration in seconds for each main time period above.
 interval_sec: [15.3, 30.3, 15.3]
 
 ---
@@ -113,22 +115,21 @@ token_file: 'tokens.pkl'
 # with the filename format 'DDMMYY-HHMMSS-<cam_id>.jpg' (cam_id from camConfig section above).
 image_snap: 'cam.jpg'
 image_dir: './webcam'
-# Images upload interval configuration in seconds for each time period above.
+# Images upload execution interval configuration in seconds for each main time period above.
 interval_sec: [31.3, 61.3, 31.3]
 
 ---
-# Remote controls configuration for sending info and receiving control commands.
+# Remote controls configuration for sending status info and receiving control commands.
 # Loaded into rcConfig.
+# NOTE: The  main timer interval_sec value is used as time period to send status messages and/or to check for remote control commands.
 
 # The list of RC options for remote control commands.
-# For now, only 'thingspeak' (upload REST feed) and 'thingspeak-tb' (download TalkBack REST feed) are supported.
+# Currently supported  RC options:
+#   'ts-status' (ThingSpeak upload status as REST feed) and 'ts-cmd' (ThingSpeak receive command on TalkBack REST feed)
+#   'ws-status' (WebSockets send status msg) and 'ws-cmd' (WebSockets receive command msg)
 # If rc_type is empty [], any upload and remote control is disabled.
-rc_type: ['thingspeak', 'thingspeak-tb'] 
-# Token/authentication txt file for 'thingspeak' rc_type only
-# If rc_type is not 'thingspeak' or 'thingspeak-tb', this value is ignored.
-# If token_file is empty '', any upload and remote control is disabled.
-token_file: '' 
-# Intervals in seconds for checking new remote control commands when 'thingspeak-tb' rc_type is used.
-# first value is for normal (background) operation, 
-# second value is for fast checking mode, while RC mode is activated.
-interval_sec: [150, 30]
+rc_type: ['ts-status', 'ts-cmd'] 
+# List of token/authentication txt files for 'ts-*' and 'ws-*' rc_type.
+# If the list is empty or the entry in the list is empty '', any upload and remote control is disabled.
+token_file: ['ts_tokens.txt', 'ws_tokens.txt'] 
+

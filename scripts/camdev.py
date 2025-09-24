@@ -98,7 +98,9 @@ def _setCamExp(is_dark: bool, use_irl: bool):
         if use_irl:
             camera.set_controls(
             {
-                #"AeEnable": True, 
+                #"AwbEnable": False, 
+                #"AwbMode": controls.AwbModeEnum.Auto, 
+                "AeEnable": False, 
                 #"AeExposureMode": controls.AeExposureModeEnum.Long,
                 #"AeConstraintMode": controls.AeConstraintModeEnum.Shadows,
                 "ExposureTime": 400000, #usec
@@ -106,8 +108,6 @@ def _setCamExp(is_dark: bool, use_irl: bool):
                 #"AnalogueGain": 1.0,
                 "Contrast": 4.0, # Floating point number from 0.0 to 32.0
                 #"Brightness": 0.2, # Floating point number from -1.0 to 1.0
-                #"AwbEnable": False, 
-                #"AwbMode": controls.AwbModeEnum.Auto,
                 #"FrameDurationLimits": (2000000,1000000), #usec
             }
             )
@@ -116,15 +116,15 @@ def _setCamExp(is_dark: bool, use_irl: bool):
             #    "AeExposureMode": controls.AeExposureModeEnum.Custom, requires definition in /usr/share/libcamera/ipa/rpi/vc4/ov5647_noir.json
             camera.set_controls(
             {
-                #"AeEnable": False, 
+                #"AwbEnable": False, 
+                #"AwbMode": controls.AwbModeEnum.Auto,
+                "AeEnable": False, 
                 #"AeExposureMode": controls.AeExposureModeEnum.Long,
-                "ExposureTime":1000000, #usec
+                "ExposureTime":10000000, #usec
                 #"ExposureValue": 0, #Floating point number between -8.0 and 8.0
                 #"AnalogueGain": 1.0,
                 "Contrast": 3.0, # Floating point number from 0.0 to 32.0
                 #"Brightness": 0.2, # Floating point number from -1.0 to 1.0
-                #"AwbEnable": False, 
-                #"AwbMode": controls.AwbModeEnum.Auto,
                 #"FrameDurationLimits": (2000000,2000000), #usec
             }
             )        
@@ -132,12 +132,12 @@ def _setCamExp(is_dark: bool, use_irl: bool):
     else:
         camera.set_controls(
         {
+            "AwbEnable": True, 
+            "AwbMode": controls.AwbModeEnum.Daylight,
             "AeEnable": True, 
             "AeExposureMode": controls.AeExposureModeEnum.Normal,
             "Contrast": 1.0, # Floating point number from 0.0 to 32.0
             "Brightness": 0.0, # Floating point number from -1.0 to 1.0
-            "AwbEnable": True, 
-            "AwbMode": controls.AwbModeEnum.Auto,
         }
         )
 

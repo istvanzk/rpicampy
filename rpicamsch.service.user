@@ -1,5 +1,5 @@
 ## Time-lapse with Raspberry Pi controlled camera - User service systemd unit file
-## VER 7.0 for Python 3.12+
+## VER 8.0 for Python 3.12+
 ## Copyright (C) 2016- Istvan Z. Kovacs
 
 ## Install user service: 
@@ -29,7 +29,7 @@
 # https://www.baeldung.com/linux/systemd-services-environment-variables
 
 [Unit]
-Description=RPiCam service V2.0
+Description=RPiCam service V8.0
 Documentation="https://github.com/istvanzk/rpicampy" "file:%h/rpicampy/rpicam_sch.py"
 After=network-online.target
 

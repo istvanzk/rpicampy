@@ -1,22 +1,19 @@
 # -*- coding: utf-8 -*-
-
 """
     Time-lapse with Rasberry Pi controlled camera
-    Copyright (C) 2016-2017 Istvan Z. Kovacs
+    Copyright (C) 2016- Istvan Z. Kovacs
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 A simple REST request abstraction layer and a light ThingSpeak API SDK,
 according to the API documentation at http://community.thingspeak.com/documentation/api/
@@ -26,8 +23,6 @@ The REST client implementation is based on the old python Xively API client (SDK
 
 The Channel ID and API Key(s) are read from the text file given as argument when the class is instantiated.
 """
-
-import sys
 import time
 from urllib.parse import urljoin
 #import urlparse
@@ -42,7 +37,7 @@ except ImportError:
 ### The rpi(cam)py modules
 from rpilogger import rpiLogger
 
-SDK_VERSION = 0.9
+SDK_VERSION  = 1.0
 TINTV_CH_SEC = 300
 TINTV_TB_SEC = 300
 
@@ -282,11 +277,11 @@ class ThingSpeakTBClient:
         self.tconfig = tconfig or None
 
         if self.key_file is None:
-            rpiLogger.error("ThingSpeak TB::: No TalkBack ID and API Key were specified! Exiting!", exc_info=True)
+            rpiLogger.error("thingspeak tb:::: No TalkBack ID and API Key were specified! Exiting!\n")
 
         # Read the access key
         try:
-            with open(self.key_file,'r') as f:
+            with open(self.key_file, mode='r', encoding='utf-8') as f:
                 tspk_info = f.read().split('\n')
                 tspk_key  = tspk_info[1].split(',',3)
 
@@ -294,7 +289,7 @@ class ThingSpeakTBClient:
                 self.tbapi_key   = tspk_key[1]
 
         except IOError:
-            rpiLogger.error("ThingSpeak TB::: Keys file ''%s'' not found! Exiting!" % (self.key_file), exc_info=True)
+            rpiLogger.error("thingspeak tb:::: Keys file '%s' not found! Exiting!\n", self.key_file)
             raise
 
         # REST client
@@ -438,11 +433,11 @@ class ThingSpeakAPIClient:
         self.tconfig = tconfig or None
 
         if self.key_file is None:
-            rpiLogger.error("ThingSpeak API::: No Channel ID and API Keys were specified! Exiting!", exc_info=True)
+            rpiLogger.error("thingspeak api:::: No Channel ID and API Keys were specified! Exiting!\n")
 
         # Read the Channel ID and API Key
         try:
-            with open(self.key_file,'r') as f:
+            with open(self.key_file, mode='r', encoding='utf-8') as f:
                 tspk_info = f.read().split('\n')
                 tspk_key  = tspk_info[0].split(',',3)
 
@@ -451,7 +446,7 @@ class ThingSpeakAPIClient:
                 self.read_key   = tspk_key[2]
 
         except IOError:
-            rpiLogger.error("ThingSpeak API::: Keys file ''%s'' not found! Exiting!" % (self.key_file), exc_info=True)
+            rpiLogger.error("thingspeak api:::: Keys file '%s' not found! Exiting!\n", self.key_file)
             raise
 
         # REST client

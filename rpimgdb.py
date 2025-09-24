@@ -3,25 +3,22 @@
     Time-lapse with Rasberry Pi controlled camera
     Copyright (C) 2016- Istvan Z. Kovacs
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 Implements the rpiImageDbx class to manage images in a remote directory (dropbox).
 Use Dropbox SDK, API V2, Python 3.9+
 https://dropbox-sdk-python.readthedocs.io/en/latest/index.html
 """
-
 import os
 import sys
 #import time
@@ -43,15 +40,16 @@ except ImportError:
     DBXUSE = False
     pass
 
-### The rpi(cam)py modules
+### The rpicampy modules
 from rpilogger import rpiLogger
 if not DBXUSE:
-    rpiLogger.error("Dropbox module not found or not available!")
+    rpiLogger.error("rpimgdb::: Dropbox module not found or not available!")
     os._exit(1)
 
 import rpififo
 from rpibase import rpiBaseClass, rpiBaseClassError
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
+from rpiconfig import RPICAMPY_VER
 
 TOKEN_EXPIRATION_BUFFER = 300  # seconds
 
@@ -60,23 +58,20 @@ class rpiImageDbxClass(rpiBaseClass):
     Implements the rpiImageDb class to manage images in a remote directory (dropbox).
     """
 
-    def __init__(self, name, rpi_apscheduler, rpi_events, rpi_config, cam_rpififo=None):
+    def __init__(self, name, rpi_apscheduler, rpi_events, rpi_config, cam_rpififo):
 
         ### Get the Dbx error event
         #self._eventDbErr   = rpi_events.eventErrList["DBXJob"]
 
-        ### Get the custom config parameters
-        self._config = rpi_config
-
         ### Get FIFO buffer for images from the camera (deque)
-        self._imageFIFO = cam_rpififo
+        self._imageFIFO: rpififo.rpiFIFOClass = cam_rpififo
 
         ### The FIFO buffer for the uploaded images (deque)
         self.imageUpldFIFO = rpififo.rpiFIFOClass([], 576)
         self.imageUpldFIFO.crtSubDir = ''
 
         ### Init base class
-        super().__init__(name, rpi_apscheduler, rpi_events)
+        super().__init__(name, rpi_apscheduler, rpi_events, rpi_config)
 
     def __repr__(self):
         return "<%s (name=%s, rpi_apscheduler=%s, rpi_events=dict(), rpi_config=%s, dbuff_rpififo=%s)>" % (self.__class__.__name__, self.name, self._sched, self._config, self._imageFIFO)
@@ -111,7 +106,7 @@ class rpiImageDbxClass(rpiBaseClass):
                     self._putImage(self._imageFIFO[-1], self._config['image_snap'], True)
                     self.crt_image_snap = self._imageFIFO[-1]
                     self.numImgUpdDb += 1
-                    rpiLogger.info("Updated remote %s with %s" % (self._config['image_snap'], self._imageFIFO[-1]) )
+                    rpiLogger.info("rpimgdb::: Updated remote %s with %s", self._config['image_snap'], self._imageFIFO[-1] )
 
 
                 # Lock the upload buffer
@@ -127,7 +122,7 @@ class rpiImageDbxClass(rpiBaseClass):
                 for img in self._imageFIFO:
                     if not img in self.imageUpldFIFO:
                         self._putImage(img, os.path.join(self.upldir, os.path.basename(img)))
-                        rpiLogger.info("Uploaded %s" % img )
+                        rpiLogger.info("rpimgdb::: Uploaded %s", img)
 
                 # Release the upload buffer
                 self.imageUpldFIFO.releaseSemaphore()
@@ -139,43 +134,50 @@ class rpiImageDbxClass(rpiBaseClass):
                 # Update status
                 self.statusUpdate = (self.name, ERRNONE)
 
-                rpiLogger.info('Nothing to upload')
+                rpiLogger.info('rpimgdb::: Nothing to upload.')
 
 
         # Handle exceptions, mostly HTTP/SSL related!
         except exceptions.Timeout as e:
             # Catching this error will catch both ReadTimeout and ConnectTimeout.
-            raise rpiBaseClassError("%s::: jobRun(): Connect/ReadTimeoutError:\n%s" % (self.name, str(e)), ERRLEV2)
+            rpiLogger.warning("rpimgdb::: jobRun(): Connect/ReadTimeoutError!\n%s", str(e))
+            raise rpiBaseClassError("rpimgdb::: jobRun(): Connect/ReadTimeoutError!", ERRLEV2)
 
         except exceptions.ConnectionError as e:
             # A Connection error occurred.
-            raise rpiBaseClassError("%s::: jobRun(): ConnectionError:\n%s" % (self.name, str(e)), ERRLEV2)
+            rpiLogger.warning("rpimgdb::: jobRun(): ConnectionError!\n%s", str(e))
+            raise rpiBaseClassError("rpimgdb::: jobRun(): ConnectionError!", ERRLEV2)
 
         except exceptions.HTTPError as e:
             # An HTTP error occurred.
-            raise rpiBaseClassError("%s::: jobRun(): HTTPError:\n%s" % (self.name, str(e)), ERRLEV2)
+            rpiLogger.warning("rpimgdb::: jobRun(): HTTPError!\n%s", str(e))
+            raise rpiBaseClassError("rpimgdb::: jobRun(): HTTPError!", ERRLEV2)
 
         except exceptions.RequestException as e:
             # There was an ambiguous exception that occurred while handling your request.
-            raise rpiBaseClassError("%s::: jobRun(): RequestException:\n%s" % (self.name, str(e)), ERRLEV2)
+            rpiLogger.warning("rpimgdb::: jobRun(): RequestException!\n%s", str(e))
+            raise rpiBaseClassError("rpimgdb::: jobRun(): RequestException!", ERRLEV2)
 
 #           except BadStatusLine as e:
 #               self.eventErr_set('run()')
-#               rpiLogger.debug("BadStatusLine:\n%s" % str(e))
+#               rpiLogger.debug("rpimgdb::: BadStatusLine!")
 #               pass
 
         except rpiBaseClassError as e:
             if e.errval == ERRCRIT:
                 self.endDayOAM()
-            raise rpiBaseClassError("%s::: jobRun(): %s" % (self.name, e.errmsg), e.errval)
+            rpiLogger.error("rpimgdb::: jobRun() BaseClassError!\n%s\n", str(e))
+            raise rpiBaseClassError(f"rpimgdb::: jobRun() {str(e)}!", e.errval)
 
         except RuntimeError as e:
             self.endDayOAM()
-            raise rpiBaseClassError("%s::: jobRun(): RuntimeError:\n%s" % (self.name, str(e)), ERRCRIT)
+            rpiLogger.error("rpimgdb::: jobRun(): RuntimeError!\n%s\n", str(e))
+            raise rpiBaseClassError("rpimgdb::: jobRun(): RuntimeError!", ERRCRIT)
 
-        except:
+        except Exception as e:
             self.endDayOAM()
-            raise rpiBaseClassError("%s::: jobRun(): Unhandled Exception:\n%s" % (self.name, str(sys.exc_info())), ERRCRIT)
+            rpiLogger.error("rpimgdb::: jobRun(): Unhandled Exception!\n%s\n", str(e))
+            raise rpiBaseClassError("rpimgdb::: jobRun(): Unhandled Exception!", ERRCRIT)
 
         finally:
             # Release the buffer
@@ -213,14 +215,15 @@ class rpiImageDbxClass(rpiBaseClass):
 
                 del upldimg
 
-                rpiLogger.info("%s::: Local log file %s found and loaded." % (self.name, self.logfile))
+                rpiLogger.info("rpimgdb::: Local log file %s found and loaded.", self.logfile)
             else:
                 with open(self.logfile,'w') as logf:
                     json.dump([], logf)
-                    rpiLogger.info("%s::: Local log file %s initialized." % (self.name, self.logfile))
+                    rpiLogger.info("rpimgdb::: Local log file %s initialized.", self.logfile)
 
         except IOError:
-            raise rpiBaseClassError("%s::: initClass(): Local log file %s was not found or could not be created." % (self.name, self.logfile), ERRCRIT)
+            rpiLogger.error("rpimgdb::: initClass(): Local log file %s was not found or could not be created!\n%s\n", self.logfile, str(e))
+            raise rpiBaseClassError(f"rpimgdb::: initClass(): Local log file {self.logfile} was not found or could not be created!", ERRCRIT)
 
         finally:
             # Release the upload buffer
@@ -242,7 +245,7 @@ class rpiImageDbxClass(rpiBaseClass):
             # Initialize the client
             self._dbx = Dropbox(
                 oauth2_access_token=self._tokens["oauth_result"].access_token,
-                user_agent='RPiCamPy/6.0',
+                user_agent=RPICAMPY_VER,
                 oauth2_access_token_expiration=self._tokens["oauth_result"].expires_at,
                 oauth2_refresh_token=self._tokens["oauth_result"].refresh_token,
                 app_key=self._tokens['app_key'],
@@ -254,7 +257,7 @@ class rpiImageDbxClass(rpiBaseClass):
             # {'account_id', 'is_paired', 'locale', 'email', 'name', 'team', 'country', 'account_type', 'referral_link'}
             self.dbinfo ={'email': info.email, 'referral_link': info.referral_link} # pyright: ignore[reportAttributeAccessIssue]
 
-            rpiLogger.info("%s::: Loaded access token from ''%s''" % (self.name, self._token_file) )
+            rpiLogger.info("rpimgdb::: Loaded access token from '%s'", self._token_file)
 
             ### Create remote root folder (relative to app root) if it does not exist yet
             self._mkdirImage(os.path.normpath(self._config['image_dir']))
@@ -262,23 +265,28 @@ class rpiImageDbxClass(rpiBaseClass):
         except rpiBaseClassError as e:
             if e.errval == ERRCRIT:
                 self.endDayOAM()
-            raise rpiBaseClassError("initClass() error: %s" % e.errmsg, e.errval)
+            rpiLogger.error("rpimgdb::: initClass() BaseClassError!\n%s\n", str(e))
+            raise rpiBaseClassError("rpimgdb::: initClass() %s!" % e, e.errval)
 
-        except IOError:
+        except IOError as e:
             self.endDayOAM()
-            raise rpiBaseClassError("initClass(): Token file '%s' could not be read." % self._token_file, ERRCRIT)
+            rpiLogger.error("rpimgdb::: initClass(): Token file '%s' could not be read!\n%s\n", str(e))
+            raise rpiBaseClassError(f"rpimgdb::: initClass(): Token file '{self._token_file}' could not be read!", ERRCRIT)
 
         except AuthError as e:
             self.endDayOAM()
-            raise rpiBaseClassError("initClass(): AuthError:\n%s" % e.error, ERRCRIT)
+            rpiLogger.error("rpimgdb::: initClass(): AuthError!\n%s\n", str(e))
+            raise rpiBaseClassError("rpimgdb::: initClass(): AuthError!", ERRCRIT)
 
         except DropboxException as e:
             self.endDayOAM()
-            raise rpiBaseClassError("initClass(): DropboxException:\n%s" %  str(e), ERRCRIT)
+            rpiLogger.error("rpimgdb::: initClass(): DropboxException!\n%s\n", str(e))
+            raise rpiBaseClassError("rpimgdb::: initClass(): DropboxException!", ERRCRIT)
 
         except InternalServerError as e:
             self.endDayOAM()
-            raise rpiBaseClassError("initClass(): InternalServerError:\n%s" % str(e.status_code),  ERRCRIT)
+            rpiLogger.error("rpimgdb::: initClass(): InternalServerError!\n%s\n", str(e))
+            raise rpiBaseClassError("rpimgdb::: initClass(): InternalServerError!", ERRCRIT)
 
 
     def endDayOAM(self):
@@ -287,7 +295,7 @@ class rpiImageDbxClass(rpiBaseClass):
         """
 
         self._lsImage(self.upldir)
-        rpiLogger.info("%s::: %d images in the remote folder %s" % (self.name, len(self.imageDbList), self.upldir))
+        rpiLogger.info("rpimgdb:::  %d images in the remote folder %s", len(self.imageDbList), self.upldir)
 
         # Lock the uplaod buffer
         self.imageUpldFIFO.acquireSemaphore()
@@ -302,10 +310,11 @@ class rpiImageDbxClass(rpiBaseClass):
 
             del upldimg
 
-            rpiLogger.info("%s::: Local log file %s updated." % (self.name, self.logfile))
+            rpiLogger.info("rpimgdb::: Local log file %s updated.", self.logfile)
 
-        except IOError:
-            raise rpiBaseClassError("endDayOAM(): Local log file %s was not found." % self.logfile,  ERRCRIT)
+        except IOError as e:
+            rpiLogger.error("rpimgdb::: endDayOAM(): Local log file %s was not found!\n%s\n", self.logfile, str(e))
+            raise rpiBaseClassError(f"rpimgdb::: endDayOAM(): Local log file {self.logfile} was not found!",  ERRCRIT)
 
         finally:
             # Release the upload buffer
@@ -330,13 +339,16 @@ class rpiImageDbxClass(rpiBaseClass):
             self._dbx.check_and_refresh_access_token()
 
         except AuthError as e:
-            raise rpiBaseClassError("_check_and_refresh_access_token(): AuthError:\n%s" % e.error, ERRCRIT)
+            rpiLogger.error("rpimgdb::: _check_and_refresh_access_token(): AuthError!\n%s\n", str(e))
+            raise rpiBaseClassError("rpimgdb::: _check_and_refresh_access_token(): AuthError!", ERRCRIT)
 
         except DropboxException as e:
-            raise rpiBaseClassError("_check_and_refresh_access_token(): DropboxException:\n%s" %  str(e), ERRCRIT)
+            rpiLogger.error("rpimgdb::: _check_and_refresh_access_token(): DropboxException!\n%s\n", str(e))
+            raise rpiBaseClassError("rpimgdb::: _check_and_refresh_access_token(): DropboxException!", ERRCRIT)
 
         except InternalServerError as e:
-            raise rpiBaseClassError("_check_and_refresh_access_token(): InternalServerError:\n%s" % str(e.status_code),  ERRCRIT)
+            rpiLogger.error("rpimgdb::: _check_and_refresh_access_token(): InternalServerError!\n%s\n", str(e))
+            raise rpiBaseClassError("rpimgdb::: _check_and_refresh_access_token(): InternalServerError!",  ERRCRIT)
 
 
     def _lsImage(self,from_path):
@@ -355,7 +367,7 @@ class rpiImageDbxClass(rpiBaseClass):
             else:
                 new_ls = self._dbx.files_list_folder_continue(self._imageDbCursor)
                 if new_ls.entries == []:
-                    rpiLogger.debug("%s::: _lsImage():: No changes on the server." % self.name)
+                    rpiLogger.debug("rpimgdb::: _lsImage():: No changes on the server.")
                 else:
                     self.ls_ref = new_ls
 
@@ -378,12 +390,18 @@ class rpiImageDbxClass(rpiBaseClass):
             self._imageDbCursor = self.ls_ref.cursor
 
             if len(self.imageDbList) > 0:
-                rpiLogger.debug("%s::: _lsImage():: imageDbList[0..%d]: %s .. %s" % (self.name, len(self.imageDbList)-1, self.imageDbList[0], self.imageDbList[-1]) )
+                rpiLogger.debug("rpimgdb::: _lsImage():: imageDbList[0..%d]: %s .. %s", len(self.imageDbList)-1, self.imageDbList[0], self.imageDbList[-1] )
             else:
-                rpiLogger.debug("%s::: _lsImage():: imageDbList[]: empty" % self.name)
+                rpiLogger.debug("rpimgdb::: _lsImage():: imageDbList[]: empty.")
 
-        except ApiError as e:
-            raise rpiBaseClassError("_lsImage(): %s" % e.error, ERRLEV2)
+        except ApiError as err:
+            if err.user_message_text:
+                rpiLogger.warning("rpimgdb::: _lsImage() ApiError %s!", err.user_message_text)
+                raise rpiBaseClassError(f"rpimgdb::: _lsImage() ApiError {err.user_message_text}!", ERRLEV2)
+            else:
+                rpiLogger.warning("rpimgdb::: _lsImage() ApiError %s!", err.error)
+                raise rpiBaseClassError(f"rpimgdb::: _lsImage() ApiError {err.error}!", ERRLEV2)
+
 
 
     def _putImage(self, from_path, to_path, overwrite=False):
@@ -408,20 +426,23 @@ class rpiImageDbxClass(rpiBaseClass):
                 if not overwrite:
                     self.imageUpldFIFO.append(from_path)
 
-                rpiLogger.debug("%s::: _putImage(): Uploaded file from %s to remote %s" % (self.name, from_path, to_path))
+                rpiLogger.debug("rpimgdb::: _putImage(): Uploaded file from %s to remote %s", from_path, to_path)
 
             except ApiError as err:
                 # This checks for the specific error where a user doesn't have
                 # enough Dropbox space quota to upload this file
                 if (err.error.is_path() and err.error.get_path().error.is_insufficient_space()):
-                    raise rpiBaseClassError("_putImage(): ERROR: Cannot back up; insufficient space.", ERRCRIT)
+                    rpiLogger.error("rpimgdb::: _putImage(): ApiError Cannot back up; insufficient space!\n%s\n", str(err))
+                    raise rpiBaseClassError("rpimgdb::: _putImage(): ApiError Cannot back up; insufficient space!", ERRCRIT)
                 elif err.user_message_text:
-                    raise rpiBaseClassError("_putImage(): %s" % err.user_message_text, ERRLEV2)
+                    rpiLogger.warning("rpimgdb::: _putImage(): ApiError %s!", err.user_message_text)
+                    raise rpiBaseClassError(f"rpimgdb::: _putImage(): ApiError {err.user_message_text}!", ERRLEV2)
                 else:
-                    raise rpiBaseClassError("_putImage(): %s" % err.error, ERRLEV2)
+                    rpiLogger.warning("rpimgdb::: _putImage(): ApiError %s!", err.error)
+                    raise rpiBaseClassError(f"rpimgdb::: _putImage(): ApiError {err.error}!", ERRLEV2)
 
             #except IOError:
-                #raise rpiBaseClassError("_putImage(): Local img file %s could not be opened." %  from_path, ERRCRIT)
+                #raise rpiBaseClassError(f"rpimgdb::: _putImage(): Local img file {from_path} could not be opened!", ERRCRIT)
 
     def _mkdirImage(self, path):
         """
@@ -438,7 +459,7 @@ class rpiImageDbxClass(rpiBaseClass):
         try:
             self._dbx.files_create_folder('/' + os.path.normpath(path))
 
-            rpiLogger.debug("%s::: Remote output folder /%s created." % (self.name, path))
+            rpiLogger.debug("rpimgdb::: Remote output folder /%s created.", path)
 
         except ApiError as e:
             noerr = False
@@ -451,11 +472,12 @@ class rpiImageDbxClass(rpiBaseClass):
                     wce = we.get_conflict()
                     # union tag is 'folder'
                     if wce.is_folder():
-                        rpiLogger.info("%s::: Remote output folder /%s already exist!" % (self.name, path))
+                        rpiLogger.info("rpimgdb::: Remote output folder /%s already exist!", path)
                         noerr = True
 
             if not noerr:
-                raise rpiBaseClassError("_mkdirImage(): Remote output folder /%s was not created! %s" % (path, e.error), ERRCRIT)
+                rpiLogger.error("rpimgdb::: _mkdirImage(): ApiError Remote output folder /%s was not created!\n%s\n", path, str(e))
+                raise rpiBaseClassError(f"rpimgdb::: _mkdirImage(): ApiError Remote output folder /{path} was not created!", ERRCRIT)
             else:
                 pass
 
@@ -475,10 +497,11 @@ class rpiImageDbxClass(rpiBaseClass):
         try:
             self._dbx.files_move( '/' + os.path.normpath(from_path), '/' +  os.path.normpath(to_path) )
 
-            rpiLogger.debug("%s::: _mvImage(): Moved file from %s to %s" % (self.name, from_path, to_path))
+            rpiLogger.debug("rpimgdb::: _mvImage(): Moved file from %s to %s", from_path, to_path)
 
         except ApiError as e:
-            raise rpiBaseClassError("_mvImage(): Image %s could not be moved to %s! %s" % (from_path, to_path, e.error), ERRLEV2)
+            rpiLogger.error("rpimgdb::: _mvImage(): ApiError Image %s could not be moved to %s!\n%s\n", from_path, to_path, str(e))
+            raise rpiBaseClassError(f"rpimgdb::: _mvImage(): ApiError Image {from_path} could not be moved to {to_path}!", ERRLEV2)
 
 
 #   def _getImage(self, from_file, to_path):
@@ -490,10 +513,10 @@ class rpiImageDbxClass(rpiBaseClass):
 #       """
 #       try:
 #           metadata, response  = self._dbx.files_download_to_file( to_path, '/' + os.path.normpath(from_file) )
-#           rpiLogger.debug("%s::: _getImage(): Downloaded file from remote %s to %s. Metadata: %s" % (self.name, from_file, to_path, metadata) )
+#           rpiLogger.debug("rpimgdb::: _getImage(): Downloaded file from remote %s to %s. Metadata: %s", from_file, to_path, metadata)
 #
 #       except ApiError as e:
-#           raise rpiBaseClassError("_getImage(): %s" % e.error, ERRLEV2)
+#           raise rpiBaseClassError(f"rpimgdb::: _getImage(): ApiError {e.error}!", ERRLEV2)
 
 
 #   def _searchImage(self, string):
@@ -504,7 +527,7 @@ class rpiImageDbxClass(rpiBaseClass):
 #           results = self._dbx.files_search( '', string, start=0, max_results=100, mode=SearchMode('filename', None) )
 #
 #       except ApiError as e: #rest.ErrorResponse as e:
-#           raise rpiBaseClassError("_searchImage(): %s" % e.error, ERRLEV2)
+#           raise rpiBaseClassError("rpimgdb::: _searchImage(): ApiError {e.error}!", ERRLEV2)
 
 
 #   def _rmImage(self, path):

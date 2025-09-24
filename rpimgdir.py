@@ -1,33 +1,31 @@
 # -*- coding: utf-8 -*-
 """
     Time-lapse with Rasberry Pi controlled camera
-    Copyright (C) 2016-2017 Istvan Z. Kovacs
+    Copyright (C) 2016- Istvan Z. Kovacs
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 Implements the rpiImageDir class to manage the set of saved images by rpiCam
 """
-
 import os
 import sys
 import glob
-import time
-import datetime
 import subprocess
+from threading import Event
+from typing import Any, Dict, List, Tuple
 
-### The rpi(cam)py modules
+### The rpicampy modules
+import rpififo
 from rpilogger import rpiLogger
 from rpibase import rpiBaseClass, rpiBaseClassError
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
@@ -37,22 +35,19 @@ class rpiImageDirClass(rpiBaseClass):
     Implements the rpiImageDir class to manage the set of saved images by rpiCam
     """
 
-    def __init__(self, name, rpi_apscheduler, rpi_events, rpi_config, cam_rpififo=None, upld_rpififo=None):
+    def __init__(self, name, rpi_apscheduler, rpi_events, rpi_config, cam_rpififo, upld_rpififo):
 
         ### Get the Dbx error event
-        self._eventDbErr    = rpi_events.eventErrList["DBXJob"]
-
-        ### Get the custom config parameters
-        self._config = rpi_config
+        self._eventDbErr: List[Event] = rpi_events.eventErrList["DBXJob"]
 
         ### Get FIFO buffer for images from the camera (deque)
-        self._imageFIFO = cam_rpififo
+        self._imageFIFO: rpififo.rpiFIFOClass = cam_rpififo
 
         ### Get FIFO buffer for the uploaded images (deque)
-        self._imageUpldFIFO = upld_rpififo
+        self._imageUpldFIFO: rpififo.rpiFIFOClass = upld_rpififo
 
         ### Init base class
-        super().__init__(name, rpi_apscheduler, rpi_events)
+        super().__init__(name, rpi_apscheduler, rpi_events, rpi_config)
 
     def __repr__(self):
         return "<%s (name=%s, rpi_apscheduler=%s, rpi_events=dict(), rpi_config=%s, dbuff_rpififo=%s)>" % (self.__class__.__name__, self.name, self._sched, self._config, self._imageFIFO)
@@ -79,9 +74,9 @@ class rpiImageDirClass(rpiBaseClass):
         self._image_names = os.path.join(self._locdir, self._imageFIFO.crtSubDir + '-*' + self._imageFIFO.camID + '.jpg')
         self.imagelist = sorted(glob.glob(self._image_names))
         if len(self.imagelist) > 0:
-            rpiLogger.debug("imagelist: %s .. %s" % (self.imagelist[0], self.imagelist[-1]))
+            rpiLogger.debug("rpimgdir::: imagelist: %s .. %s", self.imagelist[0], self.imagelist[-1])
         else:
-            rpiLogger.debug("imagelist: empty. No %s found!" % self._image_names)
+            rpiLogger.debug("rpimgdir::: imagelist: empty. No %s found!", self._image_names)
 
         ### Run directory/file management only if no errors were detected when
         ### updating to remote directory
@@ -99,16 +94,18 @@ class rpiImageDirClass(rpiBaseClass):
                     for img in self.imagelist:
                         if not img in self._imageFIFO and \
                             img in self._imageUpldFIFO:
-                            rpiLogger.info("Remove image: %s" % img)
+                            rpiLogger.info("Remove image: %s", img)
                             self._rmimg = subprocess.Popen("rm " + img, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
                             self._diroutput, self._direrrors = self._rmimg.communicate()
 
 
                 except OSError as e:
-                    raise rpiBaseClassError("%s::: jobRun(): File %s could not be deleted!\n%s" % (self.name, img, e), ERRLEV2)
+                    rpiLogger.warning("rpimgdir::: jobRun(): File %s could not be deleted!\n%s", img, str(e))
+                    raise rpiBaseClassError(f"rpimgdir::: jobRun(): File {img} could not be deleted!\n{e}", ERRLEV2)
 
-                except:
-                    raise rpiBaseClassError("%s::: jobRun(): Unhandled Exception:\n%s" % (self.name, str(sys.exc_info())), ERRCRIT)
+                except Exception as e:
+                    rpiLogger.error("rpimgdir::: jobRun(): Unhandled Exception!\n%s\n", str(e))
+                    raise rpiBaseClassError(f"rpimgdir::: jobRun(): Unhandled Exception!", ERRCRIT)
 
                 finally:
                     self._imageFIFO.releaseSemaphore()
@@ -122,13 +119,13 @@ class rpiImageDirClass(rpiBaseClass):
             # Update image list in the current local sub-folder
             self._imagelist_ref = sorted(glob.glob(self._image_names))
             if len(self._imagelist_ref) > 0:
-                rpiLogger.debug("imagelist_ref: %s .. %s" % (self._imagelist_ref[0], self.imagelist[-1]))
+                rpiLogger.debug("rpimgdir::: imagelist_ref: %s .. %s", self._imagelist_ref[0], self.imagelist[-1])
             else:
-                rpiLogger.debug("imagelist_ref: empty. No %s found!" % self._image_names)
+                rpiLogger.debug("rpimgdir::: imagelist_ref: empty. No %s found!", self._image_names)
 
 
         else:
-            rpiLogger.info("eventDbErr is set!")
+            rpiLogger.info("rpimgdir::: eventDbErr is set!")
 
 
 

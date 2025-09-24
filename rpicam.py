@@ -3,19 +3,17 @@
     Time-lapse with Rasberry Pi controlled camera
     Copyright (C) 2016- Istvan Z. Kovacs
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+        http://www.apache.org/licenses/LICENSE-2.0
 
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 Implements the rpiCam class, to run and control a:
     - Raspberry PI camera using the raspistill utility or
@@ -34,7 +32,7 @@ import json
 from threading import Event
 from typing import Any, Dict, List, Tuple
 
-### The rpi(cam)py modules
+### The rpicampy modules
 import rpififo
 from rpilogger import rpiLogger
 from rpibase import rpiBaseClass, rpiBaseClassError
@@ -71,7 +69,7 @@ LIBCAMERA_JSON = "ov5647_noir.json" # Cam V1 Noir: dtoverlay=ov5647 in /boot/con
 
 ### Initialize camera capture 'back-end' used
 if not(FAKESNAP or LIBCAMERA or RPICAM2):
-    rpiLogger.error("rpicam::: No camera input selected! Exiting!")
+    rpiLogger.error("rpicam::: No camera input selected! Exiting!\n")
     raise rpiBaseClassError("rpicam::: No camera input selected! Exiting!", ERRCRIT)
 
 if FAKESNAP:
@@ -86,7 +84,7 @@ elif RPICAM2:
         from picamera2 import Picamera2, Preview
         from libcamera import controls, Transform
     except ImportError:
-        rpiLogger.error("rpicam::: The picamera2 (v2) module could not be loaded!")
+        rpiLogger.error("rpicam::: The picamera2 (v2) module could not be loaded!\n")
         RPICAM2 = False
 
     import piexif
@@ -99,18 +97,18 @@ if LIBCAMERA or RPICAM2:
     # See https://rpi-lgpio.readthedocs.io/en/latest/index.html
     try:
         import RPi.GPIO as GPIO
-        rpiLogger.info(f"rpicam::: The RPi.GPIO (rpi-lgpio) module is used. {GPIO.RPI_INFO}")
+        rpiLogger.info("rpicam::: The RPi.GPIO (rpi-lgpio) module is used. %s", GPIO.RPI_INFO)
     except NotImplementedError as e:
         rpiLogger.warning("rpicam::: If the error below reads 'This module does not understand old-style revision codes'")
         rpiLogger.warning("rpicam::: then see https://rpi-lgpio.readthedocs.io/en/latest/differences.html#pi-revision")
-        rpiLogger.error(f"rpicam::: The RPi.GPIO (rpi-lgpio) module could not be initialized! {e}\n")
-        raise rpiBaseClassError(f"rpicam::: The RPi.GPIO (rpi-lgpio) module could not be initialized! {e}", ERRCRIT)
-    except ImportError:
-        rpiLogger.error("rpicam::: The RPi.GPIO (rpi-lgpio) module could not be loaded!")
-        raise rpiBaseClassError(f"rpicam::: The RPi.GPIO (rpi-lgpio) module could not be loaded!", ERRCRIT)
+        rpiLogger.error("rpicam::: The RPi.GPIO (rpi-lgpio) module could not be initialized!\n%s\n", str(e))
+        raise rpiBaseClassError("rpicam::: The RPi.GPIO (rpi-lgpio) module could not be initialized!", ERRCRIT)
+    except ImportError as e:
+        rpiLogger.error("rpicam::: The RPi.GPIO (rpi-lgpio) module could not be loaded!\n%s\n", str(e))
+        raise rpiBaseClassError("rpicam::: The RPi.GPIO (rpi-lgpio) module could not be loaded!", ERRCRIT)
 else:
     rpiLogger.warning("rpicam::: The RPi.GPIO module is not used!")
-    raise rpiBaseClassError(f"rpicam::: The RPi.GPIO module is not used!", ERRCRIT)
+    raise rpiBaseClassError("rpicam::: The RPi.GPIO module is not used!", ERRCRIT)
 
 
 class rpiCamClass(rpiBaseClass):
@@ -126,26 +124,23 @@ class rpiCamClass(rpiBaseClass):
     def __init__(self, name, rpi_apscheduler, rpi_events, rpi_config, dbuff_rpififo=None):
 
         ### Get the Dbx error event
-        self._eventDbErr    = rpi_events.eventErrList["DBXJob"]
-
-        ### Get the custom config parameters
-        self._config = rpi_config
+        self._eventDbErr: List[Event] = rpi_events.eventErrList["DBXJob"]
 
         ### The FIFO buffer (deque)
-        self.imageFIFO = rpififo.rpiFIFOClass([], self._config['list_size'])
+        self.imageFIFO: rpififo.rpiFIFOClass = rpififo.rpiFIFOClass([], self._config['list_size'])
 
         ### The flag indicating that PIR sensor has detected movement since last picture has been captured
-        self.pirDetected = Event()
+        self.pirDetected: Event = Event()
         self.pirDetected.clear()
         self.pirTimeDelta = timedelta(seconds=0)
         self.lastPirDetected = datetime.now()
 
         ### Camera capture parameters
-        self.camexp_list     = list()
-        self.cmd_str         = list()
+        self.camexp_list: List = list()
+        self.cmd_str: List     = list()
 
         ### Init base class
-        super().__init__(name, rpi_apscheduler, rpi_events)
+        super().__init__(name, rpi_apscheduler, rpi_events, rpi_config)
 
     def __repr__(self):
         return "<%s (name=%s, rpi_apscheduler=%s, rpi_events=dict(), rpi_config=%s, dbuff_rpififo=%s)>" % (self.__class__.__name__, self.name, self._sched, self._config, self.imageFIFO)
@@ -205,14 +200,15 @@ class rpiCamClass(rpiBaseClass):
         self._locdir = os.path.join(self._config['image_dir'], self.imageFIFO.crtSubDir)
         try:
             os.mkdir(self._locdir)
-            rpiLogger.info(f"{self.name}::: Local daily output folder {self._locdir} created.")
+            rpiLogger.info("rpicam::: Local daily output folder %s created.", self._locdir)
 
         except OSError as e:
             if e.errno == EEXIST:
-                rpiLogger.debug(f"{self.name}::: Local daily output folder {self._locdir} already exist!")
+                rpiLogger.debug("rpicam::: Local daily output folder %s already exist!", self._locdir)
                 pass
             else:
-                raise rpiBaseClassError(f"{self.name}::: jobRun(): Local daily output folder {self._locdir} could not be created!", ERRCRIT)
+                rpiLogger.error("rpicam::: jobRun(): Local daily output folder %s could not be created!\n%s\n", self._locdir, e)
+                raise rpiBaseClassError(f"rpicam::: jobRun(): Local daily output folder {self._locdir} could not be created!", ERRCRIT)
 
         finally:
             self.image_name = self.imageFIFO.crtSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
@@ -231,7 +227,7 @@ class rpiCamClass(rpiBaseClass):
 
             ### Capture image
             if FAKESNAP:
-                rpiLogger.debug('Faking snapshot: ' + self.image_name)
+                rpiLogger.debug("rpicam::: Faking snapshot: %s", self.image_name)
                 self._grab_cam = subprocess.Popen("touch " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
 
                 # Check return/errors
@@ -277,7 +273,7 @@ class rpiCamClass(rpiBaseClass):
 
                         # Shutter speed (micro seconds)
                         ss = self._camera.camera_controls["ExposureTime"] # pyright: ignore[reportOptionalMemberAccess]
-                        rpiLogger.debug('Before: Br=%d, Ss=%dus' % (self.imgbr, ss))
+                        rpiLogger.debug("rpicam::: Before: Br=%d, Ss=%dus", self.imgbr, ss)
 
                         # Re-capture the picture
                         time.sleep(3)
@@ -288,7 +284,7 @@ class rpiCamClass(rpiBaseClass):
 
                         # Re-calculate brightness
                         self._averagePerceived(image)
-                        rpiLogger.debug('After: Br=%d, Ss=%dus' % (self.imgbr, self._camera.camera_controls["ExposureTime"]))
+                        rpiLogger.debug("rpicam::: After: Br=%d, Ss=%dus", self.imgbr, self._camera.camera_controls["ExposureTime"])
 
                         # Lock the buffer
                         self.imageFIFO.acquireSemaphore()
@@ -373,10 +369,11 @@ class rpiCamClass(rpiBaseClass):
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
 
         except (OSError, TypeError) as e:
-            raise rpiBaseClassError(f"{self.name}::: jobRun(): Snapshot {self.image_path} could not be created!\n{e}", ERRLEV2)
+            rpiLogger.warning("rpicam::: jobRun(): Snapshot %s could not be created!\n%s", self.image_path, e)
+            raise rpiBaseClassError(f"rpicam::: jobRun(): Snapshot {self.image_path} could not be created!", ERRLEV2)
 
         except subprocess.TimeoutExpired:
-            rpiLogger.warning(f"{self.name}::: jobRun(): Libcamera-still timeout!")
+            rpiLogger.warning("rpicam::: jobRun(): Libcamera-still timeout!")
             self._grab_cam.kill()
 
         finally:
@@ -386,23 +383,23 @@ class rpiCamClass(rpiBaseClass):
 
             ### Check if the image file has been actually saved
             if os.path.exists(self.image_path):
-                rpiLogger.info(f"{self.name}::: jobRun(): Snapshot saved: {self.image_name:s}")
+                rpiLogger.info("rpicam::: jobRun(): Snapshot saved: %s", self.image_name)
 
                 # Add image to deque (FIFO)
                 self.imageFIFO.append(self.image_path)
                 self.crtlenFIFO = len(self.imageFIFO)
 
             else:
-                rpiLogger.warning(f"{self.name}::: jobRun(): Snapshot NOT saved: {self.image_name:s}!")
-                rpiLogger.warning(f"{self.name}::: jobRun(): List of args: {self.cmd_str}")
+                rpiLogger.warning("rpicam::: jobRun(): Snapshot NOT saved: %s!", self.image_name)
+                rpiLogger.warning("rpicam::: jobRun(): List of args: %s", self.cmd_str)
                 if self._camerrors:
-                    rpiLogger.debug(f"{self.name}::: jobRun(): Error was: {self._camerrors.decode()}")
+                    rpiLogger.debug("rpicam::: jobRun(): Error was: %s", self._camerrors.decode())
 
             ### Info about the FIFO buffer
             if self.crtlenFIFO > 0:
-                rpiLogger.debug(f"{self.name}::: jobRun(): imageFIFO[0...{self.crtlenFIFO-1}]: {self.imageFIFO[0]} ... {self.imageFIFO[-1]}")
+                rpiLogger.debug("rpicam::: jobRun(): imageFIFO[0...{self.crtlenFIFO-1}]: %s ... %s", self.imageFIFO[0], self.imageFIFO[-1])
             else:
-                rpiLogger.debug(f"{self.name}::: jobRun(): imageFIFO[]: empty")
+                rpiLogger.debug("rpicam::: jobRun(): imageFIFO[]: empty")
 
             ### Update status
             self.statusUpdate = (self.name, self.crtlenFIFO)
@@ -437,16 +434,16 @@ class rpiCamClass(rpiBaseClass):
             if self._config['use_irl'] or self._config['use_pir']:
                 try:
                     GPIO.setmode(GPIO.BCM)
-                    rpiLogger.info(f"{self.name}::: GPIO BCM mode configured ({GPIO.BCM})")
+                    rpiLogger.info("rpicam::: GPIO BCM mode configured (%s)", GPIO.BCM)
                     if GPIO.getmode() is not None: 
 
                         if self._config['use_irl']:
                             self.IRLport = self._config['bcm_irlport']
                             GPIO.setup(self.IRLport, GPIO.OUT, initial=0)
-                            rpiLogger.info(f"{self.name}::: GPIO IRLport configured (BCM {self.IRLport})")
+                            rpiLogger.info("rpicam::: GPIO IRLport configured (BCM %d)", self.IRLport)
                         else:
                             self.IRLport = None
-                            rpiLogger.warning(f"{self.name}::: GPIO IRLport is not used")  
+                            rpiLogger.warning("rpicam::: GPIO IRLport is not used")  
 
                         if self._config['use_pir']:
                             self.PIRport = self._config['bcm_pirport']
@@ -456,22 +453,22 @@ class rpiCamClass(rpiBaseClass):
                             # The larger and configurable detection delay is added in _pirRun
                             self.lastPirDetected = datetime.now()
                             GPIO.add_event_detect(self.PIRport, GPIO.RISING, callback=self._pirRun, bouncetime=500)
-                            rpiLogger.info(f"{self.name}::: GPIO PIRport configured (BCM {self.PIRport}, {self.pirTimeDelta}sec intv.)")  
+                            rpiLogger.info("rpicam::: GPIO PIRport configured (BCM %d, %f sec intv.)", self.PIRport, self.pirTimeDelta)
                         else:
                             self.PIRport = None
-                            rpiLogger.warning(f"{self.name}::: GPIO PIRport is not used")  
+                            rpiLogger.warning("rpicam::: GPIO PIRport is not used")  
 
                     else:
                         GPIO.cleanup()
-                        rpiLogger.error(f"{self.name}::: GPIO.getmode() returned None!")   
-                        raise rpiBaseClassError(f"{self.name}::: GPIO.getmode() returned None!", ERRCRIT)
+                        rpiLogger.error("rpicam::: GPIO.getmode() returned None!\n")   
+                        raise rpiBaseClassError("rpicam::: GPIO.getmode() returned None!", ERRCRIT)
                     
                 except RuntimeError as e:
-                    rpiLogger.error(f"{self.name}::: GPIO could not be configured! {e}")   
-                    raise rpiBaseClassError(f"{self.name}::: GPIO could not be configured! {e}", ERRCRIT)
+                    rpiLogger.error("rpicam::: GPIO could not be configured!\n%s\n" , str(e))   
+                    raise rpiBaseClassError("rpicam::: GPIO could not be configured!", ERRCRIT)
 
             else:
-                rpiLogger.warning(f"{self.name}::: GPIO is not used")   
+                rpiLogger.warning("rpicam::: GPIO is not used")   
 
         ### Reset flag indicating that PIR sensor has detected movement since last picture has been captured
         self.pirDetected.clear()
@@ -550,13 +547,14 @@ class rpiCamClass(rpiBaseClass):
         try:
             os.mkdir(self._config['image_dir'])
             self.imgSubDir = time.strftime('%d%m%y', time.localtime())
-            rpiLogger.info(f"{self.name}::: Local output folder {self._config['image_dir']} created.")
+            rpiLogger.info("rpicam::: Local output folder %s created.", self._config['image_dir'])
         except OSError as e:
             if e.errno == EEXIST:
-                rpiLogger.info(f"{self.name}::: Local output folder {self._config['image_dir']} already exist!" )
+                rpiLogger.info("rpicam::: Local output folder %s already exist!", self._config['image_dir'])
                 pass
             else:
-                raise rpiBaseClassError(f"{self.name}::: initClass(): Local output folder {self._config['image_dir']} could not be created!" , ERRCRIT)
+                rpiLogger.error("rpicam::: initClass(): Local output folder %s could not be created!\n%s\n", self._config['image_dir'], e)
+                raise rpiBaseClassError(f"rpicam::: initClass(): Local output folder {self._config['image_dir']} could not be created!", ERRCRIT)
 
         ### Fill in the fifo buffer with images found in the output directory
         ### Only the image files with the current date are listed!
@@ -603,9 +601,9 @@ class rpiCamClass(rpiBaseClass):
         if tnow - self.lastPirDetected >= self.pirTimeDelta:
             self.pirDetected.set()
             self.lastPirDetected = tnow
-            rpiLogger.info(f"{self.name}::: PIR flag set")
+            rpiLogger.info("rpicam::: PIR flag set")
         else:
-            rpiLogger.debug(f"{self.name}::: PIR flag NOT set")
+            rpiLogger.debug("rpicam::: PIR flag NOT set")
         
 
     def _setCamExp_libcamera(self):
@@ -616,7 +614,7 @@ class rpiCamClass(rpiBaseClass):
         TODO: Check & tune values!
         """
         if not LIBCAMERA:
-            rpiLogger.warning(f"{self.name}::: _setCamExp_libcamera() called when LIBCAMERA is not used!")
+            rpiLogger.warning("rpicam::: _setCamExp_libcamera() called when LIBCAMERA is not used!")
             return
 
         # The 'dark' mode settings
@@ -669,7 +667,7 @@ class rpiCamClass(rpiBaseClass):
         See Apendix C in Picamera2 API documentation. 
         """
         if not RPICAM2:
-            rpiLogger.warning(f"{self.name}::: _setCamExp_rpicam() called when RPICAM2 is not used!")
+            rpiLogger.warning("rpicam::: _setCamExp_rpicam() called when RPICAM2 is not used!")
             return
 
         if self._isDark():
@@ -759,14 +757,14 @@ class rpiCamClass(rpiBaseClass):
                     with open(self._dynconfig_path, "r") as f:
                         self._dynconfig_exp = json.load(f)
                     self._dynconfig_lastmodified = _crt_modified
-                    rpiLogger.info(f"Dynamic camera controls configuration file {self._dynconfig_path} loaded (last modified {time.ctime(_crt_modified)}).")
+                    rpiLogger.info("rpicam::: Dynamic camera controls configuration file %s loaded (last modified %s).", self._dynconfig_path, time.ctime(_crt_modified))
             else:
                 self._dynconfig_exp = dict()
                 self._dynconfig_lastmodified = 0
 
         except (json.JSONDecodeError, FileNotFoundError, ValueError) as e:
-            rpiLogger.error(f"Error loading dynamic camera controls configuration file {self._dynconfig_path}:\n{e}")
-            raise rpiBaseClassError(f"{self.name}::: _load_dynconfig(): Error loading dynamic camera controls configuration file {self._dynconfig_path}!", ERRCRIT)
+            rpiLogger.error("rpicam::: Error loading dynamic camera controls configuration file %s!\n%s\n", self._dynconfig_path, str(e))
+            raise rpiBaseClassError(f"rpicam::: _load_dynconfig(): Error loading dynamic camera controls configuration file {self._dynconfig_path}!", ERRCRIT)
     
     def _save_dynconfig(self):
         """ 
@@ -776,11 +774,11 @@ class rpiCamClass(rpiBaseClass):
             with open(self._dynconfig_path, "w") as f:
                 json.dump(self._dynconfig_exp, f, indent=2)
             self._dynconfig_lastmodified = os.path.getmtime(self._dynconfig_path)
-            rpiLogger.info(f"Dynamic camera controls configuration file {self._dynconfig_path} saved (last modified {time.ctime(self._dynconfig_lastmodified)}).")
+            rpiLogger.info("rpicam::: Dynamic camera controls configuration file %s loaded (last modified %s).", self._dynconfig_path, time.ctime(_self._dynconfig_lastmodified))
 
         except (FileNotFoundError, ValueError) as e:
-            rpiLogger.error(f"Error saving dynamic camera controls configuration file {self._dynconfig_path}:\n{e}")
-            raise rpiBaseClassError(f"{self.name}::: _save_dynconfig(): Error saving dynamic camera controls configuration file {self._dynconfig_path}!", ERRCRIT)  
+            rpiLogger.error("rpicam:::Error saving dynamic camera controls configuration file %s!\n%s\n", self._dynconfig_path, str(e))
+            raise rpiBaseClassError(f"rpicam::: _save_dynconfig(): Error saving dynamic camera controls configuration file {self._dynconfig_path}!", ERRCRIT)  
         
     def _get_dynconfig(self, exp_cfg:str = ''):
         """ 
@@ -811,7 +809,7 @@ class rpiCamClass(rpiBaseClass):
         if self._camera is not None and RPICAM2:
             self.metadata = self._camera.capture_metadata()
         else:
-            rpiLogger.warning(f"PiCamera metadata cannot be retrieved when RPICAM2 is not set!")
+            rpiLogger.warning("rpicam::: PiCamera metadata cannot be retrieved when RPICAM2 is not set!")
     
     def _isDark(self):
         """ Determine if current time is in the "dark" period. """

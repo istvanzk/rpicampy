@@ -179,7 +179,7 @@ def main():
     # Check if the stop time is valid
     tnow = datetime.now()
     if tnow >= tstop_all:
-        warn_str = f"Current time ({tnow}}) is after the end of scheduler activity period ({tstop?all})! No image capture jobs will be scheduled! Bye!"
+        warn_str = f"Current time ({tnow}) is after the end of scheduler activity period ({tstop_all})! No image capture jobs will be scheduled! Bye!"
         rpiLogger.error("rpicamsch:: %s", warn_str)
         journal_send(warn_str)
         time.sleep(2.0*WATCHDOG_USEC/2000000.0)

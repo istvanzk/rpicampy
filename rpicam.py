@@ -307,7 +307,7 @@ class rpiCamClass(rpiBaseClass):
                             sN = ' (NI)' + sN
                         else:
                             sN = ' (N)' + sN
-                    draw.text((2,image.size[1]-18), f"{self.camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M', time.localtime()):s}", fill=(0,0,0,0), font=self._TXTfont)
+                    draw.text((2,image.size[1]-18), f"{self.camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M:%S', time.localtime()):s}", fill=(0,0,0,0), font=self._TXTfont)
                     #n_width, n_height = TXTfont.getsize('#XX')
                     #draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=self._TXTfont)
                     del draw

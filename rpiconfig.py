@@ -238,11 +238,6 @@ try:
     camConfig['stop_dark_hour'] = int(_hms[0])
     camConfig['stop_dark_min']  = int(_hms[1])
 
-    # Add/copy other config keys
-    if len(timerConfigYaml['interval_sec']) != len(timerConfigYaml['start_times']):
-        rpiLogger.error("Configuration file error: number of timerConfig['interval_sec'] entries and number of time periods entries do not match!")
-        os._exit(1)
-
     # Scheduling (activation) intervals
     if len(camConfig['interval_sec']) > len(timerConfigYaml['start_times']):
         rpiLogger.warning("Configuration file error: number of camConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))

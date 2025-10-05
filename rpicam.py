@@ -839,6 +839,8 @@ class rpiCamClass(rpiBaseClass):
             # _tdark_start = time.localtime(time.mktime(tuple(_ps)) - time.timezone)
             # _tdark_stop = time.localtime(time.mktime(tuple(_nr)) - time.timezone)
             
+            rpiLogger.debug("rpicam::: _isDark(): Auto 'dark' time period")
+                           
             # The ephem.localtime() function converts a PyEphem date into a Python datetime object and locatimelizes it
             self._loc.date = ephem.now()
             _ps = ephem.localtime(self._loc.previous_setting(self._sun))
@@ -851,11 +853,16 @@ class rpiCamClass(rpiBaseClass):
             _stop_dark_min   = _nr.minute
 
         else:
+            rpiLogger.debug("rpicam::: _isDark(): Manual 'dark' time period")
+
             # Manual/fixed 'dark' time period was configured
             _start_dark_hour = self._config['start_dark_hour']
             _start_dark_min  = self._config['start_dark_min']
             _stop_dark_hour  = self._config['stop_dark_hour']
             _stop_dark_min   = self._config['stop_dark_min']
+
+        rpiLogger.debug("rpicam::: _isDark(): 'start_dark' time: %02d:%02d", _start_dark_hour, _start_dark_min)
+        rpiLogger.debug("rpicam::: _isDark(): 'stop_dark'  time: %02d:%02d", _stop_dark_hour, _stop_dark_min)
 
         self._tlocal = time.localtime()
         self._tdark_start = time.mktime((self._tlocal.tm_year, self._tlocal.tm_mon, self._tlocal.tm_mday,

@@ -786,12 +786,16 @@ class rpiCamClass(rpiBaseClass):
     def _save_dynconfig(self):
         """ 
         Save the dynamic camera configuration JSON file. 
+        All the current values are saved.
         """
         try:
+            for _exp_k in self._valid_expkeys:
+                self._dynconfig_exp[_exp_k] = self._config[_exp_k]
+
             with open(self._dynconfig_path, "w") as f:
                 json.dump(self._dynconfig_exp, f, indent=2)
             self._dynconfig_lastmodified = os.path.getmtime(self._dynconfig_path)
-            rpiLogger.info("rpicam::: Dynamic camera controls configuration file %s loaded (last modified %s).", self._dynconfig_path, time.ctime(_self._dynconfig_lastmodified))
+            rpiLogger.info("rpicam::: Dynamic camera controls configuration file %s saved (last modified %s).", self._dynconfig_path, time.ctime(self._dynconfig_lastmodified))
 
         except (FileNotFoundError, ValueError) as e:
             rpiLogger.error("rpicam:::Error saving dynamic camera controls configuration file %s!\n%s\n", self._dynconfig_path, str(e))
@@ -803,12 +807,12 @@ class rpiCamClass(rpiBaseClass):
         When exp_cfg (key) is specified only the corresponding parameters are copied to self._config dict.
         """
         # Load the configuration from JSON
-        # if the file exists and has been mmodified since last loaded
+        # if the file exists and has been modified since last loaded
         self._load_dynconfig()
 
         if self._dynconfig_exp:
             # The loaded dict is expected to contain one or more of the keys listed in self._valid_expkeys, 
-            # each having a sub-dict as value
+            # each having a sub-dict as value.
             # The sub-dict under any of these keys, if the key is present, will replace the corresponding values 
             # in self._config[key] or self._config[exp_cfg] when exp_cfg key is specified.
             # NOTE: There is no check of the a tual keys/values in the copied sub-dicts!

@@ -799,7 +799,7 @@ class rpiCamClass(rpiBaseClass):
             self._dynconfig_lastmodified = os.path.getmtime(self._dynconfig_path)
             rpiLogger.info("rpicam::: Dynamic camera controls configuration file %s saved (last modified %s).", self._dynconfig_path, time.ctime(self._dynconfig_lastmodified))
 
-        except (FileNotFoundError, ValueError) as e:
+        except (FileNotFoundError, ValueError, KeyError) as e:
             rpiLogger.error("rpicam:::Error saving dynamic camera controls configuration file %s!\n%s\n", self._dynconfig_path, str(e))
             raise rpiBaseClassError(f"rpicam::: _save_dynconfig(): Error saving dynamic camera controls configuration file {self._dynconfig_path}!", ERRCRIT)  
         

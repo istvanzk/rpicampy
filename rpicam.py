@@ -34,6 +34,7 @@ from typing import Any, Dict, List, Tuple
 
 ### The rpicampy modules
 import rpififo
+from rpiconfig import RPICAMPY_VER
 from rpilogger import rpiLogger
 from rpibase import rpiBaseClass, rpiBaseClassError
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
@@ -531,10 +532,10 @@ class rpiCamClass(rpiBaseClass):
                 '0th': {
                             piexif.ImageIFD.Model: self._camera.camera_properties["Model"],
                             piexif.ImageIFD.Make: "Raspberry Pi",
-                            piexif.ImageIFD.Software: "rpicampy/v6",
+                            piexif.ImageIFD.Software: RPICAMPY_VER,
                             piexif.ImageIFD.DateTime: time.strftime('%Y:%m:%d %H:%M:%S', time.localtime()),
                             piexif.ImageIFD.Artist: self.camid,
-                            piexif.ImageIFD.ImageDescription: "Time-lapse with Rasberry Pi controlled (pi)camera",
+                            piexif.ImageIFD.ImageDescription: "Time-lapse with Rasberry Pi controlled (pi)camera2",
                             piexif.ImageIFD.Copyright: self.exif_tags_copyr, 
                             piexif.ImageIFD.Orientation: 1, # This must be set to 1 in order to display correctly
                             piexif.ImageIFD.XResolution: (self.resolution[0],1),

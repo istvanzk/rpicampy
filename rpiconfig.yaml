@@ -128,7 +128,7 @@ interval_sec: [31.3, 61.3, 31.3]
 #   'ts-status' (ThingSpeak upload status as REST feed) and 'ts-cmd' (ThingSpeak receive command on TalkBack REST feed)
 #   'ws-status' (WebSockets send status msg) and 'ws-cmd' (WebSockets receive command msg)
 # If rc_type is empty [], any upload and remote control is disabled.
-rc_type: ['ts-status', 'ts-cmd'] 
+rc_type: [] #['ts-status', 'ts-cmd'] 
 # List of token/authentication txt files for 'ts-*' and 'ws-*' rc_type.
 # If the list is empty or the entry in the list is empty '', any upload and remote control is disabled.
 token_file: ['ts_tokens.txt', 'ws_tokens.txt'] 

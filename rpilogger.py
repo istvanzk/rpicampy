@@ -28,8 +28,9 @@ import logging.config
 
 ### Logging parameters
 LOGLEVEL = logging.DEBUG
-LOGFILEBYTES = 3*102400
+LOGFILEBYTES = 500*1024
 LOG_FILENAME = 'rpicam.log'
+BACKUPCOUNT  = 10
 
 ### Define the logging filter
 # Filter out all messages which are not from the main Jobs
@@ -69,7 +70,7 @@ RPILOGGING = {
             'class': 'logging.handlers.RotatingFileHandler',
             'mode': 'w',
             'maxBytes': LOGFILEBYTES,
-            'backupCount': 5,
+            'backupCount': BACKUPCOUNT,
             'formatter': 'full',
             'filename': LOG_FILENAME,
             'filters': ['NotMainJob']

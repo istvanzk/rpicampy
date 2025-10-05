@@ -25,8 +25,8 @@ LOCUSBUSE:    no
 start_date: '2025-01-01'
 stop_date:  '2025-12-31'
 # Main time periods configuration during each day. The times are in HH:MM:SS format.
-start_times: ['00:00:00', '08:00:00', '16:00:00']
-stop_times:  ['07:59:00', '15:59:00', '23:59:00']
+start_times: ['00:00:00', '08:00:00', '20:00:00']
+stop_times:  ['07:59:00', '19:59:00', '23:59:00']
 # Dark time start and stop times indeces, indicating times from the start_times and stop_times.
 # If any of them is set -1 and if lat_lon is configured in the camConfig section below,
 # the dark time period is auto-determined with pyephem based on the lat & lon camera location,

@@ -230,13 +230,15 @@ class rpiCamClass(rpiBaseClass):
 
             ### Capture image
             if FAKESNAP:
-                rpiLogger.debug("rpicam::: Faking snapshot: %s", self.image_name)
+                rpiLogger.debug("rpicam::: jobRun(): FAKESNAP Snapshot: %s", self.image_name)
                 self._grab_cam = subprocess.Popen("touch " + self.image_path, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
 
                 # Check return/errors
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
 
             elif RPICAM2:
+                rpiLogger.debug("rpicam::: jobRun(): RPICAM2 Snapshot")
+
                 # Set exif data
                 crt_time = time.strftime('%Y:%m:%d %H:%M:%S', time.localtime())
                 self._custom_exif['0th'][piexif.ImageIFD.DateTime] = crt_time
@@ -324,6 +326,8 @@ class rpiCamClass(rpiBaseClass):
                 self._camerrors = ''
 
             elif LIBCAMERA:
+                rpiLogger.debug("rpicam::: jobRun(): LIBCAMERA Snapshot")
+
                 # See Camera software, https://www.raspberrypi.com/documentation/computers/camera_software.html#rpicam-still
 
                 # Set camera exposure according to the 'dark' time threshold
@@ -672,7 +676,10 @@ class rpiCamClass(rpiBaseClass):
         if not RPICAM2:
             rpiLogger.warning("rpicam::: _setCamExp_rpicam() called when RPICAM2 is not used!")
             return
-
+        rpiLogger.debug("rpicam::: _setCamExp_rpicam() called with '%s' settings and use_irl=%s", \
+                        'dark' if self._isDark() else 'daylight', \
+                        'yes' if self._config['use_irl'] else 'no')
+                        
         if self._isDark():
             # The 'dark' mode settings
             if self._config['use_irl']:

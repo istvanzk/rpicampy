@@ -34,44 +34,16 @@ from typing import Any, Dict, List, Tuple
 
 ### The rpicampy modules
 import rpififo
-from rpiconfig import RPICAMPY_VER
+from rpiconfig import RPICAMPY_VER, LIBCAMERA_JSON, IMAGE_COPYRIGHT, FAKESNAP, RPICAM2, LIBCAMERA, CONTROLS_JSON 
 from rpilogger import rpiLogger
 from rpibase import rpiBaseClass, rpiBaseClassError
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 
 
-### Image copyright info (saved in EXIF tag)
-IMAGE_COPYRIGHT = 'Copyright (c) 2025 Istvan Z. Kovacs - All rights reserved'
-
-### Camera capture 'back-end' to be use
-# When none selected, then the fswebcam -d /dev/video0 is attemped to be used to capture an image
-# FAKESNAP generates an empty file!
-FAKESNAP   = False
-
-# The real image capture 'back-end' to use
-# The use of picamera (v1) API is depracated since 2022! Use picamera2 (v2) instead!
-# See https://picamera.readthedocs.io/en/release-1.13/api_camera.html
-# RPICAM2 is using the Picamera2 API and is the preferred/recommended
-# See https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf
-RPICAM2    = True
-
-# The dynamic camera controls configuration JSON file name and path
-# Used only with RPICAM2
-CONTROLS_JSON = "cam_controls.json" 
-
-# LIBCAMERA is using the rpicam-still (from rpicam-apps installed with picamera2) since 2022 
-# See https://www.raspberrypi.com/documentation/computers/camera_software.html#rpicam-still
-LIBCAMERA  = False
-
-# LIBCAMERA_JSON has to be set to the JSON file name corresponding to the used camera (see docs above)
-LIBCAMERA_JSON = "ov5647_noir.json" # Cam V1 Noir: dtoverlay=ov5647 in /boot/config.txt
-#LIBCAMERA_JSON = "imx219.json" # Cam V2: dtoverlay=imx219 in /boot/config.txt
-
-
 ### Initialize camera capture 'back-end' used
 if not(FAKESNAP or LIBCAMERA or RPICAM2):
-    rpiLogger.error("rpicam::: No camera input selected! Exiting!\n")
-    raise rpiBaseClassError("rpicam::: No camera input selected! Exiting!", ERRCRIT)
+    rpiLogger.warning("rpicam::: No camera input selected! Will try to use 'fswebcam -d /dev/video0' to capture")
+    raise rpiBaseClassError("rpicam::: No camera input selected! Will try to use fswebcam!", ERRLEV2)
 
 if FAKESNAP:
     # Dummy (no image capture!)
@@ -109,7 +81,7 @@ if LIBCAMERA or RPICAM2:
         raise rpiBaseClassError("rpicam::: The RPi.GPIO (rpi-lgpio) module could not be loaded!", ERRCRIT)
 else:
     rpiLogger.warning("rpicam::: The RPi.GPIO module is not used!")
-    raise rpiBaseClassError("rpicam::: The RPi.GPIO module is not used!", ERRCRIT)
+    raise rpiBaseClassError("rpicam::: The RPi.GPIO module is not used!", ERRLEV2)
 
 
 class rpiCamClass(rpiBaseClass):
@@ -359,7 +331,7 @@ class rpiCamClass(rpiBaseClass):
 
 
             else:
-                rpiLogger.debug("rpicam::: jobRun(): FSEBCAM Snapshot")
+                rpiLogger.debug("rpicam::: jobRun(): FSWEBCAM Snapshot")
 
                 # Generate the arguments
                 self.cmd_str.extend(["fswebcam", 

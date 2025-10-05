@@ -26,38 +26,71 @@ import signal
 
 from rpilogger import rpiLogger
 
-__all__ = ('HOST_NAME', 'RPICAMPY_VER',
+__all__ = ('HOST_NAME', 'RPICAMPY_VER', 'IMAGE_COPYRIGHT',
             'timerConfig', 'camConfig', 'dirConfig', 'dbxConfig', 'rcConfig',
             'RPIJOBNAMES', 'INTERNETUSE', 'DROPBOXUSE', 'LOCUSBUSE', 
             'SYSTEMDUSE', 'WATCHDOG_USEC',
+            'FAKESNAP', 'RPICAM2', 'LIBCAMERA', 'LIBCAMERA_JSON', 'CONTROLS_JSON',
             'rpigexit')
 
-# The version string
+### The version string
 RPICAMPY_VER = 'RPiCamPy/V8'
 
-# Configuration file
+### Image copyright info (saved in EXIF tag)
+IMAGE_COPYRIGHT = 'Copyright (c) 2025 Istvan Z. Kovacs - All rights reserved'
+
+### Configuration file
 YAMLCFG_FILE = 'rpiconfig.yaml'
 
-# RPi Job names
+### RPi Job names
 RPIJOBNAMES = {'timer':'TIMERJob', 'cam':'CAMJob', 'dir':'DIRJob', 'dbx':'DBXJob'}
 
-# SystemD use
+### SystemD use
 # Requires the python-systemd module installed.
 # When SYSTEMDUSE is True, the program will send READY=1, STATUS=, WATCHDOG=1 and STOPPING=1 messages to the systemd daemon.
 # The WATCHDOG=1 message is sent only when the systemd watchdog is enabled (WATCHDOG_USEC environment variable is set).
 # If set to False, the program will not use any systemd features.
 SYSTEMDUSE  = True
 
-# Internet connection
+### Internet connection
 INTERNETUSE = True
 
-# Dropbox storage
+### Dropbox storage
 # Requires internet connection and token_file in the configuration file.
 DROPBOXUSE  = True
 
-# Local USB storage
+### Local USB storage
 LOCUSBUSE   = False
 
+### Camera capture 'back-end' to be use & configurations
+# FAKESNAP generates an empty file!
+FAKESNAP   = False
+
+# The real image capture 'back-end' to use
+# The use of picamera (v1) API is depracated since 2022! Use picamera2 (v2) instead!
+# See https://picamera.readthedocs.io/en/release-1.13/api_camera.html
+# RPICAM2 is using the Picamera2 API and is the preferred/recommended
+# See https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf
+RPICAM2    = True
+
+# LIBCAMERA is using the rpicam-still (from rpicam-apps installed with picamera2) since 2022 
+# See https://www.raspberrypi.com/documentation/computers/camera_software.html#rpicam-still
+LIBCAMERA  = False
+
+# NOTE: When none of the above is selected, then
+# fswebcam -d /dev/video0 
+# is attemped to be used to capture an image
+
+# LIBCAMERA_JSON has to be set to the JSON file name corresponding to the used camera (see docs above)
+# These JSON files are in /usr/share/libcamera/ipa/rpi/vc4/
+# E.g.:
+# "ov5647_noir.json" # Cam V1 Noir: dtoverlay=ov5647 in /boot/config.txt
+# "imx219.json" # Cam V2: dtoverlay=imx219 in /boot/config.txt
+LIBCAMERA_JSON = None
+
+# The dynamic camera controls configuration JSON file name and path
+# Used only with RPICAM2
+CONTROLS_JSON = "cam_controls.json" 
 
 
 ### Python version
@@ -263,6 +296,16 @@ try:
     # PyEphem uses the '57:04:39.4' format!!!
     #camConfig['lat_lon'][0] = _geo2dec(camConfig['lat_lon'][0])
     #camConfig['lat_lon'][1] = _geo2dec(camConfig['lat_lon'][1])
+
+    # Check camera version and type
+    if camConfig['cam_version'] in ['imx219', 'imx477', 'imx708', 'ov5647'] and camConfig['cam_type'] == 'noir':
+        LIBCAMERA_JSON = f"{camConfig['cam_version']}_noir.json"
+    elif camConfig['cam_version'] == 'imx708' and camConfig['cam_type'] == 'wide':
+        LIBCAMERA_JSON = f"{camConfig['cam_version']}_wide.json"
+    elif camConfig['cam_version'] == 'imx477' and camConfig['cam_type'] == 'scientific':
+        LIBCAMERA_JSON = f"{camConfig['cam_version']}_scientific.json"
+    else:
+        LIBCAMERA_JSON = f"{camConfig['cam_version']}.json"
 
     del mainConfigYaml, timerConfigYaml, _time, _ymd, _hms, _tper
     rpiLogger.info("rpiconfig::: Configuration file read.")

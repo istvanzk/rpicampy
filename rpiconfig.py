@@ -63,7 +63,7 @@ LOCUSBUSE   = False
 ### Python version
 PY39 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 9)
 if not PY39:
-    rpiLogger.error("This program requires minimum Python 3.9!")
+    rpiLogger.error("rpiconfig::: This program requires minimum Python 3.9!")
     os._exit(1)
 
 ### Hostname
@@ -80,7 +80,7 @@ class GracefulKiller:
         signal.signal(signal.SIGTERM, self.exit_gracefully)
         signal.signal(signal.SIGABRT, self.exit_gracefully)
 
-        rpiLogger.info("Set gracefull exit handling for SIGINT, SIGTERM and SIGABRT.")
+        rpiLogger.info("rpiconfig::: Set gracefull exit handling for SIGINT, SIGTERM and SIGABRT.")
 
     def exit_gracefully(self,signum, frame):
         self.kill_now = True
@@ -100,7 +100,7 @@ def _geo2dec(geo_str):
     """ Convert geolocation string to decimal format """
     _geo = geo_str.split(':')
     if len(_geo) != 3:
-        rpiLogger.error("Configuration file error: wrong geolocation format!")
+        rpiLogger.error("rpiconfig::: Configuration file error: wrong geolocation format!")
         os._exit(1)
 
     _deg = float(_geo[0])
@@ -120,14 +120,14 @@ if INTERNETUSE:
     try:
         socket.setdefaulttimeout(5)
         socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("8.8.8.8", 53))
-        rpiLogger.info("Internet connection available.")
+        rpiLogger.info("rpiconfig::: Internet connection available.")
 
     except Exception as e:
-        rpiLogger.info("Internet connection NOT available. Continuing in off-line mode.")
+        rpiLogger.info("rpiconfig::: Internet connection NOT available. Continuing in off-line mode.")
         INTERNETUSE = False
         pass
 else:
-    rpiLogger.info("Internet connection not used.")
+    rpiLogger.info("rpiconfig::: Internet connection not used.")
 
 
 ### Use systemd features when available
@@ -139,7 +139,7 @@ if SYSTEMDUSE:
         SYSTEMD_MOD = True
 
     except ImportError as e:
-        rpiLogger.warning("The python-systemd module was not found. Continuing without systemd features.")
+        rpiLogger.warning("rpiconfig::: The python-systemd module was not found. Continuing without systemd features.")
         SYSTEMD_MOD = False
         pass
 
@@ -149,16 +149,16 @@ if SYSTEMDUSE:
             WATCHDOG_USEC = int(os.environ['WATCHDOG_USEC'])
 
         except KeyError as e:
-            rpiLogger.warning("Environment variable WATCHDOG_USEC is not set (yet?).")
+            rpiLogger.warning("rpiconfig::: Environment variable WATCHDOG_USEC is not set (yet?).")
             pass
 
-        rpiLogger.info("SystemD features used: READY=1, STATUS=, WATCHDOG=1 (WATCHDOG_USEC=%d), STOPPING=1." % WATCHDOG_USEC)
+        rpiLogger.info("rpiconfig::: SystemD features used: READY=1, STATUS=, WATCHDOG=1 (WATCHDOG_USEC=%d), STOPPING=1." % WATCHDOG_USEC)
 
     else:
-        rpiLogger.warning("The system is not running under SystemD. Continuing without SystemD features.")
+        rpiLogger.warning("rpiconfig::: The system is not running under SystemD. Continuing without SystemD features.")
 
 else:
-    rpiLogger.info("SystemD features not used.")
+    rpiLogger.info("rpiconfig::: SystemD features not used.")
 
 
 ### Read the configuration parameters from the YAML file
@@ -188,7 +188,7 @@ try:
     timerConfig['stop_day']   = int(_ymd[2])
 
     if len(timerConfigYaml['start_times']) != len(timerConfigYaml['stop_times']):
-        rpiLogger.error("Configuration file error: number of start_times and stop_times entries do not match!")
+        rpiLogger.error("rpiconfig::: Configuration file error: number of start_times and stop_times entries do not match!")
         os._exit(1)
 
     timerConfig['start_hour'] = [0] * len(timerConfigYaml['start_times'])
@@ -217,38 +217,43 @@ try:
     if timerConfigYaml['start_dark_time'] < 0:
         camConfig['start_dark_hour'] = None
         camConfig['start_dark_min']  = None
-    elif timerConfigYaml['start_dark_time'] > (len(timerConfigYaml['start_times']) - 1):
-        rpiLogger.error("Configuration file error: start_dark_time index out of range!")
-        os._exit(1)
+    else:
+        if timerConfigYaml['start_dark_time'] > (len(timerConfigYaml['start_times']) - 1):
+            rpiLogger.error("rpiconfig::: Configuration file error: start_dark_time index out of range!")
+            os._exit(1)
 
-    _time = timerConfigYaml['start_times'][timerConfigYaml['start_dark_time']]
-    _hms = _time.split(':')
-    camConfig['start_dark_hour'] = int(_hms[0])
-    camConfig['start_dark_min']  = int(_hms[1])
+        _time = timerConfigYaml['start_times'][timerConfigYaml['start_dark_time']]
+        _hms = _time.split(':')
+        camConfig['start_dark_hour'] = int(_hms[0])
+        camConfig['start_dark_min']  = int(_hms[1])
+
 
     if timerConfigYaml['stop_dark_time'] < 0:
         camConfig['stop_dark_hour'] = None
         camConfig['stop_dark_min']  = None
-    elif timerConfigYaml['stop_dark_time'] > (len(timerConfigYaml['stop_times']) - 1):
-        rpiLogger.error("Configuration file error: stop_dark_time index out of range!")
-        os._exit(1)
+    else:
+        if timerConfigYaml['stop_dark_time'] > (len(timerConfigYaml['stop_times']) - 1):
+            rpiLogger.error("rpiconfig::: Configuration file error: stop_dark_time index out of range!")
+            os._exit(1)
 
-    _time = timerConfigYaml['stop_times'][timerConfigYaml['stop_dark_time']]
-    _hms = _time.split(':')
-    camConfig['stop_dark_hour'] = int(_hms[0])
-    camConfig['stop_dark_min']  = int(_hms[1])
+        _time = timerConfigYaml['stop_times'][timerConfigYaml['stop_dark_time']]
+        _hms = _time.split(':')
+        camConfig['stop_dark_hour'] = int(_hms[0])
+        camConfig['stop_dark_min']  = int(_hms[1])
+
+
 
     # Scheduling (activation) intervals
     if len(camConfig['interval_sec']) > len(timerConfigYaml['start_times']):
-        rpiLogger.warning("Configuration file error: number of camConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))
+        rpiLogger.warning("rpiconfig::: Configuration file error: number of camConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))
         camConfig['interval_sec'] = camConfig['interval_sec'][:len(timerConfigYaml['start_times'])]
 
     if len(dirConfig['interval_sec']) > len(timerConfigYaml['start_times']):
-        rpiLogger.warning("Configuration file error: number of dirConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))
+        rpiLogger.warning("rpiconfig::: Configuration file error: number of dirConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))
         dirConfig['interval_sec'] = dirConfig['interval_sec'][:len(timerConfigYaml['start_times'])]
 
     if len(dbxConfig['interval_sec']) > len(timerConfigYaml['start_times']):
-        rpiLogger.warning("Configuration file error: number of dbxConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))
+        rpiLogger.warning("rpiconfig::: Configuration file error: number of dbxConfig['interval_sec'] entries is larger than number of time periods defined! Using first %d entries." % len(timerConfigYaml['start_times']))
         dbxConfig['interval_sec'] = dbxConfig['interval_sec'][:len(timerConfigYaml['start_times'])]
 
     # Duplicate some configurations to camConfig
@@ -260,16 +265,16 @@ try:
     #camConfig['lat_lon'][1] = _geo2dec(camConfig['lat_lon'][1])
 
     del mainConfigYaml, timerConfigYaml, _time, _ymd, _hms, _tper
-    rpiLogger.info("Configuration file read.")
+    rpiLogger.info("rpiconfig::: Configuration file read.")
 
 except yaml.YAMLError as e:
-    rpiLogger.error("Error in configuration file:\n" % e)
+    rpiLogger.error("rpiconfig::: Error in configuration file:\n" % e)
     os._exit(1)
 except KeyError as e:
-    rpiLogger.error("Configuration file error: key %s not found!\n" % e)
+    rpiLogger.error("rpiconfig::: Configuration file error: key %s not found!\n" % e)
     os._exit(1)
 except ImportError as e:
-    rpiLogger.error("YAML module could not be loaded!\n" % e)
+    rpiLogger.error("rpiconfig::: YAML module could not be loaded!\n" % e)
     os._exit(1)
 
 
@@ -279,13 +284,13 @@ if INTERNETUSE:
     # Check Drobox use
     if 'token_file' not in dbxConfig or dbxConfig['token_file'] == '' or \
         'interval_sec' not in dbxConfig or len(dbxConfig['interval_sec']) == 0:
-        rpiLogger.info("Dropbox not used.")
+        rpiLogger.info("rpiconfig::: Dropbox not used.")
     else:
         DROPBOXUSE = True
 
     # Check Remote Control use
     if 'rc_type' not in rcConfig or not rcConfig['rc_type']:
-        rpiLogger.info("No Remote Control option used.")
+        rpiLogger.info("rpiconfig::: No Remote Control option used.")
 
     else:
         # Check ThingSpeak API and TalkBack APP use
@@ -300,7 +305,7 @@ if INTERNETUSE:
                 rcConfig['rc_type'].remove('ts-cmd')
             except ValueError as e:
                 pass
-            rpiLogger.info("No 'token_file' configured. ThingSpeak feed and Talkback cannot be used.")
+            rpiLogger.info("rpiconfig::: No 'token_file' configured. ThingSpeak feed and Talkback cannot be used.")
 
         # Check Websocket use
         if ('ws-status' in rcConfig['rc_type'] \
@@ -315,10 +320,10 @@ if INTERNETUSE:
                 rcConfig['rc_type'].remove('ws-cmd')
             except ValueError as e:
                 pass
-            rpiLogger.info("No 'port' or 'token_file' configured. WebSocket cannot be used.")
+            rpiLogger.info("rpiconfig::: No 'port' or 'token_file' configured. WebSocket cannot be used.")
             
 else:
-    rpiLogger.info("Internet connection not used!")
+    rpiLogger.info("rpiconfig::: Internet connection not used!")
 
 ### Local USB storage
 #if LOCUSBUSE:
@@ -329,11 +334,11 @@ else:
 
 
 ### Display config info
-rpiLogger.debug("timerConfig: %s" % timerConfig)
-rpiLogger.debug("camConfig: %s" % camConfig)
-rpiLogger.debug("dirConfig: %s" % dirConfig)
-rpiLogger.debug("dbxConfig: %s" % dbxConfig)
-rpiLogger.debug("rcConfig: %s" % rcConfig)
+rpiLogger.debug("rpiconfig::: timerConfig: %s" % timerConfig)
+rpiLogger.debug("rpiconfig::: camConfig: %s" % camConfig)
+rpiLogger.debug("rpiconfig::: dirConfig: %s" % dirConfig)
+rpiLogger.debug("rpiconfig::: dbxConfig: %s" % dbxConfig)
+rpiLogger.debug("rpiconfig::: rcConfig: %s" % rcConfig)
 
 
 ### Gracefull killer/exit

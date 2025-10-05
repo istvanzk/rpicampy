@@ -221,10 +221,6 @@ class rpiCamClass(rpiBaseClass):
         ### Take a new snapshot and save the image locally
         self._camerrors = ''
         try:
-            ### Switch ON/OFF IR
-            if (not FAKESNAP) and self._config['use_irl']:
-                self._switchIR(self._isDark())
-
             ### Reset list of cmd arguments
             self.cmd_str.clear()
 
@@ -362,6 +358,8 @@ class rpiCamClass(rpiBaseClass):
 
 
             else:
+                rpiLogger.debug("rpicam::: jobRun(): FSEBCAM Snapshot")
+
                 # Generate the arguments
                 self.cmd_str.extend(["fswebcam", 
                     "-d", "/dev/video0",
@@ -623,6 +621,9 @@ class rpiCamClass(rpiBaseClass):
         if not LIBCAMERA:
             rpiLogger.warning("rpicam::: _setCamExp_libcamera() called when LIBCAMERA is not used!")
             return
+        rpiLogger.debug("rpicam::: _setCamExp_libcamera() called with '%s' settings and use_irl=%s", \
+                        'dark' if self._isDark() else 'daylight', \
+                        'yes' if self._config['use_irl'] else 'no')
 
         # The 'dark' mode settings
         if self._isDark():
@@ -636,6 +637,8 @@ class rpiCamClass(rpiBaseClass):
                 self.brightness = 20/50                    
                 #self.framerate = Fraction(1, 2)
                 self.shutter_speed = 5000000
+
+            self._switchIR(True)
             self.bDarkExp = True
         else:
             # The 'daylight' default settings
@@ -648,6 +651,8 @@ class rpiCamClass(rpiBaseClass):
             self.saturation = 1.0 # 0 ... 1 ...
             self.ev         = 0 # -10 ... 0 ... 10
             self.metering   = 'average'
+
+            self._switchIR(False)
             self.bDarkExp = False
 
         # Set the list with the parameter values
@@ -696,6 +701,7 @@ class rpiCamClass(rpiBaseClass):
 
                 self._set_controls('cam_expnight')
 
+            self._switchIR(True)
             self.bDarkExp = True
 
         else:
@@ -706,6 +712,7 @@ class rpiCamClass(rpiBaseClass):
 
             self._set_controls('cam_expday')
 
+            self._switchIR(False)
             self.bDarkExp = False
 
 
@@ -879,8 +886,10 @@ class rpiCamClass(rpiBaseClass):
         """ Switch ON/OFF the IR lights. """
         if self._config['use_irl']:
             if bONOFF:
+                rpiLogger.debug("rpicam::: Switching ON the IR lights (BCM %d)", self.IRLport)
                 GPIO.output(self.IRLport, GPIO.HIGH)
             else:
+                rpiLogger.debug("rpicam::: Switching OFF the IR lights (BCM %d)", self.IRLport)
                 GPIO.output(self.IRLport, GPIO.LOW)
 
 

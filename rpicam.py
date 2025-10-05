@@ -766,6 +766,8 @@ class rpiCamClass(rpiBaseClass):
         """ 
         Load the dynamic camera configuration JSON file 
         if the file exists and has been mmodified since last loaded. 
+        If the file does not exist, a JSOn file is created from the 
+        current configuration values loaded from rpiconfig.yaml.
         """
         try:
             if os.path.exists(self._dynconfig_path):
@@ -776,8 +778,7 @@ class rpiCamClass(rpiBaseClass):
                     self._dynconfig_lastmodified = _crt_modified
                     rpiLogger.info("rpicam::: Dynamic camera controls configuration file %s loaded (last modified %s).", self._dynconfig_path, time.ctime(_crt_modified))
             else:
-                self._dynconfig_exp = dict()
-                self._dynconfig_lastmodified = 0
+                self._save_dynconfig()
 
         except (json.JSONDecodeError, FileNotFoundError, ValueError) as e:
             rpiLogger.error("rpicam::: Error loading dynamic camera controls configuration file %s!\n%s\n", self._dynconfig_path, str(e))
@@ -789,6 +790,7 @@ class rpiCamClass(rpiBaseClass):
         All the current values are saved.
         """
         try:
+            self._dynconfig_exp = dict()
             for _exp_k in self._valid_expkeys:
                 self._dynconfig_exp[_exp_k] = self._config[_exp_k]
 

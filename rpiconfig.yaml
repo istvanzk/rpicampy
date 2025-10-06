@@ -17,6 +17,22 @@ INTERNETUSE:  yes
 # Local USB storage (instead of SD card) - not implemented yet!
 LOCUSBUSE:    no
 
+## Camera capture 'back-end' to use & configurations
+# NOTE: When none of the below is selected, then
+# fswebcam -d /dev/video0 
+# is attemped to be used to capture an image
+# FAKESNAP generates an empty file
+FAKESNAPP:     no
+# The use of picamera (v1) API is depracated since 2022! Use picamera2 (v2) instead!
+# See https://picamera.readthedocs.io/en/release-1.13/api_camera.html
+# RPICAM2 is using the Picamera2 API and is the preferred/recommended
+# See https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf
+RPICAM2:      yes
+# LIBCAMERA is using the rpicam-still (from rpicam-apps installed with picamera2) since 2022 
+# See https://www.raspberrypi.com/documentation/computers/camera_software.html#rpicam-still
+LIBCAMERA:    no
+
+
 ---
 # Datetime periods configuration. 
 # Loaded into timerConfig.
@@ -42,8 +58,8 @@ interval_sec: 10
 
 cam_id: 'CAM1'
 lat_lon: ['57:04:39.4', '09:54:42.6']
-cam_type: 'V1'
-cam_sensor: 'daylight'
+cam_version: 'ov5647'
+cam_type: 'noir' # 'daylight' or 'noir'
 rec_type: 'still'
 image_rot: 180
 image_res: [1024, 768]

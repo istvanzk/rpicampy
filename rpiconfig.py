@@ -52,46 +52,20 @@ RPIJOBNAMES = {'timer':'TIMERJob', 'cam':'CAMJob', 'dir':'DIRJob', 'dbx':'DBXJob
 # If set to False, the program will not use any systemd features.
 SYSTEMDUSE  = True
 
-### Internet connection
-INTERNETUSE = True
-
 ### Dropbox storage
 # Requires internet connection and token_file in the configuration file.
 DROPBOXUSE  = True
 
-### Local USB storage
-LOCUSBUSE   = False
-
-### Camera capture 'back-end' to be use & configurations
-# FAKESNAP generates an empty file!
-FAKESNAP   = False
-
-# The real image capture 'back-end' to use
-# The use of picamera (v1) API is depracated since 2022! Use picamera2 (v2) instead!
-# See https://picamera.readthedocs.io/en/release-1.13/api_camera.html
-# RPICAM2 is using the Picamera2 API and is the preferred/recommended
-# See https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf
-RPICAM2    = True
-
-# LIBCAMERA is using the rpicam-still (from rpicam-apps installed with picamera2) since 2022 
-# See https://www.raspberrypi.com/documentation/computers/camera_software.html#rpicam-still
-LIBCAMERA  = False
-
-# NOTE: When none of the above is selected, then
-# fswebcam -d /dev/video0 
-# is attemped to be used to capture an image
-
-# LIBCAMERA_JSON has to be set to the JSON file name corresponding to the used camera (see docs above)
-# These JSON files are in /usr/share/libcamera/ipa/rpi/vc4/
+### LIBCAMERA_JSON is set to the JSON file name corresponding to the used camera
+# These picamera2 JSON files are in /usr/share/libcamera/ipa/rpi/vc4/
 # E.g.:
 # "ov5647_noir.json" # Cam V1 Noir: dtoverlay=ov5647 in /boot/config.txt
 # "imx219.json" # Cam V2: dtoverlay=imx219 in /boot/config.txt
 LIBCAMERA_JSON = None
 
-# The dynamic camera controls configuration JSON file name and path
+### The dynamic camera controls configuration JSON file name and path
 # Used only with RPICAM2
 CONTROLS_JSON = "cam_controls.json" 
-
 
 ### Python version
 PY39 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 9)
@@ -146,23 +120,6 @@ def _geo2dec(geo_str):
         return _deg + (_min / 60.0) + (_sec / 3600.0)
 
 
-### When the DNS server google-public-dns-a.google.com is reachable on port 53/tcp,
-# then the internet connection is up and running.
-# https://github.com/arvydas/blinkstick-python/wiki/Example:-Display-Internet-connectivity-status
-if INTERNETUSE:
-    try:
-        socket.setdefaulttimeout(5)
-        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("8.8.8.8", 53))
-        rpiLogger.info("rpiconfig::: Internet connection available.")
-
-    except Exception as e:
-        rpiLogger.info("rpiconfig::: Internet connection NOT available. Continuing in off-line mode.")
-        INTERNETUSE = False
-        pass
-else:
-    rpiLogger.info("rpiconfig::: Internet connection not used.")
-
-
 ### Use systemd features when available
 WATCHDOG_USEC = 0
 if SYSTEMDUSE:
@@ -205,8 +162,24 @@ try:
     # Extract main configuration parameters from mainConfigYaml
     if 'INTERNETUSE' in mainConfigYaml:
         INTERNETUSE = bool(mainConfigYaml['INTERNETUSE'])
+    else:
+        INTERNETUSE = True
     if 'LOCUSBUSE' in mainConfigYaml:
         LOCUSBUSE = bool(mainConfigYaml['LOCUSBUSE'])
+    else:
+        LOCUSBUSE = False
+    if 'FAKESNAP' in mainConfigYaml:
+        FAKESNAP = bool(mainConfigYaml['FAKESNAP'])
+    else:
+        FAKESNAP = False   
+    if 'RPICAM2' in mainConfigYaml:
+        RPICAM2 = bool(mainConfigYaml['RPICAM2'])
+    else:
+        RPICAM2 = True
+    if 'LIBCAMERA' in mainConfigYaml:
+        LIBCAMERA = bool(mainConfigYaml['LIBCAMERA'])
+    else:
+        LIBCAMERA = False
 
     # Extract date and time period values from timerConfigYaml
     timerConfig = {}
@@ -297,15 +270,19 @@ try:
     #camConfig['lat_lon'][0] = _geo2dec(camConfig['lat_lon'][0])
     #camConfig['lat_lon'][1] = _geo2dec(camConfig['lat_lon'][1])
 
-    # Check camera version and type
-    if camConfig['cam_version'] in ['imx219', 'imx477', 'imx708', 'ov5647'] and camConfig['cam_type'] == 'noir':
-        LIBCAMERA_JSON = f"{camConfig['cam_version']}_noir.json"
-    elif camConfig['cam_version'] == 'imx708' and camConfig['cam_type'] == 'wide':
-        LIBCAMERA_JSON = f"{camConfig['cam_version']}_wide.json"
-    elif camConfig['cam_version'] == 'imx477' and camConfig['cam_type'] == 'scientific':
-        LIBCAMERA_JSON = f"{camConfig['cam_version']}_scientific.json"
+    # Check camera version and type and set LIBCAMERA_JSON accordingly
+    # (non-exhaustive check!)
+    if RPICAM2 or LIBCAMERA:
+        if camConfig['cam_version'] in ['imx219', 'imx477', 'imx708', 'ov5647'] and camConfig['cam_type'] == 'noir':
+            LIBCAMERA_JSON = f"{camConfig['cam_version']}_noir.json"
+        elif camConfig['cam_version'] == 'imx708' and camConfig['cam_type'] == 'wide':
+            LIBCAMERA_JSON = f"{camConfig['cam_version']}_wide.json"
+        elif camConfig['cam_version'] == 'imx477' and camConfig['cam_type'] == 'scientific':
+            LIBCAMERA_JSON = f"{camConfig['cam_version']}_scientific.json"
+        else:
+            LIBCAMERA_JSON = f"{camConfig['cam_version']}.json"
     else:
-        LIBCAMERA_JSON = f"{camConfig['cam_version']}.json"
+        LIBCAMERA_JSON = None
 
     del mainConfigYaml, timerConfigYaml, _time, _ymd, _hms, _tper
     rpiLogger.info("rpiconfig::: Configuration file read.")
@@ -321,7 +298,24 @@ except ImportError as e:
     os._exit(1)
 
 
-### Check internet connection usage and remote control configurations
+### When the DNS server google-public-dns-a.google.com is reachable on port 53/tcp,
+# then the internet connection is up and running.
+# https://github.com/arvydas/blinkstick-python/wiki/Example:-Display-Internet-connectivity-status
+if not INTERNETUSE:
+    try:
+        socket.setdefaulttimeout(5)
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("8.8.8.8", 53))
+        rpiLogger.info("rpiconfig::: Internet connection available.")
+
+    except Exception as e:
+        rpiLogger.info("rpiconfig::: Internet connection NOT available. Continuing in off-line mode.")
+        INTERNETUSE = False
+        pass
+else:
+    rpiLogger.info("rpiconfig::: Internet connection not used.")
+
+
+### Check Dropbox usage and remote control configurations
 DROPBOXUSE  = False
 if INTERNETUSE:
     # Check Drobox use

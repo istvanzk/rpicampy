@@ -3,11 +3,16 @@
 ![Exp](https://img.shields.io/badge/Dev-Experimental-orange.svg)
 [![Lic](https://img.shields.io/badge/License-Apache2.0-green)](http://www.apache.org/licenses/LICENSE-2.0)
 ![Py](https://img.shields.io/badge/Python-3.12+-green)
-![Ver](https://img.shields.io/badge/Version-8.0rc1-blue)
+![Ver](https://img.shields.io/badge/Version-8.0rc2-blue)
 
 ## Implementation and configuration
 
 ### Components
+
+#### rpiconfig.yaml:	The configuration file with parameters for most of the functionalities.
+
+  - The parameters are grouped in 6 sections: *Main*, *timerConfig*, *camConfig*, *dirConfig*, *dbxConfig* and *rcConfig*. 
+  See comments in the [rpiconfig.yaml](./rpiconfig.yaml) file for all available configuration parameters and their use.
 
 #### rpicam_sch:  The main method. 
 
@@ -15,13 +20,17 @@
 
 - Schedule an additional background timer job to collect/combine the status messages from the rpi scheduled jobs, and to send/receive remote control commands via ThingSpeak TalkBack App. All classes described below have a remote control interface to this timer job.
 
-- The module notifies the [systemd](https://www.freedesktop.org/software/systemd/python-systemd/) (when available) with: READY=1, STATUS=, WATCHDOG=1 (read env variable WATCHDOG_USEC=), STOPPING=1.
+- When SystemD is used the module notifies the [systemd](https://www.freedesktop.org/software/systemd/python-systemd/) (when available) with: READY=1, STATUS=, WATCHDOG=1 (read env variable WATCHDOG_USEC=), STOPPING=1.
 
-- Use of Picamera2 (2022+)
-  - When `LIBCAMERA` is set in the `rpicam.py` module, then rpicam-still is used from rpicam-apps installed with picamera2.
-[rpicam-still](https://www.raspberrypi.com/documentation/computers/camera_software.html#rpicam-still) uses a tunning file (--tuning-file), which must be configured by setting the `LIBCAMERA_JSON` in the `rpicam.py` module.
+- Use of Picamera2 (2022+):
+  - When `RPICAM2` is set in `rpiconfig.yaml` under the Main section, then the [Picamera2 API](https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf) is used.
 
-  - When `RPICAM2` is set in the `rpicam.py` module, then the [Picamera2 API](https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf) is used.
+  - When `LIBCAMERA` is set in `rpiconfig.yaml` under the Main section, then [rpicam-still](https://www.raspberrypi.com/documentation/computers/camera_software.html#rpicam-still)  is used from rpicam-apps installed with picamera2.
+
+  - When `RPICAM2` or `LIBCAMERA` is set in `rpiconfig.yaml`, a camera tunning file (--tuning-file) is used, auto-configured by setting the `cam_version` and `cam_type` specified in the `rpiconfig.yaml` under the `camConfig` section.
+
+  - When neither `RPICAM2` or `LIBCAMERA` are set, the `FAKESNAP` can be used to fake an image capture.
+  - When neither `RPICAM2`, `LIBCAMERA` or `FAKESNAP` are set, then the webcam `fswebcam` utility is used to capture images.
 
   - Example testing the installation with [camtest.sh](./scripts/camtest.sh)
 
@@ -37,25 +46,14 @@ NOTE: The `RPI_LGPIO_REVISION` environment variable must be set due the use of t
 
 **Auto-start as service**: 
 
-Use the systemd user service unit `rpicamsch.service.user`.
+Use the SystemD user service unit `rpicamsch.service.user`.
 The `rpicamsch.service.user` systemd user service unit is to be copied to /etc/systemd/user/rpicamsch.service.
 
 While running, all messages are logged to a (rotated) `rpicam.log` file. The log level is configured in `rpilogger.py`.
 
-#### rpiconfig.yaml:	The configuration file with parameters for most of the functionalities.
-
-  - The parameters are grouped in 6 sections: *Main*, *timerConfig*, *camConfig*, *dirConfig*, *dbxConfig* and *rcConfig*. 
-  See comments in the [rpiconfig.yaml](./rpiconfig.yaml) file for all available configuration parameters and their use.
-
-
 #### rpicam:	Manage image capture with (pi)camera and save images locally.
 
-Image capture options (selected in `rpicam.py`):
-- Raspberry PI camera using the Picamera2 API python module (new libcamera stack) - preferred option, or
-
-- Raspberry PI camera using rpicam-still (from rpicam-apps), or
-
-- USB web camera using fswebcam utility. 
+Image capture options are selected in `rpiconfig.yaml` under the Main section (see above).
 
 The captured images are stored locally in a sub-folder with the current date 'DDMMY' as name, under the `image_dir` folder, specified in the configuration file under the `dirConfig` section.
 The captured image local file names are 'DDMMYY-HHMMSS-CAMID.jpg', where CAMID is the camera identification string `cam_id`, specified in the configuration file under the `camConfig` section.

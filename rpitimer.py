@@ -136,7 +136,7 @@ class rpiTimerClass(rpiBaseClass):
             import thingspk
 
             if 'ts-status' in self._rc_config['rc_type']:
-                self._ts_config['RESTfeed'] = thingspk.ThingSpeakAPIClient(self._rc_config['token_file'])
+                self._ts_config['RESTfeed'] = thingspk.ThingSpeakAPIClient(key_file=self._rc_config['token_file'])
                 if self._rc_config['RESTfeed'] is not None:
 
                     self._ts_config['mon_fields'] = dict()
@@ -153,7 +153,7 @@ class rpiTimerClass(rpiBaseClass):
                     rpiLogger.warning("rpitimer::: ThingSpeak API could not be initialized.")
 
             if 'ts-cmd' in self._rc_config['rc_type']:
-                self._ts_config['RESTTalkB'] = thingspk.ThingSpeakTBClient(self._rc_config['token_file'])
+                self._ts_config['RESTTalkB'] = thingspk.ThingSpeakTBClient(key_file=self._rc_config['token_file'])
                 if self._ts_config['RESTTalkB'] is not None:
                     rpiLogger.info("rpitimer::: ThingSpeak TalkBack client ID %d initialized.", self._ts_config['RESTTalkB'].talkback_id)
                 else:
@@ -241,38 +241,48 @@ class rpiTimerClass(rpiBaseClass):
         Process and dispatch/send the commands to the target rpicampy jobs.
         """
         # Defaults
-        cmdstr = u'none'
+        cmdrx  = u''
+        cmdstr = u''
         cmdval = -1
+        cmdcustom = None
+
+        def _get_cmd():
+            """ Get command string and value from the received command string. """
+            cmdstr = cmdrx.split('/',2)[0]
+            cmdval = int(cmdrx.split('/',2)[1])
+            if len(cmdrx.split('/',2))==3:
+                cmdcustom = cmdrx.split('/',2)[2]
+            else:
+                cmdcustom = None
+
 
         # Get command from ThingSpeak TalkBack APP if configured/available
         if self._ts_config['RESTTalkB'] is not None:
             self._ts_config['RESTTalkB'].talkback.execcmd()
-            res = self._ts_config['RESTTalkB'].talkback.response
-            if res is not None:
+            _res = self._ts_config['RESTTalkB'].talkback.response
+            if _res is not None:
                 # Get cmd string and value
-                cmdrx = res.get('command_string')
-                cmdstr = cmdrx.split('/',1)[0]
-                cmdval = int(cmdrx.split('/',1)[1])
+                cmdrx = _res.get('command_string')
+                _get_cmd()
 
-                rpiLogger.debug("rpitimer::: TB command: %s", res)
+                rpiLogger.debug("rpitimer::: TB command: %s : %d : %d", cmdstr, cmdval, cmdcustom)
 
         # Receive command via WebSocket if configured/available
         if self._ws_config['server'] is not None \
             and self._ws_config["cmd_json"] is not None:
 
-            res = self._ws_config['server'].receive_json
-            if res is not {} \
-                and res.get('type') == "command" \
-                and "command_string" in res:
+            _res = self._ws_config['server'].receive_json
+            if _res is not {} \
+                and _res.get('type') == "command" \
+                and "command_string" in _res:
 
-                self._ws_config["cmd_json"] = res
+                self._ws_config["cmd_json"] = _res
 
                 # Get cmd string and value
-                cmdrx  = res.get('command_string')
-                cmdstr = cmdrx.split('/',1)[0]
-                cmdval = int(cmdrx.split('/',1)[1])
+                cmdrx  = _res.get('command_string')
+                _get_cmd()
 
-                rpiLogger.debug("rpitimer::: WS command: %s", res)
+                rpiLogger.debug("rpitimer::: WS command: %s : %d : %d", cmdstr, cmdval, cmdcustom)
 
         # Handle and dispatch the received commands (if any)
         # Timer job commands
@@ -308,7 +318,7 @@ class rpiTimerClass(rpiBaseClass):
 
             # Cam control
             if cmdstr == u'cam':
-                self._imgcam.queueCmd((cmdstr,cmdval))
+                self._imgcam.queueCmd((cmdstr if cmdcustom is None else cmdcustom, cmdval))
 
             # Dir control
             elif cmdstr == u'dir':

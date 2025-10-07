@@ -568,7 +568,141 @@ class rpiCamClass(rpiBaseClass):
 #       End OAM procedure.
 #       """
 
+    def runCustomCmd(self, cmdstr: str) -> Dict[str, Any]:
+        """
+        Run a custom command with arguments extracted from cmdstr.
 
+        Examples of cmdstr and corresponding actions:
+            "get/jpg_qual" - get the current JPEG quality setting from self._config['jpg_qual']
+            "get/cam_expday/*" - get all current 'daylight' camera exposure settings from self._config['cam_expday']
+            "get/cam_expnight/brightness" - get the current 'dark' camera brightness setting from self._config['cam_expnight']
+            "set/cam_expnight-irl/brightness/3" - set the 'dark' camera brightness setting to 3 in self._config['cam_expnight-irl']
+            "set/image_res/1024/768" - set the image width to 1024 and height to 768 in self._config['image_res']
+        """
+        result = {}
+        
+        try:
+            # Split command string into parts
+            cmd_parts = cmdstr.split('/')
+            
+            if len(cmd_parts) < 2:
+                raise ValueError("Invalid command format. At least two parts required: 'action/target'")
+                
+            action = cmd_parts[0]  # get or set
+            if action not in ['get', 'set']:
+                raise ValueError(f"Action '{action}' is invalid, must be 'get' or 'set'")
+
+            target = cmd_parts[1]  # config key
+            
+            # Handle get commands
+            if action == "get":
+
+                if len(cmd_parts) == 2:
+                    # Simple get command for parameter from self._config[target]
+                    if target in self._config:
+                        result = {target: self._config[target]}
+                    else:
+                        raise KeyError(f"Target {target} not found in configuration")
+
+                else:
+                    # Get command for exposure parameters from self._config[target] (nested dict)
+                    param = cmd_parts[2]  # parameter or *
+                    
+                    # Handle camera exposure settings
+                    if target in self._valid_expkeys:
+                        if param == '*':
+                            # Return all settings for the target
+                            result = self._config[target]
+                        else:
+                            # Return specific parameter value
+                            if param in self._config[target]:
+                                result = {param: self._config[target][param]}
+                            else:
+                                raise KeyError(f"Parameter '{param}' not found in '{target}'")
+                    else:
+                        raise KeyError(f"Target '{target}' not found in configuration")
+                
+
+            # Handle set commands
+            elif action == "set":
+                if len(cmd_parts) < 3:
+                    raise ValueError("Invalid set command format")
+                                    
+                # Handle camera exposure settings (nested dict)
+                if target in self._valid_expkeys:
+
+                    param = cmd_parts[2]  # parameter to set
+                    if len(cmd_parts) < 4:
+                        raise ValueError("Set command requires a parameter value")
+
+                    if param in self._config[target]:
+                        value = cmd_parts[3] # parameter value to set
+
+                        # Convert value to appropriate type
+                        if isinstance(self._config[target][param], bool):
+                            value = value.lower() == 'true'
+                        elif isinstance(self._config[target][param], (int, float)):
+                            value = type(self._config[target][param])(value)
+                        else:
+                            raise KeyError(f"Parameter '{param}' in '{target}' is invalid type")
+
+                        self._config[target][param] = value
+                        result = {param: value}
+
+                    else: 
+                        raise KeyError(f"Parameter '{param}' not found in '{target}'")
+                
+                # Handle setting a simple parameter value
+                elif target in self._config:
+                    
+                    # The number of parameters to set
+                    if isinstance(self._config[target], list):
+                        _n_param = len(self._config[target])
+                    else:
+                        _n_param = 1
+
+                    if len(cmd_parts) != 2 + _n_param:
+                        raise ValueError(f"Set command for '{target}' requires {_n_param} parameter value(s)")
+                    
+                    # Set the parameter value(s)
+                    if _n_param == 1:
+                        value = cmd_parts[2]
+                        # Convert value to appropriate type
+                        if isinstance(self._config[target], bool):
+                            value = value.lower() == 'true'
+                        elif isinstance(self._config[target], (int, float)):
+                            value = type(self._config[target])(value)
+
+                        self._config[target] = value
+                        result = {target: value}
+
+                    else:
+                        values = []
+                        for i in range(_n_param):
+                            val = cmd_parts[2 + i]
+                            # Convert value to appropriate type
+                            if isinstance(self._config[target][i], bool):
+                                val = val.lower() == 'true'
+                            elif isinstance(self._config[target][i], (int, float)):
+                                val = type(self._config[target][i])(val)
+                            values.append(val)
+
+                        self._config[target] = values
+                        result = {target: values}
+                                       
+                else:
+                    raise KeyError(f"Target '{target}' not found in configuration")
+                
+
+            # If using dynamic controls, save the updated configuration
+            if self._config['use_dynctrl']:
+                self._save_dynconfig()
+
+        except (ValueError, KeyError, TypeError) as e:
+            rpiLogger.error("rpicam::: Error in runCustomCmd!\n%s\n", str(e))
+            result = {'error': str(e)}
+            
+        return result
 
     def _pirRun(self,c):
         """

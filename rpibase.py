@@ -49,6 +49,7 @@ CMDINIT  = 2
 CMDRESCH = 4
 CMDEOD   = 5
 CMDEND   = 6
+CMDCUSTOM= 9
 
 # Error values (levels, 4 bits)
 ERRCRIT = 4 #Critical error, raise & exit
@@ -168,28 +169,38 @@ class rpiBaseClass:
     #
     def jobRun(self):
         """
-        Main function. To be overriden by user defined method.
+        Main function. 
+        To be overriden by user defined method.
         """
         pass
 
     def initClass(self):
         """"
-        (re)Initialize the class. To be overriden by user defined method.
+        (re)Initialize the class. 
+        To be overriden by user defined method.
         """
         pass
 
     def endDayOAM(self):
         """"
-        End-Of-Day OAM. To be overriden by user defined method.
+        End-Of-Day OAM. 
+        To be overriden by user defined method.
         """
         pass
 
     def endOAM(self):
         """"
-        End OAM. To be overriden by user defined method.
+        End OAM. 
+        To be overriden by user defined method.
         """
         pass
 
+    def runCustomCmd(self, cmdstr:str):
+        """
+        Run a custom command with arguments in cmdstr.
+        To be overriden by user defined method.
+        """
+        pass
 
     #
     # Subclass interface methods to be used externally.
@@ -205,7 +216,7 @@ class rpiBaseClass:
         self._run()
 
 
-    def queueCmd(self, cmdrx_tuple):
+    def queueCmd(self, cmdrx_tuple) -> bool:
         """
         Puts a remote command (tuple) in the cmd queue.
         Returns boolean to indicate success status.
@@ -219,7 +230,7 @@ class rpiBaseClass:
         self._cmds.put(cmdrx_tuple, True, 5)
         return True
 
-    def setInit(self):
+    def setInit(self) -> bool:
         """
         Run Init mode and set flags.
         Return boolean to indicate state change.
@@ -231,7 +242,7 @@ class rpiBaseClass:
             self._initclass()
             return True
 
-    def setRun(self, tstartstopintv=None):
+    def setRun(self, tstartstopintv=None) -> bool:
         """
         Run Run mode and set flags.
         When the tstartstopintv=(start, stop, interval) tuple is specified (re)configure and add self._run() job to the scheduler.
@@ -249,7 +260,7 @@ class rpiBaseClass:
                 self._resume_run()
             return True
 
-    def setStop(self):
+    def setStop(self) -> bool:
         """
         Run Stop mode and set flags.
         Return boolean to indicate state change.
@@ -261,7 +272,7 @@ class rpiBaseClass:
             self._remove_run()
             return True
 
-    def setPause(self):
+    def setPause(self) -> bool:
         """
         Run Pause mode and set flags.
         Return boolean to indicate state change.
@@ -273,7 +284,7 @@ class rpiBaseClass:
             self._pause_run()
             return True
 
-    def setResch(self):
+    def setResch(self) -> bool:
         """
         Run Re-schedule mode and set flags.
         Return boolean to indicate state change.
@@ -284,7 +295,7 @@ class rpiBaseClass:
             self._reschedule_run()
             return True
 
-    def setEndDayOAM(self):
+    def setEndDayOAM(self) -> bool:
         """
         Run End-of-Day OAM mode and set flags.
         Return boolean to indicate state change.
@@ -297,7 +308,7 @@ class rpiBaseClass:
             self._enddayoam_run()
             return True
 
-    def setEndOAM(self):
+    def setEndOAM(self) -> bool:
         """
         Run End OAM mode and set flags.
         Return boolean to indicate state change.
@@ -309,6 +320,7 @@ class rpiBaseClass:
         else:
             self._endoam_run()
             return True
+        
 
     @property
     def statusUpdate(self):
@@ -526,6 +538,11 @@ class rpiBaseClass:
 
             elif cmdval==CMDEND and self.setEndOAM():
                 self._statusmsg.append(("%s end" % self.name, ERRNONE))
+
+            elif cmdval==CMDCUSTOM:
+                self.runCustomCmd(cmdstr)
+                self._statusmsg.append(("%s custom cmd %s:%d" % self.name, ERRNONE))
+                
 
             self._cmds.task_done()
 

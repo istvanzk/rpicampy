@@ -29,7 +29,7 @@ import subprocess
 import ephem
 import math
 import json
-from threading import Event
+from threading import Event, RLock
 from typing import Any, Dict, List, Tuple
 
 ### The rpicampy modules
@@ -112,8 +112,9 @@ class rpiCamClass(rpiBaseClass):
         self.lastPirDetected = datetime.now()
 
         ### Camera capture parameters
-        self.camexp_list: List = list()
-        self.cmd_str: List     = list()
+        self.config_lock: RLock = RLock()
+        self.camexp_cliargs: List = list()
+        self.cam_clistr: List     = list()
 
         ### As last step, run automatically the initClass()
         self.initClass()
@@ -195,7 +196,7 @@ class rpiCamClass(rpiBaseClass):
         self._camerrors = ''
         try:
             ### Reset list of cmd arguments
-            self.cmd_str.clear()
+            self.cam_clistr.clear()
 
             ### Capture image
             if FAKESNAP:
@@ -303,26 +304,26 @@ class rpiCamClass(rpiBaseClass):
                 self._setCamExp_libcamera()
 
                 # Generate the arguments
-                self.cmd_str.extend([
+                self.cam_clistr.extend([
                     "rpicam-still", "--tuning-file", f"/usr/share/libcamera/ipa/rpi/vc4/{LIBCAMERA_JSON:s}", 
                     "-n", 
                     "--immediate"])
-                self.cmd_str.extend(self.camexp_list) 
-                self.cmd_str.extend([ 
+                self.cam_clistr.extend(self.camexp_cliargs) 
+                self.cam_clistr.extend([ 
                     "--width", f"{self.resolution[0]}", "--height", f"{self.resolution[1]}", 
                     "-q", f"{self.jpgqual:n}", 
                     "--rotation", f"{self.rotation:n}", 
                     "-o", f"{self.image_path:s}"])
                 
                 # Capture image
-                self._grab_cam = subprocess.Popen(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                self._grab_cam = subprocess.Popen(self.cam_clistr, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
                 #time.sleep(5)
 
                 # Check return/errors
                 #self.grab_cam.wait()
                 self._camoutput, self._camerrors = self._grab_cam.communicate(timeout=10)
 
-                #self._grab_cam = subprocess.run(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                #self._grab_cam = subprocess.run(self.cam_clistr, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
                 #self._camoutput, self._camerrors = self._grab_cam.stdout, self._grab_cam.stderr
 
                 # TODO: post-process to add text with OpenCV
@@ -334,14 +335,14 @@ class rpiCamClass(rpiBaseClass):
                 rpiLogger.debug("rpicam::: jobRun(): FSWEBCAM Snapshot")
 
                 # Generate the arguments
-                self.cmd_str.extend(["fswebcam", 
+                self.cam_clistr.extend(["fswebcam", 
                     "-d", "/dev/video0",
                     "-s brightness=", "50%",
                     "-s gain=", "32",
                     f"{self.image_path:s}"])
 
                 # Capture image
-                self._grab_cam = subprocess.Popen(self.cmd_str, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+                self._grab_cam = subprocess.Popen(self.cam_clistr, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
 
                 ### Check return/errors
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
@@ -369,7 +370,7 @@ class rpiCamClass(rpiBaseClass):
 
             else:
                 rpiLogger.warning("rpicam::: jobRun(): Snapshot NOT saved: %s!", self.image_name)
-                rpiLogger.warning("rpicam::: jobRun(): List of args: %s", self.cmd_str)
+                rpiLogger.warning("rpicam::: jobRun(): List of args: %s", self.cam_clistr)
                 if self._camerrors:
                     rpiLogger.debug("rpicam::: jobRun(): Error was: %s", self._camerrors.decode())
 
@@ -599,7 +600,7 @@ class rpiCamClass(rpiBaseClass):
 
                 if len(cmd_parts) == 2:
                     # Simple get command for parameter from self._config[target]
-                    if target in self._config:
+                    if target in self._config.keys():
                         result = {target: self._config[target]}
                     else:
                         raise KeyError(f"Target {target} not found in configuration")
@@ -615,7 +616,7 @@ class rpiCamClass(rpiBaseClass):
                             result = self._config[target]
                         else:
                             # Return specific parameter value
-                            if param in self._config[target]:
+                            if param in self._config[target].keys():
                                 result = {param: self._config[target][param]}
                             else:
                                 raise KeyError(f"Parameter '{param}' not found in '{target}'")
@@ -635,7 +636,7 @@ class rpiCamClass(rpiBaseClass):
                     if len(cmd_parts) < 4:
                         raise ValueError("Set command requires a parameter value")
 
-                    if param in self._config[target]:
+                    if param in self._config[target].keys():
                         value = cmd_parts[3] # parameter value to set
 
                         # Convert value to appropriate type
@@ -645,8 +646,10 @@ class rpiCamClass(rpiBaseClass):
                             value = type(self._config[target][param])(value)
                         else:
                             raise KeyError(f"Parameter '{param}' in '{target}' is invalid type")
-
-                        self._config[target][param] = value
+    
+                        with self.config_lock:
+                            self._config[target][param] = value
+    
                         result = {param: value}
 
                     else: 
@@ -673,7 +676,9 @@ class rpiCamClass(rpiBaseClass):
                         elif isinstance(self._config[target], (int, float)):
                             value = type(self._config[target])(value)
 
-                        self._config[target] = value
+                        with self.config_lock:
+                            self._config[target] = value
+                        
                         result = {target: value}
 
                     else:
@@ -686,8 +691,10 @@ class rpiCamClass(rpiBaseClass):
                             elif isinstance(self._config[target][i], (int, float)):
                                 val = type(self._config[target][i])(val)
                             values.append(val)
-
-                        self._config[target] = values
+    
+                        with self.config_lock:
+                            self._config[target] = values
+                        
                         result = {target: values}
                                        
                 else:
@@ -763,7 +770,7 @@ class rpiCamClass(rpiBaseClass):
             self.bDarkExp = False
 
         # Set the list with the parameter values
-        self.camexp_list = [
+        self.camexp_cliargs = [
             "--awb", f"{self.awb_mode:s}",
             "--gain", f"{self.gain}",
             "--exposure", f"{self.exposure_mode:s}",
@@ -774,7 +781,7 @@ class rpiCamClass(rpiBaseClass):
             "--metering", f"{self.metering:s}",
         ]
         if self.shutter_speed is not None:
-            self.camexp_list.extend([
+            self.camexp_cliargs.extend([
                 "--shutter", f"{self.shutter_speed}"
             ])
 
@@ -925,13 +932,14 @@ class rpiCamClass(rpiBaseClass):
             # The sub-dict under any of these keys, if the key is present, will replace the corresponding values 
             # in self._config[key] or self._config[exp_cfg] when exp_cfg key is specified.
             # NOTE: There is no check of the a tual keys/values in the copied sub-dicts!
-            if exp_cfg == '':
-                for _exp_k in self._dynconfig_exp.keys():
-                    if _exp_k in self._valid_expkeys:
-                        self._config[_exp_k] = self._dynconfig_exp[_exp_k]
-            else:
-                if exp_cfg in self._dynconfig_exp.keys() and exp_cfg in self._valid_expkeys:
-                    self._config[exp_cfg] = self._dynconfig_exp[exp_cfg]
+            with self.config_lock:
+                if exp_cfg == '':
+                    for _exp_k in self._dynconfig_exp.keys():
+                        if _exp_k in self._valid_expkeys:
+                            self._config[_exp_k] = self._dynconfig_exp[_exp_k]
+                else:
+                    if exp_cfg in self._dynconfig_exp.keys() and exp_cfg in self._valid_expkeys:
+                        self._config[exp_cfg] = self._dynconfig_exp[exp_cfg]
 
 
     def _capture_metadata(self):

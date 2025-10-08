@@ -148,4 +148,9 @@ rc_type: [] #['ts-status', 'ts-cmd']
 # List of token/authentication txt files for 'ts-*' and 'ws-*' rc_type.
 # If the list is empty or the entry in the list is empty '', any upload and remote control is disabled.
 token_file: ['ts_tokens.txt', 'ws_tokens.txt'] 
+# Timeout in seconds for Cmd mode (activated/deactivated via remote control options).
+# When Cmd mode is activated, if no valid command is received within this time, Cmd mode is deactivated.
+# Set to -1 to disable timeout (Cmd mode remains active until deactivated with command).
+cmd_mode_timeout: 180
+
 

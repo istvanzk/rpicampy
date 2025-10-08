@@ -214,10 +214,6 @@ try:
 
     # Add main timer operation control prameters
     timerConfig['interval_sec'] = timerConfigYaml['interval_sec']
-    timerConfig['enabled'] = True
-    timerConfig['cmd_run'] = False
-    timerConfig['stateval']= 0
-    timerConfig['status']  = ''
 
     # Extract dark time values from timerConfigYaml
     if timerConfigYaml['start_dark_time'] < 0:

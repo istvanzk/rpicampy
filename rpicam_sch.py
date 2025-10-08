@@ -195,18 +195,22 @@ def main():
     mainTimer.errorDelay = 2*timerConfig['interval_sec']
     mainTimer.setRun((None, None, timerConfig['interval_sec']))
 
+    # Enable all other jobs to be scheduled in the main loop
+    mainTimer.jobs_enabled = True
+
     # Notify systemd.daemon and log messsage
     daemon_notify("READY=1")
     info_str = f"Image capture scheduler will be active in the period: {tstart_all} - {tstop_all}"
     rpiLogger.info("rpicamsch:: %s", info_str)
     journal_send(info_str)
 
-    # Enable all jobs
-    mainTimer.jobs_enabled = True
-
     # Start main loop
-    MainRun = True
-    while MainRun:
+    while True:
+
+        # Wait loop, until the jobs are enabled
+        while not mainTimer.jobs_enabled:
+            time.sleep(1.0*WATCHDOG_USEC/2000000.0)
+            daemon_notify("WATCHDOG=1")
 
         # Enable all day periods
         bValidDayPer = []
@@ -264,16 +268,15 @@ def main():
 
                         # Do something else while the schedRPi is running
                         # ...
-                        time.sleep(3.14159)
 
                         # Update the systemd watchdog timestamp
                         time.sleep(1.0*WATCHDOG_USEC/2000000.0)
                         daemon_notify("WATCHDOG=1")
 
 
-                    # Go to next daily period only if timer is still enabled
+                    # Go to next daily period (continue for tper loop) only if jobs are still enabled
+                    # and no kill/exit was requested
                     if not mainTimer.jobs_enabled or rpigexit.kill_now:
-
                         # Stop all the jobs
                         imgCam.setStop()
                         imgDir.setStop()
@@ -314,7 +317,8 @@ def main():
             imgDir.setEndDayOAM()
             imgDbx.setEndDayOAM()
 
-            # Go to next day only if timer is still enabled
+            # Go to next day (continuee while tcrt loop) only if jobs are still enabled
+            # and no kill/exit was requested
             if not mainTimer.jobs_enabled or rpigexit.kill_now:
                 break # end the while tcrt loop
 
@@ -324,13 +328,12 @@ def main():
         imgDir.setEndOAM()
         imgDbx.setEndOAM()
 
-        # Normal end of the scheduling period or kill/exit, else enter wait loop
-        if not mainTimer.jobs_enabled or rpigexit.kill_now:
-            MainRun = False # end/exit program
-
-        else:
+        # Normal end of the scheduling period or kill/exit was requested
+        if not rpigexit.kill_now:
             rpiLogger.info("rpicamsch:: All job schedules were ended. Enter waiting loop.")
             journal_send("All job schedules were ended. Enter waiting loop.")
+        else:
+            break # end/exit program
 
     # Notify systemd.daemon
     daemon_notify("STOPPING=1")

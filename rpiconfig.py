@@ -68,9 +68,6 @@ LIBCAMERA_JSON = None
 # Used only with RPICAM2
 CONTROLS_JSON = "cam_controls.json" 
 
-### Log file name
-LOG_FILENAME = 'rpicam.log'
-
 ### Python version
 PY39 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 9)
 if not PY39:

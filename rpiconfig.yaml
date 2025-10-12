@@ -32,14 +32,6 @@ RPICAM2:      yes
 # See https://www.raspberrypi.com/documentation/computers/camera_software.html#rpicam-still
 LIBCAMERA:    no
 
-## Logging configuration
-# Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
-LOGLEVEL:     'INFO'
-# Log file size in bytes before rotating
-LOGFILEBYTES: 512000
-# Number of rotated log files to keep
-BACKUPCOUNT:  10
-
 ---
 # Datetime periods configuration. 
 # Loaded into timerConfig.

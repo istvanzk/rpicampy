@@ -465,6 +465,7 @@ class rpiCamClass(rpiBaseClass):
         self._dynconfig_path = CONTROLS_JSON
         self._dynconfig_lastmodified = 0
         self._dynconfig_exp  = dict()
+        self._dynconfig_exp_loaded = False
         self._valid_expkeys  = ['cam_expday', 'cam_expnight', 'cam_expnight-irl']
 
         ### Init the "dark" time flag and reference image brightness
@@ -802,17 +803,10 @@ class rpiCamClass(rpiBaseClass):
         if self._isDark():
             # The 'dark' mode settings
             if self._config['use_irl']:
-
-                if self._config['use_dynctrl']:
-                    self._get_dynconfig('cam_expnight-irl')
-
+                self._check_dynconfig('cam_expnight-irl')
                 self._set_controls('cam_expnight-irl')
-
             else:
-
-                if self._config['use_dynctrl']:
-                    self._get_dynconfig('cam_expnight')
-
+                self._check_dynconfig('cam_expnight')
                 self._set_controls('cam_expnight')
 
             self._switchIR(True)
@@ -820,10 +814,7 @@ class rpiCamClass(rpiBaseClass):
 
         else:
             # The 'daylight' default setting 
-
-            if self._config['use_dynctrl']:
-                self._get_dynconfig('cam_expday')
-
+            self._check_dynconfig('cam_expday')
             self._set_controls('cam_expday')
 
             self._switchIR(False)
@@ -884,12 +875,14 @@ class rpiCamClass(rpiBaseClass):
         current configuration values loaded from rpiconfig.yaml.
         """
         try:
+            self._dynconfig_exp_loaded = False
             if os.path.exists(self._dynconfig_path):
                 _crt_modified = os.path.getmtime(self._dynconfig_path)
                 if _crt_modified != self._dynconfig_lastmodified:
                     with open(self._dynconfig_path, "r") as f:
                         self._dynconfig_exp = json.load(f)
                     self._dynconfig_lastmodified = _crt_modified
+                    self._dynconfig_exp_loaded = True
                     rpiLogger.info("rpicam::: Dynamic camera controls configuration file %s loaded (last modified %s).", self._dynconfig_path, time.ctime(_crt_modified))
             else:
                 self._save_dynconfig()
@@ -917,29 +910,32 @@ class rpiCamClass(rpiBaseClass):
             rpiLogger.error("rpicam:::Error saving dynamic camera controls configuration file %s!\n%s\n", self._dynconfig_path, str(e))
             raise rpiBaseClassError(f"rpicam::: _save_dynconfig(): Error saving dynamic camera controls configuration file {self._dynconfig_path}!", ERRCRIT)  
         
-    def _get_dynconfig(self, exp_cfg:str = ''):
+    def _check_dynconfig(self, exp_cfg:str = ''):
         """ 
-        Load and copy the dynamic camera configurations from the JSON file to self._config dict. 
+        Check, load and copy the dynamic camera configurations from the JSON file to self._config dict. 
         When exp_cfg (key) is specified only the corresponding parameters are copied to self._config dict.
         """
-        # Load the configuration from JSON
-        # if the file exists and has been modified since last loaded
-        self._load_dynconfig()
+        self._dynconfig_exp_loaded = False
+        if self._config['use_dynctrl']:
 
-        if self._dynconfig_exp:
-            # The loaded dict is expected to contain one or more of the keys listed in self._valid_expkeys, 
-            # each having a sub-dict as value.
-            # The sub-dict under any of these keys, if the key is present, will replace the corresponding values 
-            # in self._config[key] or self._config[exp_cfg] when exp_cfg key is specified.
-            # NOTE: There is no check of the a tual keys/values in the copied sub-dicts!
-            with self.config_lock:
-                if exp_cfg == '':
-                    for _exp_k in self._dynconfig_exp.keys():
-                        if _exp_k in self._valid_expkeys:
-                            self._config[_exp_k] = self._dynconfig_exp[_exp_k]
-                else:
-                    if exp_cfg in self._dynconfig_exp.keys() and exp_cfg in self._valid_expkeys:
-                        self._config[exp_cfg] = self._dynconfig_exp[exp_cfg]
+            # Load the configuration from JSON
+            # if the file exists and has been modified since last loaded
+            self._load_dynconfig()
+
+            if self._dynconfig_exp and self._dynconfig_exp_loaded:
+                # The loaded dict is expected to contain one or more of the keys listed in self._valid_expkeys, 
+                # each having a sub-dict as value.
+                # The sub-dict under any of these keys, if the key is present, will replace the corresponding values 
+                # in self._config[key] or self._config[exp_cfg] when exp_cfg key is specified.
+                # NOTE: There is no check of the a tuple keys/values in the copied sub-dicts!
+                with self.config_lock:
+                    if exp_cfg == '':
+                        for _exp_k in self._dynconfig_exp.keys():
+                            if _exp_k in self._valid_expkeys:
+                                self._config[_exp_k] = self._dynconfig_exp[_exp_k]
+                    else:
+                        if exp_cfg in self._dynconfig_exp.keys() and exp_cfg in self._valid_expkeys:
+                            self._config[exp_cfg] = self._dynconfig_exp[exp_cfg]
 
 
     def _capture_metadata(self):

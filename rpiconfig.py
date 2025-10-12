@@ -31,7 +31,6 @@ __all__ = ('HOST_NAME', 'RPICAMPY_VER', 'IMAGE_COPYRIGHT',
             'RPIJOBNAMES', 'INTERNETUSE', 'DROPBOXUSE', 'LOCUSBUSE', 
             'SYSTEMDUSE', 'WATCHDOG_USEC',
             'FAKESNAP', 'RPICAM2', 'LIBCAMERA', 'LIBCAMERA_JSON', 'CONTROLS_JSON',
-            'LOGLEVELSTR', 'LOGFILEBYTES', 'LOG_FILENAME', 'BACKUPCOUNT',
             'rpigexit')
 
 ### The version string
@@ -181,26 +180,6 @@ try:
         LIBCAMERA = bool(mainConfigYaml['LIBCAMERA'])
     else:
         LIBCAMERA = False
-
-    if 'LOGLEVEL' in mainConfigYaml:
-        if mainConfigYaml['LOGLEVEL'] in ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']:
-            LOGLEVELSTR = mainConfigYaml['LOGLEVEL']
-        else:
-            rpiLogger.warning("rpiconfig::: Configuration file error: unknown LOGLEVEL value! Using default INFO level.")
-            LOGLEVELSTR = 'INFO'
-    if 'LOGFILEBYTES' in mainConfigYaml:
-        try:
-            LOGFILEBYTES = int(mainConfigYaml['LOGFILEBYTES'])
-        except ValueError as e:
-            rpiLogger.warning("rpiconfig::: Configuration file error: LOGFILEBYTES value is not an integer! Using default 500*1024 bytes.")
-            LOGFILEBYTES = 500*1024
-    if 'BACKUPCOUNT' in mainConfigYaml:
-        try:
-            BACKUPCOUNT = int(mainConfigYaml['BACKUPCOUNT'])
-        except ValueError as e:
-            rpiLogger.warning("rpiconfig::: Configuration file error: BACKUPCOUNT value is not an integer! Using default 10.")
-            BACKUPCOUNT = 10
-
 
     # Extract date and time period values from timerConfigYaml
     timerConfig = {}

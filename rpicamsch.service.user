@@ -40,8 +40,8 @@ NotifyAccess=main
 WatchdogSec=90
 #Type=simple
 #EnvironmentFile=/home/pi/rpicampy/envfile (ignore_errors=yes)
-#Environment="RPI_LGPIO_REVISION=800012"
-ExecStart=RPI_LGPIO_REVISION=800012 /usr/bin/python3 %h/rpicampy/rpicam_sch.py
+Environment="RPI_LGPIO_REVISION=800012"
+ExecStart=/usr/bin/python3 %h/rpicampy/rpicam_sch.py
 WorkingDirectory=%h/rpicampy
 Restart=on-failure
 

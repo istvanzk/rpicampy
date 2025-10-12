@@ -32,8 +32,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_ADDED, EVENT_JOB_REMOVED
 
 ### The rpicampy modules
-from rpiconfig import *
 from rpilogger import rpiLogger
+from rpiconfig import *
 from rpiconfig import journal_send, daemon_notify
 import rpievents
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE

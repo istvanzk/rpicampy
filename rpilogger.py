@@ -26,11 +26,19 @@ and filter setting from:
 import logging
 import logging.config
 
+### The rpicampy modules
+from rpiconfig import LOGLEVELSTR, LOGFILEBYTES, BACKUPCOUNT, LOG_FILENAME
+
 ### Logging parameters
-LOGLEVEL = logging.DEBUG
-LOGFILEBYTES = 500*1024
-LOG_FILENAME = 'rpicam.log'
-BACKUPCOUNT  = 10
+LOGLEVEL = logging.INFO
+if LOGLEVELSTR.upper() == 'DEBUG':
+    LOGLEVEL = logging.DEBUG
+elif LOGLEVELSTR.upper() == 'WARNING':
+    LOGLEVEL = logging.WARNING
+elif LOGLEVELSTR.upper() == 'ERROR':
+    LOGLEVEL = logging.ERROR
+elif LOGLEVELSTR.upper() == 'CRITICAL':
+    LOGLEVEL = logging.CRITICAL
 
 ### Define the logging filter
 # Filter out all messages which are not from the main Jobs

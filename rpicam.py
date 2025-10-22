@@ -347,7 +347,7 @@ class rpiCamClass(rpiBaseClass):
                 ### Check return/errors
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
 
-        except (OSError, TypeError, RuntimeError) as e:
+        except (OSError, TypeError, IOError) as e:
             rpiLogger.warning("rpicam::: jobRun(): Snapshot %s could not be created!\n%s", self.image_path, e)
             raise rpiBaseClassError(f"rpicam::: jobRun(): Snapshot {self.image_path} could not be created!", ERRLEV2)
 

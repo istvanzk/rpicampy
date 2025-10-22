@@ -12,7 +12,7 @@
 # Main configuration parameters.
 # Loaded in rpiconfig.
 
-# All internet use (Dropbox and ThingSpeak)
+# All internet use (Dropbox, ThingSpeak, Webssockect)
 INTERNETUSE:  yes
 # Local USB storage (instead of SD card) - not implemented yet!
 LOCUSBUSE:    no
@@ -63,7 +63,7 @@ rec_type: 'still'
 image_rot: 180
 image_res: [1024, 768]
 # Image capture intervals configuration in seconds for each time period above.
-interval_sec: [15, 30, 15]
+interval_sec: [30, 60, 30]
 jpg_qual: 85
 use_ovltxt: yes
 use_irl: yes
@@ -113,7 +113,7 @@ image_dir: './webcam'
 # The number of images to keep in the directory (last list_size images).
 list_size: 10
 # Images list/indexing execution interval configuration in seconds for each main time period above.
-interval_sec: [15.3, 30.3, 15.3]
+interval_sec: [30.3, 60.3, 30.3]
 
 ---
 # Dropbox configuration for uploading images to a Dropbox App folder.
@@ -131,7 +131,7 @@ token_file: 'tokens.pkl'
 image_snap: 'cam.jpg'
 image_dir: './webcam'
 # Images upload execution interval configuration in seconds for each main time period above.
-interval_sec: [31.3, 61.3, 31.3]
+interval_sec: [61.3, 121.3, 61.3]
 
 ---
 # Remote controls configuration for sending status info and receiving control commands.

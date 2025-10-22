@@ -41,14 +41,14 @@ start_date: '2025-01-01'
 stop_date:  '2025-12-31'
 # Main time periods configuration during each day. The times are in HH:MM:SS format.
 start_times: ['00:00:00', '08:00:00', '20:00:00']
-stop_times:  ['07:59:00', '19:59:00', '23:59:00']
+stop_times:  ['07:59:59', '19:59:59', '23:59:59']
 # Dark time start and stop times indeces, indicating times from the start_times and stop_times.
 # If any of them is set -1 and if lat_lon is configured in the camConfig section below,
 # the dark time period is auto-determined with pyephem based on the lat & lon camera location,
 # else dark time period is not used.
 start_dark_time: -1
 stop_dark_time: -1
-# Main timer execution interval configuration in seconds for all time period above.
+# Main timer execution interval configuration in seconds for all time periods above.
 interval_sec: 10
 
 ---
@@ -93,7 +93,7 @@ cam_expnight-irl:
   ExposureValue: 3 # EV compensation value. Floating point number between -8.0 and 8.0
   ExposureTime: 400000 # Exposure time for the sensor to use, measured in microseconds
   Contrast:  4.0   # Floating point number from 0.0, 1.0 to 32.0
-  Brightness: 1.0  # Floating point number from -1.0 to 1.0
+  Brightness: 0.5  # Floating point number from -1.0 to 1.0
 cam_expnight:
   AwbEnable: True  # Turn AWB algorithm on and off
   AwbMode:  'Auto' # controls.AwbModeEnum.Auto, Tungsten, Fluorescent, Incandescent, Indoor, Daylight, Cloudy

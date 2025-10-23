@@ -140,6 +140,7 @@ class rpiCamClass(rpiBaseClass):
             if self._camera is not None:
                 if RPICAM2:
                     self._camera.stop()
+                    self._camera.close()
                 del self._camera
                 self._camera = None
 
@@ -218,7 +219,7 @@ class rpiCamClass(rpiBaseClass):
                 self._setCamExp_rpicam()
 
                 # Start the camera
-                self._camera.start() # pyright: ignore[reportOptionalMemberAccess]
+                self._camera.start(show_preview=False) # pyright: ignore[reportOptionalMemberAccess]
                 time.sleep(1)
 
                 # Capture image to memory
@@ -820,6 +821,7 @@ class rpiCamClass(rpiBaseClass):
             self._switchIR(False)
             self.bDarkExp = False
 
+        time.sleep(0.5)
 
         # The following code is for picamera V1 API
         # and is kept for reference only, it is not to be used anymore
@@ -864,7 +866,7 @@ class rpiCamClass(rpiBaseClass):
             for _c, _v in self._config[exp_cfg].items():
                 if isinstance(_v, bool) or isinstance(_v, float) or isinstance(_v, int):
                     self._camera.set_controls({_c: _v})
-                elif isinstance(_v, str) and _c in ['AwbMode', 'AeMode']:
+                elif isinstance(_v, str) and _c in ['AwbMode', 'AeMode', 'AeExposureMode', 'AeMeteringMode']:
                     self._camera.set_controls({_c: eval(f"controls.{_c}Enum.{_v}")})
 
     def _load_dynconfig(self):

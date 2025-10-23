@@ -26,6 +26,7 @@ import sys
 import time
 import logging
 from datetime import datetime, timedelta
+from typing import List
 
 #from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -212,21 +213,22 @@ def main():
             time.sleep(1.0*WATCHDOG_USEC/2000000.0)
             daemon_notify("WATCHDOG=1")
 
-        # Enable all day periods
-        bValidDayPer = []
-        for tper in range(len(timerConfig['start_hour'])):
-            bValidDayPer.append(True)
-
-        # Check the validity of the time periods on the specified first day
-        tcrt = datetime.now()
-        if tcrt >= tstart_all:
-            for tper in range(len(timerConfig['start_hour'])):
-                if (60*tcrt.hour + tcrt.minute) >= (60*timerConfig['stop_hour'][tper] + timerConfig['stop_min'][tper]):
-                    bValidDayPer[tper] = False
-                    rpiLogger.info("rpicamsch:: The daily period %02d:%02d - %02d:%02d was skipped.", timerConfig['start_hour'][tper], timerConfig['start_min'][tper], timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper])
 
         # The daily scheduling loop: every day in the specified time periods
+        tcrt = datetime.now()
+        bValidDayPer: List[bool] = [False] * len(timerConfig['start_hour'])
         while tcrt < tstop_all:
+
+            # Enable all day periods
+            for tper in range(len(timerConfig['start_hour'])):
+                bValidDayPer[tper] = True
+
+            # Check the validity of the time periods on the current day
+            if tcrt >= tstart_all:
+                for tper in range(len(timerConfig['start_hour'])):
+                    if (60*tcrt.hour + tcrt.minute) >= (60*timerConfig['stop_hour'][tper] + timerConfig['stop_min'][tper]):
+                        bValidDayPer[tper] = False
+                        rpiLogger.info("rpicamsch:: The daily period %02d:%02d - %02d:%02d was skipped.", timerConfig['start_hour'][tper], timerConfig['start_min'][tper], timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper])
 
             # Initialize jobs (will run only after EoD, when not initialized already)
             imgCam.setInit()
@@ -304,14 +306,6 @@ def main():
                     time.sleep( 10 )
 
 
-            # Next day 00:00 time
-            tnow = datetime.now()
-            tcrt = datetime(tnow.year, tnow.month, tnow.day, 0, 0, 0, 0) + timedelta(days=1)
-
-            # Enable all day periods
-            for tper in range(len(timerConfig['start_hour'])):
-                bValidDayPer[tper] = True
-
             # Perform the End-of-Day maintenance
             imgCam.setEndDayOAM()
             imgDir.setEndDayOAM()
@@ -321,6 +315,11 @@ def main():
             # and no kill/exit was requested
             if not mainTimer.jobs_enabled or rpigexit.kill_now:
                 break # end the while tcrt loop
+
+            # Next day
+            tcrt = datetime.now()
+            #tnow = datetime.now()
+            #tcrt = datetime(tnow.year, tnow.month, tnow.day, 0, 0, 0, 0) + timedelta(days=1)
 
 
         # Perform the End maintenance

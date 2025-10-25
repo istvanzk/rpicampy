@@ -97,7 +97,7 @@ class rpiImageDirClass(rpiBaseClass):
                     for img in self.imagelist:
                         if not img in self._imageFIFO and \
                             img in self._imageUpldFIFO:
-                            rpiLogger.info("Remove image: %s", img)
+                            rpiLogger.info("rpimgdir::: jobRun(): Remove image: %s", img)
                             self._rmimg = subprocess.Popen("rm " + img, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
                             self._diroutput, self._direrrors = self._rmimg.communicate()
 

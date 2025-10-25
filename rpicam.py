@@ -821,7 +821,6 @@ class rpiCamClass(rpiBaseClass):
             self._switchIR(False)
             self.bDarkExp = False
 
-        time.sleep(0.5)
 
         # The following code is for picamera V1 API
         # and is kept for reference only, it is not to be used anymore
@@ -868,6 +867,8 @@ class rpiCamClass(rpiBaseClass):
                     self._camera.set_controls({_c: _v})
                 elif isinstance(_v, str) and _c in ['AwbMode', 'AeMode', 'AeExposureMode', 'AeMeteringMode']:
                     self._camera.set_controls({_c: eval(f"controls.{_c}Enum.{_v}")})
+                    
+            time.sleep(0.5)
 
     def _load_dynconfig(self):
         """ 

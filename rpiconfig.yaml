@@ -93,7 +93,7 @@ cam_expnight-irl:
   ExposureValue: 8.0 # EV compensation value. Floating point number between -8.0 and 8.0
   ExposureTime: 400000 # Exposure time for the sensor to use, measured in microseconds
   Contrast:  4.0   # Floating point number from 0.0, 1.0 to 32.0
-  Brightness: 0.5  # Floating point number from -1.0 to 1.0
+  Brightness: 1.0  # Floating point number from -1.0 to 1.0
 cam_expnight:
   AwbEnable: True  # Turn AWB algorithm on and off
   AwbMode:  'Auto' # controls.AwbModeEnum.Auto, Tungsten, Fluorescent, Incandescent, Indoor, Daylight, Cloudy

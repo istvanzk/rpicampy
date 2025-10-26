@@ -61,6 +61,7 @@ def jobListener(event):
     """
     The Job(Execution) Event listener for the APscheduler jobs.
     Process only the main rpi jobs listed in eventsRPi.event_ids.
+    :param event: the job event
     """
 
     #e_exception = getattr(event, 'exception', None)
@@ -128,6 +129,14 @@ def jobListener(event):
     # Update timer status message
     timerConfig['status'] = status_str
 
+def send_log_journal(log_level:str, message: str):
+    """
+    Send log message to journald and rpiLogger.
+    :param log_level: log level string (e.g., 'info', 'debug', 'error', etc.)
+    :param message: message string
+    """
+    journal_send(message)
+    eval(f"rpiLogger.{log_level}('rpicamsch:: %s', message)")
 
 ### The APScheduler
 schedRPi = BackgroundScheduler(alias='BkgScheduler', timezone="Europe/Berlin")
@@ -171,7 +180,7 @@ rpiLogger.info("rpicamsch:: %s", mainTimer)
 ### Main
 def main():
     """
-    Runs the APScheduler with the Jobs scheduled during every specified time period.
+    Runs the APScheduler with the image capture jobs scheduled during every specified daily time period.
     """
 
     # Time period start/stop for image capture and image files management
@@ -179,12 +188,10 @@ def main():
     tstop_all  = datetime(timerConfig['stop_year'], timerConfig['stop_month'], timerConfig['stop_day'], timerConfig['stop_hour'][-1], timerConfig['stop_min'][-1], 59, 0)
 
     # Check if the stop time is valid
-    tnow = datetime.now()
-    if tnow >= tstop_all:
-        warn_str = f"Current time ({tnow}) is after the end of scheduler activity period ({tstop_all})! No image capture jobs will be scheduled! Bye!"
-        rpiLogger.error("rpicamsch:: %s", warn_str)
-        journal_send(warn_str)
-        time.sleep(2.0*WATCHDOG_USEC/2000000.0)
+    tcrt = datetime.now()
+    if tcrt >= tstop_all:
+        send_log_journal("error", f"Current time {tcrt} is after the end of scheduler activity period {tstop_all}! Image capture scheduler will not be activated! Bye!")
+        daemon_notify("STOPPING=1")
         return
 
     # Start background scheduler
@@ -201,50 +208,68 @@ def main():
 
     # Notify systemd.daemon and log messsage
     daemon_notify("READY=1")
-    info_str = f"Image capture scheduler will be active in the period: {tstart_all} - {tstop_all}"
-    rpiLogger.info("rpicamsch:: %s", info_str)
-    journal_send(info_str)
+    send_log_journal("info", f"Image capture scheduler will be active in the period: {tstart_all} - {tstop_all}")
 
     # Start main loop
-    while True:
+    while not rpigexit.kill_now:
 
         # Wait loop, until the jobs are enabled
-        while not mainTimer.jobs_enabled:
+        _wait_count = 0
+        while not mainTimer.jobs_enabled \
+            and not rpigexit.kill_now:
+            # Update the systemd watchdog timestamp
             time.sleep(1.0*WATCHDOG_USEC/2000000.0)
             daemon_notify("WATCHDOG=1")
 
+            if _wait_count % 30 == 0:
+                send_log_journal("debug", "Image capture scheduler waiting for jobs to be enabled...")
+                _wait_count = 0
+
+            _wait_count += 1
 
         # The daily scheduling loop: every day in the specified time periods
+        _wait_count = 0
         tcrt = datetime.now()
         bValidDayPer: List[bool] = [False] * len(timerConfig['start_hour'])
-        while tcrt < tstop_all:
+        while tcrt < tstop_all \
+            and mainTimer.jobs_enabled \
+            and not rpigexit.kill_now:
 
-            # Enable all day periods
-            for tper in range(len(timerConfig['start_hour'])):
-                bValidDayPer[tper] = True
-
-            # Check the validity of the time periods on the current day
+            # Check the validity of the time periods in the current day
             if tcrt >= tstart_all:
                 for tper in range(len(timerConfig['start_hour'])):
+                    bValidDayPer[tper] = True
                     if (60*tcrt.hour + tcrt.minute) >= (60*timerConfig['stop_hour'][tper] + timerConfig['stop_min'][tper]):
                         bValidDayPer[tper] = False
-                        rpiLogger.info("rpicamsch:: The daily period %02d:%02d - %02d:%02d was skipped.", timerConfig['start_hour'][tper], timerConfig['start_min'][tper], timerConfig['stop_hour'][tper], timerConfig['stop_min'][tper])
 
+            if all(v is False for v in bValidDayPer):
+                # Update the systemd watchdog timestamp
+                time.sleep(1.0*WATCHDOG_USEC/2000000.0)
+                daemon_notify("WATCHDOG=1")
+
+                tcrt = datetime.now()
+                if _wait_count % 30 == 0:
+                    send_log_journal("debug", f"No valid daily periods for current day {tcrt.date()}. Waiting until next day {tcrt.date() + timedelta(days=1)}...")
+                    _wait_count = 0
+
+                _wait_count += 1
+                continue # next while tcrt loop
+
+            # Else, run the valid daily periods for the current day
             # Initialize jobs (will run only after EoD, when not initialized already)
             imgCam.setInit()
             imgDir.setInit()
             imgDbx.setInit()
-
-            # Loop over the defined day periods
             for tper in range(len(timerConfig['start_hour'])):
 
                 try:
 
-                    # Run only the valid day periods
+                    # Run only the valid day periods for the current day
                     if not bValidDayPer[tper]:
-                        continue # next period/day
+                        send_log_journal("info", f"The daily period {timerConfig['start_hour'][tper]:02d}:{timerConfig['start_min'][tper]:02d} - {timerConfig['stop_hour'][tper]:02d}:{timerConfig['stop_min'][tper]:02d} was skipped.")
+                        continue # next for tper loop
 
-                    # Clear events and set the error delay (grace period) for each job
+                    # Clear events and set the error delay (grace time) for each job
                     eventsRPi.clearEvents()
                     imgCam.errorDelay = 3*camConfig['interval_sec'][tper]
                     imgDir.errorDelay = 3*dirConfig['interval_sec'][tper]
@@ -259,18 +284,14 @@ def main():
                     imgDbx.setRun((tstart_per + timedelta(minutes=1), tstop_per, dbxConfig['interval_sec'][tper]))
                     imgDir.setRun((tstart_per + timedelta(minutes=3), tstop_per, dirConfig['interval_sec'][tper]))
 
-                    rpiLogger.info("rpicamsch:: Running jobs for current day period: %s - %s", tstart_per, tstop_per)  
-
-                    # Send status info to journald
-                    #daemon_notify("STATUS=Running current day period: %s - %s" % (tstart_per, tstop_per))
-                    journal_send("Running jobs for current day period: %s - %s" % (tstart_per, tstop_per))
+                    send_log_journal("info", f"Running jobs for current day period: {timerConfig['start_hour'][tper]:02d}:{timerConfig['start_min'][tper]:02d} - {timerConfig['stop_hour'][tper]:02d}:{timerConfig['stop_min'][tper]:02d}")
 
                     # The eventsRPi.eventAllJobsEnd is set when all jobs have been removed/finished
                     while mainTimer.jobs_enabled and \
                         not eventsRPi.eventAllJobsEnd.is_set() and \
                         not rpigexit.kill_now:
 
-                        # Do something else while the schedRPi is running
+                        # Do something else while the jobs are running
                         # ...
 
                         # Update the systemd watchdog timestamp
@@ -286,8 +307,9 @@ def main():
                         imgDir.setStop()
                         imgDbx.setStop()
 
-                        break # end the for tper loop
+                        break # end for tper loop -> next period/day
 
+                    send_log_journal("info", "Current daily period ended.")
 
                 except (KeyboardInterrupt, SystemExit):
                     pass
@@ -316,13 +338,11 @@ def main():
             # Go to next day (continuee while tcrt loop) only if jobs are still enabled
             # and no kill/exit was requested
             if not mainTimer.jobs_enabled or rpigexit.kill_now:
-                break # end the while tcrt loop
-
-            # Next day
+                break # end while tcrt loop -> next day
+            
+            # Update the current time -> next while tcrt loop
             tcrt = datetime.now()
-            #tnow = datetime.now()
-            #tcrt = datetime(tnow.year, tnow.month, tnow.day, 0, 0, 0, 0) + timedelta(days=1)
-
+            send_log_journal("info", "All daily periods ended. Waiting until next day...")
 
         # Perform the End maintenance
         imgCam.setEndOAM()
@@ -331,9 +351,10 @@ def main():
 
         # Normal end of the scheduling period or kill/exit was requested
         if not rpigexit.kill_now:
-            rpiLogger.info("rpicamsch:: All job schedules were ended. Enter waiting loop.")
-            journal_send("All job schedules were ended. Enter waiting loop.")
+            mainTimer.jobs_enabled = False
+            send_log_journal("info", "All image capture job schedules were ended/stopped. Enter waiting loop.")
         else:
+            send_log_journal("info", "Exit signal received. All image capture job schedules will be ended/stopped. Bye!")
             break # end/exit program
 
     # Notify systemd.daemon

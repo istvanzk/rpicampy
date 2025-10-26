@@ -224,12 +224,16 @@ class rpiCamClass(rpiBaseClass):
                 self._setCamExp_rpicam()
 
                 # Start the camera
-                self._camera.start(show_preview=False) # pyright: ignore[reportOptionalMemberAccess]
+                self._camera.start(show_preview=False)
                 time.sleep(1)
+
+                # Get image metadata
+                self._capture_metadata()
+                rpiLogger.info("rpicam::: jobRun(): Capture metadata: %s", self._controls)
 
                 # Capture image to memory
                 stream = io.BytesIO()
-                self._camera.capture_file(stream, format='jpeg') # pyright: ignore[reportOptionalMemberAccess]
+                self._camera.capture_file(stream, format='jpeg')
 
                 # Read stream to a PIL image
                 #(buffer, ), metadata = camera.capture_buffers(["main"])
@@ -238,34 +242,34 @@ class rpiCamClass(rpiBaseClass):
                 image = Image.open(stream)
 
                 # When in 'dark' time
-                # Calculate brightness and adjust shutter speed when not using IR light
-                if self._dark_exp and not self._config['use_irl']:
+                # Calculate image brightness and adjust exposure time if needed
+                if self._dark_exp: # and not self._config['use_irl']:
 
-                    # Calculate brightness
+                    # Calculate initial image brightness
                     #self._grayscaleAverage(image)
                     self._averagePerceived(image)
 
-                    # Recapture image with new shutter speed if needed
+                    # Recapture image with new exposure time if needed
                     if self._imgbr < 118 or \
                         self._imgbr > 138:
 
                         # Release the buffer (this capture could take a few seconds)
                         self.imageFIFO.releaseSemaphore()
 
-                        # Shutter speed (micro seconds)
-                        ss = self._camera.camera_controls["ExposureTime"] # pyright: ignore[reportOptionalMemberAccess]
-                        rpiLogger.debug("rpicam::: Before: Br=%d, Ss=%dus", self._imgbr, ss)
+                        # Exposure time (micro seconds)
+                        rpiLogger.debug("rpicam::: jobRun(): Before: Br=%d, Ss=%dus", self._imgbr, self._controls["ExposureTime"])
 
-                        # Re-capture the picture
-                        time.sleep(3)
-                        self._camera.set_controls({"ExposureTime": int(ss*(2 - float(self._imgbr)/128))}) # pyright: ignore[reportOptionalMemberAccess]
-                        self._camera.capture_file(stream, format='jpeg') # pyright: ignore[reportOptionalMemberAccess]
+                        # Re-capture the image with adjusted exposure time
+                        self._camera.set_controls({"ExposureTime": int(self._controls["ExposureTime"]*(2 - float(self._imgbr)/128))}) 
+                        time.sleep(1)
+                        self._capture_metadata()
+                        self._camera.capture_file(stream, format='jpeg')
                         stream.seek(0)
                         image = Image.open(stream)
 
-                        # Re-calculate brightness
+                        # Re-calculate image brightness
                         self._averagePerceived(image)
-                        rpiLogger.debug("rpicam::: jobRun(): After: Br=%d, Ss=%dus", self._imgbr, self._camera.camera_controls["ExposureTime"])
+                        rpiLogger.debug("rpicam::: jobRun(): After: Br=%d, Ss=%dus", self._imgbr, self._controls["ExposureTime"])
 
                         # Lock the buffer
                         self.imageFIFO.acquireSemaphore()
@@ -871,7 +875,7 @@ class rpiCamClass(rpiBaseClass):
                     if isinstance(_v, bool) or isinstance(_v, float) or isinstance(_v, int):
                         #self._camera.set_controls({_c: _v})
                         ctrl.__setattr__(_c, _v)
-                    elif isinstance(_v, str) and _c in ['AwbMode', 'AeMode', 'AeExposureMode', 'AeMeteringMode']:
+                    elif isinstance(_v, str) and _c in ['AwbMode', 'AeExposureMode', 'AeMeteringMode']:
                         #self._camera.set_controls({_c: eval(f"controls.{_c}Enum.{_v}")})
                         ctrl.__setattr__(_c, eval(f"controls.{_c}Enum.{_v}"))
 
@@ -949,9 +953,14 @@ class rpiCamClass(rpiBaseClass):
 
 
     def _capture_metadata(self):
-        """ Capture the metadata from the camera. """
+        """ 
+        Capture all the metadata from the camera. 
+        Stores the selected control parameters in self._controls dict.
+        Used only with RPICAM2!
+        """
         if self._camera is not None and RPICAM2:
             self._metadata = self._camera.capture_metadata()
+            self._controls = {c: self._metadata[c] for c in ["ExposureTime", "ExposureValue", "Brightness", "AeEnable"]}
         else:
             rpiLogger.warning("rpicam::: _capture_metadata(): Camera metadata cannot be retrieved when RPICAM2 is not set!")
     

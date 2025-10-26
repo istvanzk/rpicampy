@@ -298,7 +298,7 @@ class rpiImageDbxClass(rpiBaseClass):
         """
 
         self._lsImage(self.upldir)
-        rpiLogger.info("rpimgdb::: endDayOAM(): %d images in the remote folder %s", len(self.imageDbList), self.upldir)
+        rpiLogger.info("rpimgdb::: endDayOAM(): %d new images in the remote folder %s", len(self.imageDbList), self.upldir)
 
         # Lock the uplaod buffer
         self.imageUpldFIFO.acquireSemaphore()

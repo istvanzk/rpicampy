@@ -218,11 +218,11 @@ class rpiImageDbxClass(rpiBaseClass):
 
                 del upldimg
 
-                rpiLogger.info("rpimgdb::: Local log file %s found and loaded.", self.logfile)
+                rpiLogger.info("rpimgdb::: initClass(): Local log file %s found and loaded.", self.logfile)
             else:
                 with open(self.logfile,'w') as logf:
                     json.dump([], logf)
-                    rpiLogger.info("rpimgdb::: Local log file %s initialized.", self.logfile)
+                    rpiLogger.info("rpimgdb::: initClass(): Local log file %s initialized.", self.logfile)
 
         except IOError:
             rpiLogger.error("rpimgdb::: initClass(): Local log file %s was not found or could not be created!\n%s\n", self.logfile, str(e))
@@ -260,7 +260,7 @@ class rpiImageDbxClass(rpiBaseClass):
             # {'account_id', 'is_paired', 'locale', 'email', 'name', 'team', 'country', 'account_type', 'referral_link'}
             self.dbinfo ={'email': info.email, 'referral_link': info.referral_link} # pyright: ignore[reportAttributeAccessIssue]
 
-            rpiLogger.info("rpimgdb::: Loaded access token from '%s'", self._token_file)
+            rpiLogger.info("rpimgdb::: initClass(): Loaded access token from '%s'", self._token_file)
 
             ### Create remote root folder (relative to app root) if it does not exist yet
             self._mkdirImage(os.path.normpath(self._config['image_dir']))
@@ -298,7 +298,7 @@ class rpiImageDbxClass(rpiBaseClass):
         """
 
         self._lsImage(self.upldir)
-        rpiLogger.info("rpimgdb:::  %d images in the remote folder %s", len(self.imageDbList), self.upldir)
+        rpiLogger.info("rpimgdb:::  endDayOAM(): %d images in the remote folder %s", len(self.imageDbList), self.upldir)
 
         # Lock the uplaod buffer
         self.imageUpldFIFO.acquireSemaphore()
@@ -313,7 +313,7 @@ class rpiImageDbxClass(rpiBaseClass):
 
             del upldimg
 
-            rpiLogger.info("rpimgdb::: Local log file %s updated.", self.logfile)
+            rpiLogger.info("rpimgdb::: endDayOAM(): Local log file %s updated.", self.logfile)
 
         except IOError as e:
             rpiLogger.error("rpimgdb::: endDayOAM(): Local log file %s was not found!\n%s\n", self.logfile, str(e))
@@ -370,7 +370,7 @@ class rpiImageDbxClass(rpiBaseClass):
             else:
                 new_ls = self._dbx.files_list_folder_continue(self._imageDbCursor)
                 if new_ls.entries == []:
-                    rpiLogger.debug("rpimgdb::: _lsImage():: No changes on the server.")
+                    rpiLogger.debug("rpimgdb::: _lsImage(): No changes on the server.")
                 else:
                     self.ls_ref = new_ls
 
@@ -393,17 +393,17 @@ class rpiImageDbxClass(rpiBaseClass):
             self._imageDbCursor = self.ls_ref.cursor
 
             if len(self.imageDbList) > 0:
-                rpiLogger.debug("rpimgdb::: _lsImage():: imageDbList[0..%d]: %s .. %s", len(self.imageDbList)-1, self.imageDbList[0], self.imageDbList[-1] )
+                rpiLogger.debug("rpimgdb::: _lsImage(): imageDbList[0..%d]: %s .. %s", len(self.imageDbList)-1, self.imageDbList[0], self.imageDbList[-1] )
             else:
-                rpiLogger.debug("rpimgdb::: _lsImage():: imageDbList[]: empty.")
+                rpiLogger.debug("rpimgdb::: _lsImage(): imageDbList[]: empty.")
 
         except ApiError as err:
             if err.user_message_text:
-                rpiLogger.warning("rpimgdb::: _lsImage() ApiError %s!", err.user_message_text)
-                raise rpiBaseClassError(f"rpimgdb::: _lsImage() ApiError {err.user_message_text}!", ERRLEV2)
+                rpiLogger.warning("rpimgdb::: _lsImage(): ApiError %s!", err.user_message_text)
+                raise rpiBaseClassError(f"rpimgdb::: _lsImage(): ApiError {err.user_message_text}!", ERRLEV2)
             else:
                 rpiLogger.warning("rpimgdb::: _lsImage() ApiError %s!", err.error)
-                raise rpiBaseClassError(f"rpimgdb::: _lsImage() ApiError {err.error}!", ERRLEV2)
+                raise rpiBaseClassError(f"rpimgdb::: _lsImage(): ApiError {err.error}!", ERRLEV2)
 
 
 
@@ -462,7 +462,7 @@ class rpiImageDbxClass(rpiBaseClass):
         try:
             self._dbx.files_create_folder('/' + os.path.normpath(path))
 
-            rpiLogger.debug("rpimgdb::: Remote output folder /%s created.", path)
+            rpiLogger.debug("rpimgdb::: _mkdirImage(): Remote output folder /%s created.", path)
 
         except ApiError as e:
             noerr = False

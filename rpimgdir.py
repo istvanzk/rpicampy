@@ -77,9 +77,9 @@ class rpiImageDirClass(rpiBaseClass):
         self._image_names = os.path.join(self._locdir, self._imageFIFO.crtSubDir + '-*' + self._imageFIFO.camID + '.jpg')
         self.imagelist = sorted(glob.glob(self._image_names))
         if len(self.imagelist) > 0:
-            rpiLogger.debug("rpimgdir::: imagelist: %s .. %s", self.imagelist[0], self.imagelist[-1])
+            rpiLogger.debug("rpimgdir::: jobRun(): imagelist: %s .. %s", self.imagelist[0], self.imagelist[-1])
         else:
-            rpiLogger.debug("rpimgdir::: imagelist: empty. No %s found!", self._image_names)
+            rpiLogger.debug("rpimgdir::: jobRun(): imagelist: empty. No %s found!", self._image_names)
 
         ### Run directory/file management only if no errors were detected when
         ### updating to remote directory
@@ -122,13 +122,13 @@ class rpiImageDirClass(rpiBaseClass):
             # Update image list in the current local sub-folder
             self._imagelist_ref = sorted(glob.glob(self._image_names))
             if len(self._imagelist_ref) > 0:
-                rpiLogger.debug("rpimgdir::: imagelist_ref: %s .. %s", self._imagelist_ref[0], self.imagelist[-1])
+                rpiLogger.debug("rpimgdir::: jobRun(): imagelist_ref: %s .. %s", self._imagelist_ref[0], self.imagelist[-1])
             else:
-                rpiLogger.debug("rpimgdir::: imagelist_ref: empty. No %s found!", self._image_names)
+                rpiLogger.debug("rpimgdir::: jobRun(): imagelist_ref: empty. No %s found!", self._image_names)
 
 
         else:
-            rpiLogger.info("rpimgdir::: eventDbErr is set!")
+            rpiLogger.info("rpimgdir::: jobRun(): eventDbErr is set!")
 
 
 
@@ -141,6 +141,7 @@ class rpiImageDirClass(rpiBaseClass):
         self._locdir = os.path.join(self._config['image_dir'], self._imageFIFO.crtSubDir)
         self._image_names = os.path.join(self._locdir, self._imageFIFO.crtSubDir + '-*' + self._imageFIFO.camID + '.jpg')
         self._imagelist_ref = sorted(glob.glob(self._image_names))
+        rpiLogger.info("rpimgdir::: initClass(): Initialized image list in local dir %s with %d images.", self._locdir, len(self._imagelist_ref))
 
 
 #   def endDayOAM(self):

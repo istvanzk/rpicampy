@@ -107,7 +107,7 @@ class rpiTimerClass(rpiBaseClass):
         else:
             # Update status
             self.statusUpdate = (self.name, ERRLEV0)
-            rpiLogger.debug("rpitimer::: eventErr is set!")
+            rpiLogger.debug("rpitimer::: jobRun(): eventErr is set!")
 
 
 
@@ -147,7 +147,7 @@ class rpiTimerClass(rpiBaseClass):
                         self._ts_config['RESTfeed'].setfield(tsf, 0)
 
                     self._ts_config['RESTfeed'].setfield('status', 'n/a')
-                    rpiLogger.info("rpitimer::: ThingSpeak client Channel ID %d initialized. Fields: %s", self._ts_config['RESTfeed'].channel_id, self._ts_config['mon_fields'])
+                    rpiLogger.info("rpitimer::: initClass(): ThingSpeak client Channel ID %d initialized. Fields: %s", self._ts_config['RESTfeed'].channel_id, self._ts_config['mon_fields'])
 
                 else:
                     rpiLogger.warning("rpitimer::: ThingSpeak API could not be initialized.")
@@ -155,9 +155,9 @@ class rpiTimerClass(rpiBaseClass):
             if 'ts-cmd' in self._rc_config['rc_type']:
                 self._ts_config['RESTTalkB'] = thingspk.ThingSpeakTBClient(key_file=self._rc_config['token_file'])
                 if self._ts_config['RESTTalkB'] is not None:
-                    rpiLogger.info("rpitimer::: ThingSpeak TalkBack client ID %d initialized.", self._ts_config['RESTTalkB'].talkback_id)
+                    rpiLogger.info("rpitimer::: initClass(): ThingSpeak TalkBack client ID %d initialized.", self._ts_config['RESTTalkB'].talkback_id)
                 else:
-                    rpiLogger.warning("rpitimer::: ThingSpeak TalkBack could not be initialized.")
+                    rpiLogger.warning("rpitimer::: initClass(): ThingSpeak TalkBack could not be initialized.")
 
         else:
             self._ts_config['RESTfeed'] = None
@@ -170,7 +170,7 @@ class rpiTimerClass(rpiBaseClass):
             
             # Websocket server interrupt signal handler
             def signal_handler(sig, frame):
-                rpiLogger.info("Signal received: %s. Shutting down WS server...", sig)
+                rpiLogger.info("rpitimer::: initClass(): Signal received: %s. Shutting down WS server...", sig)
                 self._ws_config['server'].stop()
                 self._ws_config['server'].join()
                 self._ws_config['server'] = None
@@ -260,28 +260,28 @@ class rpiTimerClass(rpiBaseClass):
                     else:
                         cmdcustom = None
 
-                    rpiLogger.debug("rpitimer::: _recvproc_cmds - Parsed command: %s : %d : %d", cmdstr, cmdval, cmdcustom)
+                    rpiLogger.debug("rpitimer::: _recvproc_cmds(): Parsed command: %s : %d : %d", cmdstr, cmdval, cmdcustom)
                     return True
                 
             cmdstr = u''
             cmdval = -1
             cmdcustom = None
 
-            rpiLogger.debug("rpitimer::: _recvproc_cmds - Invalid command dict %s or string: %s", res_dict, _cmdrx)
+            rpiLogger.debug("rpitimer::: _recvproc_cmds(): Invalid command dict %s or string: %s", res_dict, _cmdrx)
             return False
 
         # Get command from ThingSpeak TalkBack APP if configured/available
         if self._ts_config['RESTTalkB'] is not None:
             self._ts_config['RESTTalkB'].talkback.execcmd()
             _res = self._ts_config['RESTTalkB'].talkback.response
-            rpiLogger.debug("rpitimer::: _recvproc_cmds - Received TB command dict: %s", _res)
+            rpiLogger.debug("rpitimer::: _recvproc_cmds(): Received TB command dict: %s", _res)
             _get_cmd(_res)
 
         # Receive command via WebSocket if configured/available
         if self._ws_config['server'] is not None \
             and self._ws_config["cmd_json"] is not None:
             _res = self._ws_config['server'].receive_json
-            rpiLogger.debug("rpitimer::: _recvproc_cmds - Received WS command dict: %s", _res)
+            rpiLogger.debug("rpitimer::: _recvproc_cmds(): Received WS command dict: %s", _res)
             _get_cmd(_res)
                 
 
@@ -292,7 +292,7 @@ class rpiTimerClass(rpiBaseClass):
                 # This causes all scheduled jobs to be (re)scheduled and 
                 # the inner & outer loops in rpicam_sch.py to run normally.
                 self.jobs_enabled = True
-                rpiLogger.debug("rpitimer::: _recvproc_cmds - JobSch Enabled.")
+                rpiLogger.debug("rpitimer::: _recvproc_cmds(): JobSch Enabled.")
 
             elif cmdval==0 and self.jobs_enabled:
                 # This causes all scheduled jobs to be terminated and 
@@ -301,7 +301,7 @@ class rpiTimerClass(rpiBaseClass):
                 # in wait mode, without jobs scheduled,
                 # until the next 'sch/1' command or program exit.
                 self.jobs_enabled = False
-                rpiLogger.debug("rpitimer::: _recvproc_cmds - JobSch Disabled.")
+                rpiLogger.debug("rpitimer::: _recvproc_cmds(): JobSch Disabled.")
 
         # Cmd mode commands
         elif cmdstr==u'cmd':
@@ -311,13 +311,13 @@ class rpiTimerClass(rpiBaseClass):
                 self.cmd_mode = True
                 # Reset timer/counter for timout of Cmd mode
                 self._cmd_mode_start = time.time()
-                rpiLogger.debug("rpitimer::: _recvproc_cmds - Cmd mode (re)Activated.")
+                rpiLogger.debug("rpitimer::: _recvproc_cmds(): Cmd mode (re)Activated.")
 
             elif cmdval==0 and self.cmd_mode:
                 # When Cmd mode is deactivated,
                 # commands for any job are not dispatched (see below)
                 self.cmd_mode = False
-                rpiLogger.debug("rpitimer::: _recvproc_cmds - Cmd mode Deactivated.")
+                rpiLogger.debug("rpitimer::: _recvproc_cmds(): Cmd mode Deactivated.")
 
         # Dispatch the commands meant for other rpicampy jobs
         # These commands are dispatched only when in Cmd mode!
@@ -345,9 +345,9 @@ class rpiTimerClass(rpiBaseClass):
                 if self._rc_config['cmd_mode_timeout'] > 0 \
                     and (time.time() - self._cmd_mode_start) > self._rc_config['cmd_mode_timeout']:
                     self.cmd_mode = False
-                    rpiLogger.info("rpitimer::: _recvproc_cmds - Cmd mode timed out after %d seconds.", self._rc_config['cmd_mode_timeout'])
+                    rpiLogger.info("rpitimer::: _recvproc_cmds(): Cmd mode timed out after %d seconds.", self._rc_config['cmd_mode_timeout'])
                 else:
-                    rpiLogger.warning("rpitimer::: _recvproc_cmds - No/Unknown command ('%s') received while in Cmd mode.", cmdstr)
+                    rpiLogger.warning("rpitimer::: _recvproc_cmds(): No/Unknown command ('%s') received while in Cmd mode.", cmdstr)
 
 
     def _procsend_status(self):
@@ -382,7 +382,7 @@ class rpiTimerClass(rpiBaseClass):
                 # Update feed
                 self._ts_config['RESTfeed'].update()
 
-            rpiLogger.debug("rpitimer::: _procsend_status - Send status via TB.")
+            rpiLogger.debug("rpitimer::: _procsend_status(): Send status via TB.")
 
         # Update status via WebSocket if configured/available
         if self._ws_config['server'] is not None \
@@ -398,7 +398,7 @@ class rpiTimerClass(rpiBaseClass):
                 # Send status
                 self._ws_config['server'].send_json(self._ws_config["mon_json"])
 
-            rpiLogger.debug("rpitimer::: _procsend_status - Send status via WS.")
+            rpiLogger.debug("rpitimer::: _procsend_status(): Send status via WS.")
 
     def _proc_stateval(self):
         """
@@ -427,7 +427,7 @@ class rpiTimerClass(rpiBaseClass):
         # Update status
         self.statusUpdate = (f"{self.name} StateVals", self._jobs_stateval)
 
-        rpiLogger.debug("rpitimer:::  _proc_stateval - Status: %s", self.statusUpdate)
+        rpiLogger.debug("rpitimer:::  _proc_stateval(): Status: %s", self.statusUpdate)
 
     def _get_status_messages(self):
         """

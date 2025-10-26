@@ -55,6 +55,7 @@ elif RPICAM2:
     # Picamera2 (V2) API
     try:
         from picamera2 import Picamera2, Preview
+        from picamera2.controls import Controls
         from libcamera import controls, Transform
     except ImportError:
         rpiLogger.error("rpicam::: The picamera2 (v2) module could not be loaded!\n")
@@ -116,6 +117,10 @@ class rpiCamClass(rpiBaseClass):
         self.camexp_cliargs: List = list()
         self.cam_clistr: List     = list()
 
+        ### Init GPIO ports, BCMxx pin
+        self.IRLport:int = None
+        self.PIRport:int = None
+
         ### As last step, run automatically the initClass()
         self.initClass()
 
@@ -125,7 +130,7 @@ class rpiCamClass(rpiBaseClass):
     def __str__(self):
         msg = super().__str__()
         return "%s::: %s, config: %s, FAKESNAP: %s, LIBCAMERA: %s, RPICAM2: %s\nimageFIFO: %s\n%s" % \
-            (self.name, self.camid, self._config, FAKESNAP, LIBCAMERA, RPICAM2, self.imageFIFO, msg)
+            (self.name, self._camid, self._config, FAKESNAP, LIBCAMERA, RPICAM2, self.imageFIFO, msg)
 
     def __del__(self):
         ### Clean up Camera and GPIO
@@ -178,18 +183,18 @@ class rpiCamClass(rpiBaseClass):
         self._locdir = os.path.join(self._config['image_dir'], self.imageFIFO.crtSubDir)
         try:
             os.mkdir(self._locdir)
-            rpiLogger.info("rpicam::: Local daily output folder %s created.", self._locdir)
+            rpiLogger.info("rpicam::: jobRun(): Local daily output folder %s created.", self._locdir)
 
         except OSError as e:
             if e.errno == EEXIST:
-                rpiLogger.debug("rpicam::: Local daily output folder %s already exist!", self._locdir)
+                rpiLogger.debug("rpicam::: jobRun(): Local daily output folder %s already exist!", self._locdir)
                 pass
             else:
                 rpiLogger.error("rpicam::: jobRun(): Local daily output folder %s could not be created!\n%s\n", self._locdir, e)
                 raise rpiBaseClassError(f"rpicam::: jobRun(): Local daily output folder {self._locdir} could not be created!", ERRCRIT)
 
         finally:
-            self.image_name = self.imageFIFO.crtSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self.camid + '.jpg'
+            self.image_name = self.imageFIFO.crtSubDir + '-' + time.strftime('%H%M%S', time.localtime()) + '-' + self._camid + '.jpg'
             self.image_path = os.path.join(self._locdir, self.image_name)
 
 
@@ -234,60 +239,60 @@ class rpiCamClass(rpiBaseClass):
 
                 # When in 'dark' time
                 # Calculate brightness and adjust shutter speed when not using IR light
-                if self.bDarkExp and not self._config['use_irl']:
+                if self._dark_exp and not self._config['use_irl']:
 
                     # Calculate brightness
                     #self._grayscaleAverage(image)
                     self._averagePerceived(image)
 
                     # Recapture image with new shutter speed if needed
-                    if self.imgbr < 118 or \
-                        self.imgbr > 138:
+                    if self._imgbr < 118 or \
+                        self._imgbr > 138:
 
                         # Release the buffer (this capture could take a few seconds)
                         self.imageFIFO.releaseSemaphore()
 
                         # Shutter speed (micro seconds)
                         ss = self._camera.camera_controls["ExposureTime"] # pyright: ignore[reportOptionalMemberAccess]
-                        rpiLogger.debug("rpicam::: Before: Br=%d, Ss=%dus", self.imgbr, ss)
+                        rpiLogger.debug("rpicam::: Before: Br=%d, Ss=%dus", self._imgbr, ss)
 
                         # Re-capture the picture
                         time.sleep(3)
-                        self._camera.set_controls({"ExposureTime": int(ss*(2 - float(self.imgbr)/128))}) # pyright: ignore[reportOptionalMemberAccess]
+                        self._camera.set_controls({"ExposureTime": int(ss*(2 - float(self._imgbr)/128))}) # pyright: ignore[reportOptionalMemberAccess]
                         self._camera.capture_file(stream, format='jpeg') # pyright: ignore[reportOptionalMemberAccess]
                         stream.seek(0)
                         image = Image.open(stream)
 
                         # Re-calculate brightness
                         self._averagePerceived(image)
-                        rpiLogger.debug("rpicam::: After: Br=%d, Ss=%dus", self.imgbr, self._camera.camera_controls["ExposureTime"])
+                        rpiLogger.debug("rpicam::: jobRun(): After: Br=%d, Ss=%dus", self._imgbr, self._camera.camera_controls["ExposureTime"])
 
                         # Lock the buffer
                         self.imageFIFO.acquireSemaphore()
 
                 # Apply +/-90 degree rotation with PIL (CCW)
                 # Rotation with 180 degree is done in the camera configuration!
-                if self.rotation in [90, -90, 270, -270]:
-                    image = image.rotate(self.rotation, expand=True)
+                if self._rotation in [90, -90, 270, -270]:
+                    image = image.rotate(self._rotation, expand=True)
                 
                 # Add overlay text to the final image
                 if self._config['use_ovltxt']:
                     draw = ImageDraw.Draw(image,'RGBA')
                     draw.rectangle([0,image.size[1]-20,image.size[0],image.size[1]], fill=(150,200,150,100))
                     sN = ': '
-                    if self.bDarkExp:
+                    if self._dark_exp:
                         if self._config['use_irl']:
                             sN = ' (NI)' + sN
                         else:
                             sN = ' (N)' + sN
-                    draw.text((2,image.size[1]-18), f"{self.camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M:%S', time.localtime()):s}", fill=(0,0,0,0), font=self._TXTfont)
+                    draw.text((2,image.size[1]-18), f"{self._camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M:%S', time.localtime()):s}", fill=(0,0,0,0), font=self._TXTfont)
                     #n_width, n_height = TXTfont.getsize('#XX')
                     #draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=self._TXTfont)
                     del draw
 
                 # Save image to the output file
                 #camera.helpers.save(img=image, metadata, file_output=image_path, format='jpeg', exif_data=self._custom_exif)
-                image.save(self.image_path, format='jpeg', quality=self.jpgqual, exif=piexif.dump(self._custom_exif))
+                image.save(self.image_path, format='jpeg', quality=self._jpgqual, exif=piexif.dump(self._custom_exif))
 
                 # Close BytesIO stream
                 stream.close()
@@ -311,9 +316,9 @@ class rpiCamClass(rpiBaseClass):
                     "--immediate"])
                 self.cam_clistr.extend(self.camexp_cliargs) 
                 self.cam_clistr.extend([ 
-                    "--width", f"{self.resolution[0]}", "--height", f"{self.resolution[1]}", 
-                    "-q", f"{self.jpgqual:n}", 
-                    "--rotation", f"{self.rotation:n}", 
+                    "--width", f"{self._resolution[0]}", "--height", f"{self._resolution[1]}", 
+                    "-q", f"{self._jpgqual:n}", 
+                    "--rotation", f"{self._rotation:n}", 
                     "-o", f"{self.image_path:s}"])
                 
                 # Capture image
@@ -414,7 +419,7 @@ class rpiCamClass(rpiBaseClass):
             if self._config['use_irl'] or self._config['use_pir']:
                 try:
                     GPIO.setmode(GPIO.BCM)
-                    rpiLogger.info("rpicam::: GPIO BCM mode configured (%s)", GPIO.BCM)
+                    rpiLogger.info("rpicam::: initClass(): GPIO BCM mode configured (%s)", GPIO.BCM)
                     if GPIO.getmode() is not None: 
 
                         if self._config['use_irl']:
@@ -423,7 +428,7 @@ class rpiCamClass(rpiBaseClass):
                             rpiLogger.info("rpicam::: GPIO IRLport configured (BCM %d)", self.IRLport)
                         else:
                             self.IRLport = None
-                            rpiLogger.warning("rpicam::: GPIO IRLport is not used")  
+                            rpiLogger.warning("rpicam::: initClass(): GPIO IRLport is not used")  
 
                         if self._config['use_pir']:
                             self.PIRport = self._config['bcm_pirport']
@@ -433,45 +438,44 @@ class rpiCamClass(rpiBaseClass):
                             # The larger and configurable detection delay is added in _pirRun
                             self.lastPirDetected = datetime.now()
                             GPIO.add_event_detect(self.PIRport, GPIO.RISING, callback=self._pirRun, bouncetime=500)
-                            rpiLogger.info("rpicam::: GPIO PIRport configured (BCM %d, %f sec intv.)", self.PIRport, self.pirTimeDelta)
+                            rpiLogger.info("rpicam::: initClass(): GPIO PIRport configured (BCM %d, %f sec intv.)", self.PIRport, self.pirTimeDelta)
                         else:
                             self.PIRport = None
                             rpiLogger.warning("rpicam::: GPIO PIRport is not used")  
 
                     else:
                         GPIO.cleanup()
-                        rpiLogger.error("rpicam::: GPIO.getmode() returned None!\n")   
-                        raise rpiBaseClassError("rpicam::: GPIO.getmode() returned None!", ERRCRIT)
+                        rpiLogger.error("rpicam::: initClass(): GPIO.getmode() returned None!\n")   
+                        raise rpiBaseClassError("rpicam::: initClass(): GPIO.getmode() returned None!", ERRCRIT)
                     
                 except RuntimeError as e:
-                    rpiLogger.error("rpicam::: GPIO could not be configured!\n%s\n" , str(e))   
-                    raise rpiBaseClassError("rpicam::: GPIO could not be configured!", ERRCRIT)
+                    rpiLogger.error("rpicam::: initClass(): GPIO could not be configured!\n%s\n" , str(e))   
+                    raise rpiBaseClassError("rpicam::: initClass(): GPIO could not be configured!", ERRCRIT)
 
             else:
-                rpiLogger.warning("rpicam::: GPIO is not used")   
+                rpiLogger.warning("rpicam::: initClass(): GPIO is not used")   
 
         ### Reset flag indicating that PIR sensor has detected movement since last picture has been captured
         self.pirDetected.clear()
 
         ### Configuration for the image capture
-        self._camera         = None
-        self.metadata        = dict()
-        self.camid           = self._config['cam_id']
-        self.exif_tags_copyr = IMAGE_COPYRIGHT
-        self.resolution      = tuple(self._config['image_res']) 
-        self.rotation        = self._config['image_rot']
-        self.jpgqual         = self._config['jpg_qual']
+        self._camera:Picamera2 = None
+        self._metadata        = dict()
+        self._camid           = self._config['cam_id']
+        self._resolution      = tuple(self._config['image_res']) 
+        self._rotation        = self._config['image_rot']
+        self._jpgqual         = self._config['jpg_qual']
 
         # The dynamimcally configurable camera conbtrol parameters
-        self._dynconfig_path = CONTROLS_JSON
+        self._dynconfig_path         = CONTROLS_JSON
         self._dynconfig_lastmodified = 0
-        self._dynconfig_exp  = dict()
-        self._dynconfig_exp_loaded = False
-        self._valid_expkeys  = ['cam_expday', 'cam_expnight', 'cam_expnight-irl']
+        self._dynconfig_exp          = dict()
+        self._dynconfig_exp_loaded   = False
+        self._valid_expkeys          = ['cam_expday', 'cam_expnight', 'cam_expnight-irl']
 
         ### Init the "dark" time flag and reference image brightness
-        self.bDarkExp = False
-        self.imgbr = 128
+        self._dark_exp = False
+        self._imgbr    = 128
 
         ### Init the camera object
         if RPICAM2:
@@ -480,22 +484,22 @@ class rpiCamClass(rpiBaseClass):
             self._camera = Picamera2(tuning=tuning)
 
             _still_config = self._camera.create_still_configuration()
-            _still_config['main']['size'] = self.resolution
+            _still_config['main']['size'] = self._resolution
 
             # Set camera image rotation
             # Note: libcamera Transform does not support +/-90 degree rotation, so we apply it later with the PIL image (CCW)
-            if self.rotation in [90, -270]:
+            if self._rotation in [90, -270]:
                 _orientation = 6
-            elif self.rotation in [-90, 270]:
+            elif self._rotation in [-90, 270]:
                 _orientation = 8
-            elif self.rotation == 180:
+            elif self._rotation == 180:
                 _orientation = 3
                 _still_config["transform"] = Transform(hflip=1, vflip=1)
             else:
                 _orientation = 1
 
             self._camera.configure(_still_config)
-            self._camera.options["quality"] = self.jpgqual
+            self._camera.options["quality"] = self._jpgqual
 
             # Set custom EXIF/TIFF tags
             # https://exiv2.org/tags.html
@@ -509,12 +513,12 @@ class rpiCamClass(rpiBaseClass):
                             piexif.ImageIFD.Make: "Raspberry Pi",
                             piexif.ImageIFD.Software: RPICAMPY_VER,
                             piexif.ImageIFD.DateTime: time.strftime('%Y:%m:%d %H:%M:%S', time.localtime()),
-                            piexif.ImageIFD.Artist: self.camid,
+                            piexif.ImageIFD.Artist: self._camid,
                             piexif.ImageIFD.ImageDescription: "Time-lapse with Rasberry Pi controlled (pi)camera2",
-                            piexif.ImageIFD.Copyright: self.exif_tags_copyr, 
+                            piexif.ImageIFD.Copyright: IMAGE_COPYRIGHT, 
                             piexif.ImageIFD.Orientation: 1, # This must be set to 1 in order to display correctly
-                            piexif.ImageIFD.XResolution: (self.resolution[0],1),
-                            piexif.ImageIFD.YResolution: (self.resolution[1],1),
+                            piexif.ImageIFD.XResolution: (self._resolution[0],1),
+                            piexif.ImageIFD.YResolution: (self._resolution[1],1),
                         },
                 'Exif': {
                             piexif.ExifIFD.DateTimeOriginal: time.strftime('%Y:%m:%d %H:%M:%S', time.localtime()),
@@ -528,10 +532,10 @@ class rpiCamClass(rpiBaseClass):
         try:
             os.mkdir(self._config['image_dir'])
             self.imgSubDir = time.strftime('%d%m%y', time.localtime())
-            rpiLogger.info("rpicam::: Local output folder %s created.", self._config['image_dir'])
+            rpiLogger.info("rpicam::: initClass(): Local output folder %s created.", self._config['image_dir'])
         except OSError as e:
             if e.errno == EEXIST:
-                rpiLogger.info("rpicam::: Local output folder %s already exist!", self._config['image_dir'])
+                rpiLogger.info("rpicam::: initClass(): Local output folder %s already exist!", self._config['image_dir'])
                 pass
             else:
                 rpiLogger.error("rpicam::: initClass(): Local output folder %s could not be created!\n%s\n", self._config['image_dir'], e)
@@ -722,9 +726,9 @@ class rpiCamClass(rpiBaseClass):
         if tnow - self.lastPirDetected >= self.pirTimeDelta:
             self.pirDetected.set()
             self.lastPirDetected = tnow
-            rpiLogger.info("rpicam::: PIR flag set")
+            rpiLogger.info("rpicam::: _pirRun(): PIR flag set")
         else:
-            rpiLogger.debug("rpicam::: PIR flag NOT set")
+            rpiLogger.debug("rpicam::: _pirRun(): PIR flag NOT set")
         
 
     def _setCamExp_libcamera(self):
@@ -755,7 +759,7 @@ class rpiCamClass(rpiBaseClass):
                 self.shutter_speed = 5000000
 
             self._switchIR(True)
-            self.bDarkExp = True
+            self._dark_exp = True
         else:
             # The 'daylight' default settings
             self.shutter_speed = None
@@ -769,7 +773,7 @@ class rpiCamClass(rpiBaseClass):
             self.metering   = 'average'
 
             self._switchIR(False)
-            self.bDarkExp = False
+            self._dark_exp = False
 
         # Set the list with the parameter values
         self.camexp_cliargs = [
@@ -811,7 +815,7 @@ class rpiCamClass(rpiBaseClass):
                 self._set_controls('cam_expnight')
 
             self._switchIR(True)
-            self.bDarkExp = True
+            self._dark_exp = True
 
         else:
             # The 'daylight' default setting 
@@ -819,7 +823,7 @@ class rpiCamClass(rpiBaseClass):
             self._set_controls('cam_expday')
 
             self._switchIR(False)
-            self.bDarkExp = False
+            self._dark_exp = False
 
 
         # The following code is for picamera V1 API
@@ -832,11 +836,11 @@ class rpiCamClass(rpiBaseClass):
         # self._camera.brightness = 50
         # self._camera.exposure_mode = 'auto'
         # time.sleep(2)
-        # self.bDarkExp = False
+        # self._dark_exp = False
     
         # # The 'dark' mode settings
         # if self._isDark():
-        #     self.bDarkExp = True
+        #     self._dark_exp = True
         #     if self._config['use_irl']:
         #         self._camera.awb_mode = 'auto'
         #         self._camera.iso = 0
@@ -862,12 +866,15 @@ class rpiCamClass(rpiBaseClass):
         Only valid exp_cfg keys listed in self._valid_expkeys are considered.
         """
         if exp_cfg in self._valid_expkeys:
-            for _c, _v in self._config[exp_cfg].items():
-                if isinstance(_v, bool) or isinstance(_v, float) or isinstance(_v, int):
-                    self._camera.set_controls({_c: _v})
-                elif isinstance(_v, str) and _c in ['AwbMode', 'AeMode', 'AeExposureMode', 'AeMeteringMode']:
-                    self._camera.set_controls({_c: eval(f"controls.{_c}Enum.{_v}")})
-                    
+            with self._camera.controls as ctrl:
+                for _c, _v in self._config[exp_cfg].items():
+                    if isinstance(_v, bool) or isinstance(_v, float) or isinstance(_v, int):
+                        #self._camera.set_controls({_c: _v})
+                        ctrl.__setattr__(_c, _v)
+                    elif isinstance(_v, str) and _c in ['AwbMode', 'AeMode', 'AeExposureMode', 'AeMeteringMode']:
+                        #self._camera.set_controls({_c: eval(f"controls.{_c}Enum.{_v}")})
+                        ctrl.__setattr__(_c, eval(f"controls.{_c}Enum.{_v}"))
+
             time.sleep(0.5)
 
     def _load_dynconfig(self):
@@ -886,12 +893,12 @@ class rpiCamClass(rpiBaseClass):
                         self._dynconfig_exp = json.load(f)
                     self._dynconfig_lastmodified = _crt_modified
                     self._dynconfig_exp_loaded = True
-                    rpiLogger.info("rpicam::: Dynamic camera controls configuration file %s loaded (last modified %s).", self._dynconfig_path, time.ctime(_crt_modified))
+                    rpiLogger.info("rpicam::: _load_dynconfig(): Dynamic camera controls configuration file %s loaded (last modified %s).", self._dynconfig_path, time.ctime(_crt_modified))
             else:
                 self._save_dynconfig()
 
         except (json.JSONDecodeError, FileNotFoundError, ValueError) as e:
-            rpiLogger.error("rpicam::: Error loading dynamic camera controls configuration file %s!\n%s\n", self._dynconfig_path, str(e))
+            rpiLogger.error("rpicam::: _load_dynconfig(): Error loading dynamic camera controls configuration file %s!\n%s\n", self._dynconfig_path, str(e))
             raise rpiBaseClassError(f"rpicam::: _load_dynconfig(): Error loading dynamic camera controls configuration file {self._dynconfig_path}!", ERRCRIT)
     
     def _save_dynconfig(self):
@@ -907,7 +914,7 @@ class rpiCamClass(rpiBaseClass):
             with open(self._dynconfig_path, "w") as f:
                 json.dump(self._dynconfig_exp, f, indent=2)
             self._dynconfig_lastmodified = os.path.getmtime(self._dynconfig_path)
-            rpiLogger.info("rpicam::: Dynamic camera controls configuration file %s saved (last modified %s).", self._dynconfig_path, time.ctime(self._dynconfig_lastmodified))
+            rpiLogger.info("rpicam::: _save_dynconfig(): Dynamic camera controls configuration file %s saved (last modified %s).", self._dynconfig_path, time.ctime(self._dynconfig_lastmodified))
 
         except (FileNotFoundError, ValueError, KeyError) as e:
             rpiLogger.error("rpicam:::Error saving dynamic camera controls configuration file %s!\n%s\n", self._dynconfig_path, str(e))
@@ -944,9 +951,9 @@ class rpiCamClass(rpiBaseClass):
     def _capture_metadata(self):
         """ Capture the metadata from the camera. """
         if self._camera is not None and RPICAM2:
-            self.metadata = self._camera.capture_metadata()
+            self._metadata = self._camera.capture_metadata()
         else:
-            rpiLogger.warning("rpicam::: PiCamera metadata cannot be retrieved when RPICAM2 is not set!")
+            rpiLogger.warning("rpicam::: _capture_metadata(): Camera metadata cannot be retrieved when RPICAM2 is not set!")
     
     def _isDark(self):
         """ Determine if current time is in the "dark" period. """
@@ -1006,10 +1013,10 @@ class rpiCamClass(rpiBaseClass):
         """ Switch ON/OFF the IR lights. """
         if self._config['use_irl']:
             if bONOFF:
-                rpiLogger.debug("rpicam::: Switching ON the IR lights (BCM %d)", self.IRLport)
+                rpiLogger.debug("rpicam::: _switchIR(): Switching ON the IR lights (BCM %d)", self.IRLport)
                 GPIO.output(self.IRLport, GPIO.HIGH)
             else:
-                rpiLogger.debug("rpicam::: Switching OFF the IR lights (BCM %d)", self.IRLport)
+                rpiLogger.debug("rpicam::: _switchIR(): Switching OFF the IR lights (BCM %d)", self.IRLport)
                 GPIO.output(self.IRLport, GPIO.LOW)
 
 
@@ -1017,7 +1024,7 @@ class rpiCamClass(rpiBaseClass):
     # https://github.com/andrevenancio/brightnessaverage
     # by Andre Venancio, June 2014
     # The calculated brightness value can be used to adjust the camera shutter speed:
-    # ss = ss*(2 - self.imgbr/128)
+    # ss = ss*(2 - self._imgbr/128)
 
     def _grayscaleAverage(self, image):
         """ Convert image to greyscale, return average pixel brightness. """
@@ -1034,13 +1041,13 @@ class rpiCamClass(rpiBaseClass):
         else:
             stat = ImageStat.Stat(image.convert('L'))
 
-        self.imgbr = stat.mean[0]
+        self._imgbr = stat.mean[0]
 
 
     def _grayscaleRMS(self, image):
         """ Convert image to greyscale, return RMS pixel brightness. """
         stat = ImageStat.Stat(image.convert('L'))
-        self.imgbr = stat.rms[0]
+        self._imgbr = stat.rms[0]
 
     def _averagePerceived(self, image):
         """ Average pixels, then transform to "perceived brightness". """
@@ -1058,13 +1065,13 @@ class rpiCamClass(rpiBaseClass):
             stat = ImageStat.Stat(image)
 
         r,g,b = stat.mean
-        self.imgbr = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
+        self._imgbr = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
 
     def _rmsPerceivedBrightness(self, image):
         """ RMS of pixels, then transform to "perceived brightness". """
         stat = ImageStat.Stat(image)
         r,g,b = stat.rms
-        self.imgbr = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
+        self._imgbr = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
 
 
 #   def _cvcamimg(self, output_file='test.jpg'):

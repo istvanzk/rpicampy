@@ -259,9 +259,11 @@ def main():
                     imgDbx.setRun((tstart_per + timedelta(minutes=1), tstop_per, dbxConfig['interval_sec'][tper]))
                     imgDir.setRun((tstart_per + timedelta(minutes=3), tstop_per, dirConfig['interval_sec'][tper]))
 
+                    rpiLogger.info("rpicamsch:: Running jobs for current day period: %s - %s", tstart_per, tstop_per)  
+
                     # Send status info to journald
                     #daemon_notify("STATUS=Running current day period: %s - %s" % (tstart_per, tstop_per))
-                    journal_send("Running current day period: %s - %s" % (tstart_per, tstop_per))
+                    journal_send("Running jobs for current day period: %s - %s" % (tstart_per, tstop_per))
 
                     # The eventsRPi.eventAllJobsEnd is set when all jobs have been removed/finished
                     while mainTimer.jobs_enabled and \

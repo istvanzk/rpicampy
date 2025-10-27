@@ -241,13 +241,13 @@ class rpiCamClass(rpiBaseClass):
                 stream.seek(0)
                 image = Image.open(stream)
 
+                # Calculate initial image brightness
+                #self._grayscaleAverage(image)
+                self._averagePerceived(image)
+
                 # When in 'dark' time
                 # Calculate image brightness and adjust exposure time if needed
                 if self._dark_exp: # and not self._config['use_irl']:
-
-                    # Calculate initial image brightness
-                    #self._grayscaleAverage(image)
-                    self._averagePerceived(image)
 
                     # Recapture image with new exposure time if needed
                     if self._imgbr < 118 or \
@@ -289,7 +289,13 @@ class rpiCamClass(rpiBaseClass):
                             sN = ' (NI)' + sN
                         else:
                             sN = ' (N)' + sN
-                    draw.text((2,image.size[1]-18), f"{self._camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M:%S', time.localtime()):s}", fill=(0,0,0,0), font=self._TXTfont)
+                    draw.text((2,image.size[1]-18), 
+                              f"{self._camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M:%S', time.localtime()):s}  \
+                                AE:{self._controls["AeEnable"]}, \
+                                EV:{self._controls["ExposureValue"]:.1f}, \
+                                ET:{self._controls["ExposureTime"]}, \
+                                EB:{float(self._imgbr)/128:.1f}", 
+                              fill=(0,0,0,0), font=self._TXTfont)
                     #n_width, n_height = TXTfont.getsize('#XX')
                     #draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=self._TXTfont)
                     del draw

@@ -293,7 +293,8 @@ class rpiCamClass(rpiBaseClass):
                         (2, image.size[1]-18),
                         f"{self._camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M:%S', time.localtime()):s}  "
                         f"AE:{self._controls['AeEnable']}, "
-                        f"ET:{self._controls['ExposureTime']}, PB:{float(self._imgbr)/128:.1f}",
+                        f"ET:{self._controls['ExposureTime']}, "
+                        f"PB:{float(self._imgbr)/128:.1f}",
                         fill=(0,0,0,0),
                         font=self._TXTfont
                     )
@@ -968,6 +969,7 @@ class rpiCamClass(rpiBaseClass):
         """
         if self._camera is not None and RPICAM2:
             self._metadata = self._camera.capture_metadata()
+            rpiLogger.info("rpicam::: _capture_metadata(): Camera metadata captured.\n%s", json.dumps(self._metadata, indent=2))
             self._controls = {c: self._metadata[c] for c in ["ExposureTime", "Brightness", "AeEnable"]} #"ExposureValue"
         else:
             rpiLogger.warning("rpicam::: _capture_metadata(): Camera metadata cannot be retrieved when RPICAM2 is not set!")

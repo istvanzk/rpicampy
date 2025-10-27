@@ -967,7 +967,7 @@ class rpiCamClass(rpiBaseClass):
         """
         if self._camera is not None and RPICAM2:
             self._metadata = self._camera.capture_metadata()
-            self._controls = {c: self._metadata[c] for c in ["ExposureTime", "ExposureValue", "Brightness", "AeEnable"]}
+            self._controls = {c: self._metadata[c] for c in ["ExposureTime", "Brightness", "AeEnable"]} #"ExposureValue"
         else:
             rpiLogger.warning("rpicam::: _capture_metadata(): Camera metadata cannot be retrieved when RPICAM2 is not set!")
     

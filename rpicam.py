@@ -292,11 +292,12 @@ class rpiCamClass(rpiBaseClass):
                     draw.text(
                         (2, image.size[1]-18),
                         f"{self._camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M:%S', time.localtime()):s}  "
-                        f"AE:{self._controls['AeEnable']}, EV:{self._controls['ExposureValue']:.1f}, "
+                        f"AE:{self._controls['AeEnable']}, "
                         f"ET:{self._controls['ExposureTime']}, PB:{float(self._imgbr)/128:.1f}",
                         fill=(0,0,0,0),
                         font=self._TXTfont
                     )
+                    #EV:{self._controls['ExposureValue']:.1f}
                     #n_width, n_height = TXTfont.getsize('#XX')
                     #draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=self._TXTfont)
                     del draw

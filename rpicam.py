@@ -229,7 +229,7 @@ class rpiCamClass(rpiBaseClass):
 
                 # Get image metadata
                 self._capture_metadata()
-                rpiLogger.info("rpicam::: jobRun(): Capture metadata: %s", self._controls)
+                rpiLogger.info("rpicam::: jobRun(): Selected capture metadata: %s", self._controls)
 
                 # Capture image to memory
                 stream = io.BytesIO()
@@ -292,8 +292,9 @@ class rpiCamClass(rpiBaseClass):
                     draw.text(
                         (2, image.size[1]-18),
                         f"{self._camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M:%S', time.localtime()):s}  "
-                        f"AE:{self._controls['AeEnable']}, "
+                        f"AE:{self._controls['AeState']}, "
                         f"ET:{self._controls['ExposureTime']}, "
+                        f"LX:{self._controls['Lux']:.1f}, "
                         f"PB:{float(self._imgbr)/128:.1f}",
                         fill=(0,0,0,0),
                         font=self._TXTfont
@@ -969,8 +970,8 @@ class rpiCamClass(rpiBaseClass):
         """
         if self._camera is not None and RPICAM2:
             self._metadata = self._camera.capture_metadata()
-            rpiLogger.info("rpicam::: _capture_metadata(): Camera metadata captured.\n%s", json.dumps(self._metadata, indent=2))
-            self._controls = {c: self._metadata[c] for c in ["ExposureTime", "Brightness", "AeEnable"]} #"ExposureValue"
+            rpiLogger.debug("rpicam::: _capture_metadata(): Camera metadata captured.\n%s", json.dumps(self._metadata, indent=2))
+            self._controls = {c: self._metadata[c] for c in ["ExposureTime", "Lux", "AeState"]} 
         else:
             rpiLogger.warning("rpicam::: _capture_metadata(): Camera metadata cannot be retrieved when RPICAM2 is not set!")
     

@@ -251,11 +251,11 @@ class rpiCamClass(rpiBaseClass):
 
                     # Recapture image with new exposure time if needed
                     if self._imgbr < 118 or \
-                        self._imgbr > 138:
+                        self._imgbr > 138: 
 
                         # Release the buffer (this capture could take a few seconds)
-                        self.imageFIFO.releaseSemaphore()
-
+                        #self.imageFIFO.releaseSemaphore()
+ 
                         # Exposure time (micro seconds)
                         rpiLogger.debug("rpicam::: jobRun(): Before: Br=%d, Ss=%dus", self._imgbr, self._controls["ExposureTime"])
 
@@ -264,7 +264,7 @@ class rpiCamClass(rpiBaseClass):
                         time.sleep(1)
                         self._capture_metadata()
                         self._camera.capture_file(stream, format='jpeg')
-                        stream.seek(0)
+                        stream.seek(0) 
                         image = Image.open(stream)
 
                         # Re-calculate image brightness
@@ -272,7 +272,7 @@ class rpiCamClass(rpiBaseClass):
                         rpiLogger.debug("rpicam::: jobRun(): After: Br=%d, Ss=%dus", self._imgbr, self._controls["ExposureTime"])
 
                         # Lock the buffer
-                        self.imageFIFO.acquireSemaphore()
+                        #self.imageFIFO.acquireSemaphore()
 
                 # Apply +/-90 degree rotation with PIL (CCW)
                 # Rotation with 180 degree is done in the camera configuration!

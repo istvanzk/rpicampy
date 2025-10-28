@@ -36,8 +36,10 @@ class rpiFIFOClass(deque):
         self.FIFOSema.acquire()
 
     def releaseSemaphore(self):
-        self.FIFOSema.release()
-
+        try:
+            self.FIFOSema.release()
+        except ValueError:
+            pass
     def __del__(self):
 #       self.FIFOSema.release()
         self.crtSubDir = ''

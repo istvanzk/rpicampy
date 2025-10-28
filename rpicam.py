@@ -227,10 +227,6 @@ class rpiCamClass(rpiBaseClass):
                 self._camera.start(show_preview=False)
                 time.sleep(1)
 
-                # Get image metadata
-                self._capture_metadata()
-                rpiLogger.info("rpicam::: jobRun(): Selected capture metadata: %s", self._controls)
-
                 # Capture image to memory
                 stream = io.BytesIO()
                 self._camera.capture_file(stream, format='jpeg')
@@ -241,6 +237,9 @@ class rpiCamClass(rpiBaseClass):
                 stream.seek(0)
                 image = Image.open(stream)
 
+                # Get image metadata
+                self._capture_metadata()
+                rpiLogger.info("rpicam::: jobRun(): Selected capture metadata: %s", self._controls)
                 # Calculate initial image brightness
                 #self._grayscaleAverage(image)
                 self._averagePerceived(image)
@@ -252,27 +251,21 @@ class rpiCamClass(rpiBaseClass):
                     # Recapture image with new exposure time if needed
                     if self._imgbr < 118 or \
                         self._imgbr > 138: 
-
-                        # Release the buffer (this capture could take a few seconds)
-                        #self.imageFIFO.releaseSemaphore()
  
                         # Exposure time (micro seconds)
-                        rpiLogger.debug("rpicam::: jobRun(): Before: Br=%d, Ss=%dus", self._imgbr, self._controls["ExposureTime"])
+                        rpiLogger.debug("rpicam::: jobRun(): Before: PB=%d, ET=%dus", self._imgbr, self._controls["ExposureTime"])
 
                         # Re-capture the image with adjusted exposure time
                         self._camera.set_controls({"ExposureTime": int(self._controls["ExposureTime"]*(2 - float(self._imgbr)/128))}) 
                         time.sleep(1)
-                        self._capture_metadata()
                         self._camera.capture_file(stream, format='jpeg')
                         stream.seek(0) 
                         image = Image.open(stream)
 
-                        # Re-calculate image brightness
+                        # Get image metadata and re-calculate image brightness
+                        self._capture_metadata()
                         self._averagePerceived(image)
-                        rpiLogger.debug("rpicam::: jobRun(): After: Br=%d, Ss=%dus", self._imgbr, self._controls["ExposureTime"])
-
-                        # Lock the buffer
-                        #self.imageFIFO.acquireSemaphore()
+                        rpiLogger.debug("rpicam::: jobRun(): After: PB=%d, ET=%dus", self._imgbr, self._controls["ExposureTime"])
 
                 # Apply +/-90 degree rotation with PIL (CCW)
                 # Rotation with 180 degree is done in the camera configuration!
@@ -303,6 +296,12 @@ class rpiCamClass(rpiBaseClass):
                     #n_width, n_height = TXTfont.getsize('#XX')
                     #draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=self._TXTfont)
                     del draw
+
+                # Update EXIF data with exposure info
+                self._custom_exif['Exif'][piexif.ExifIFD.ExposureTime] = self._controls['ExposureTime']/1000 # seconds
+                self._custom_exif['Exif'][piexif.ExifIFD.ExposureMode] = self._controls['AeState'] # Auto=0,Manual=1,AutoBraket=2
+                self._custom_exif['Exif'][piexif.ExifIFD.WhiteBalance] = 0 # Auto=0,Manual=1
+                self._custom_exif['Exif'][piexif.ExifIFD.Contrast]     = 2 if self._dark_exp else 0 # Normal=0,Soft=1,Hard=2
 
                 # Save image to the output file
                 #camera.helpers.save(img=image, metadata, file_output=image_path, format='jpeg', exif_data=self._custom_exif)
@@ -536,6 +535,11 @@ class rpiCamClass(rpiBaseClass):
                         },
                 'Exif': {
                             piexif.ExifIFD.DateTimeOriginal: time.strftime('%Y:%m:%d %H:%M:%S', time.localtime()),
+                            piexif.ExifIFD.ExposureTime: 0, # seconds
+                            piexif.ExifIFD.ExposureMode: 0, # Auto=0,Manual=1,AutoBracket=2
+                            piexif.ExifIFD.WhiteBalance: 0, # Auto=0,Manual=1
+                            piexif.ExifIFD.Contrast: 0, # Normal=0,Soft=1,Hard=2
+                            piexif.ExifIFD.LightSource: 0, # 0 - 24, 255
                         }
                 }
             

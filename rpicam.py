@@ -299,7 +299,7 @@ class rpiCamClass(rpiBaseClass):
                 crt_time = time.strftime('%Y:%m:%d %H:%M:%S', time.localtime())
                 self._custom_exif['0th'][piexif.ImageIFD.DateTime] = crt_time
                 self._custom_exif['Exif'][piexif.ExifIFD.DateTimeOriginal] = crt_time
-                self._custom_exif['Exif'][piexif.ExifIFD.ExposureTime] = (1, 1000000/self._metadata['ExposureTime']) # Rational, seconds
+                self._custom_exif['Exif'][piexif.ExifIFD.ExposureTime] = (self._metadata['ExposureTime'], 1000000) # Rational, seconds
                 self._custom_exif['Exif'][piexif.ExifIFD.ExposureMode] = self._metadata['AeState'] # Auto=0,Manual=1,AutoBraket=2
                 self._custom_exif['Exif'][piexif.ExifIFD.WhiteBalance] = 0 # Auto=0,Manual=1
                 self._custom_exif['Exif'][piexif.ExifIFD.Contrast]     = 2 if self._dark_exp else 0 # Normal=0,Soft=1,Hard=2

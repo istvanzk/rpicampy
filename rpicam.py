@@ -215,11 +215,6 @@ class rpiCamClass(rpiBaseClass):
             elif RPICAM2:
                 rpiLogger.debug("rpicam::: jobRun(): RPICAM2 Snapshot")
 
-                # Set exif data
-                crt_time = time.strftime('%Y:%m:%d %H:%M:%S', time.localtime())
-                self._custom_exif['0th'][piexif.ImageIFD.DateTime] = crt_time
-                self._custom_exif['Exif'][piexif.ExifIFD.DateTimeOriginal] = crt_time
-
                 # Set camera exposure according to the 'dark' time threshold
                 self._setCamExp_rpicam()
 
@@ -300,11 +295,14 @@ class rpiCamClass(rpiBaseClass):
                     #draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=self._TXTfont)
                     del draw
 
-                # Update EXIF data with exposure info
+                # Update EXIF info
+                crt_time = time.strftime('%Y:%m:%d %H:%M:%S', time.localtime())
+                self._custom_exif['0th'][piexif.ImageIFD.DateTime] = crt_time
+                self._custom_exif['Exif'][piexif.ExifIFD.DateTimeOriginal] = crt_time
                 self._custom_exif['Exif'][piexif.ExifIFD.ExposureTime] = self._metadata['ExposureTime']/1000 # seconds
-                self._custom_exif['Exif'][piexif.ExifIFD.ExposureMode] = self._metadata['AeState'] # Auto=0,Manual=1,AutoBraket=2
-                self._custom_exif['Exif'][piexif.ExifIFD.WhiteBalance] = 0 # Auto=0,Manual=1
-                self._custom_exif['Exif'][piexif.ExifIFD.Contrast]     = 2 if self._dark_exp else 0 # Normal=0,Soft=1,Hard=2
+                #self._custom_exif['Exif'][piexif.ExifIFD.ExposureMode] = self._metadata['AeState'] # Auto=0,Manual=1,AutoBraket=2
+                #self._custom_exif['Exif'][piexif.ExifIFD.WhiteBalance] = 0 # Auto=0,Manual=1
+                #self._custom_exif['Exif'][piexif.ExifIFD.Contrast]     = 2 if self._dark_exp else 0 # Normal=0,Soft=1,Hard=2
 
                 # Save image to the output file
                 #camera.helpers.save(img=image, metadata, file_output=image_path, format='jpeg', exif_data=self._custom_exif)
@@ -539,10 +537,10 @@ class rpiCamClass(rpiBaseClass):
                 'Exif': {
                             piexif.ExifIFD.DateTimeOriginal: time.strftime('%Y:%m:%d %H:%M:%S', time.localtime()),
                             piexif.ExifIFD.ExposureTime: 0, # seconds
-                            piexif.ExifIFD.ExposureMode: 0, # Auto=0,Manual=1,AutoBracket=2
-                            piexif.ExifIFD.WhiteBalance: 0, # Auto=0,Manual=1
-                            piexif.ExifIFD.Contrast: 0, # Normal=0,Soft=1,Hard=2
-                            piexif.ExifIFD.LightSource: 0, # 0 - 24, 255
+                            #piexif.ExifIFD.ExposureMode: 0, # Auto=0,Manual=1,AutoBracket=2
+                            #piexif.ExifIFD.WhiteBalance: 0, # Auto=0,Manual=1
+                            #piexif.ExifIFD.Contrast: 0, # Normal=0,Soft=1,Hard=2
+                            #piexif.ExifIFD.LightSource: 0, # 0 - 24, 255
                         }
                 }
             

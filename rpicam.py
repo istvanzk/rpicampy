@@ -237,9 +237,9 @@ class rpiCamClass(rpiBaseClass):
                 stream.seek(0)
                 image = Image.open(stream)
 
-                # Get image metadata
+                # Get image metadata and controls
                 self._capture_metadata()
-                rpiLogger.info("rpicam::: jobRun(): Selected capture metadata: %s", self._controls)
+
                 # Calculate initial image brightness
                 #self._grayscaleAverage(image)
                 self._averagePerceived(image)
@@ -253,19 +253,22 @@ class rpiCamClass(rpiBaseClass):
                         self._imgbr > 138: 
  
                         # Exposure time (micro seconds)
-                        rpiLogger.debug("rpicam::: jobRun(): Before: PB=%d, ET=%dus", self._imgbr, self._controls["ExposureTime"])
+                        rpiLogger.debug("rpicam::: jobRun(): Before: PB=%d, ET=%dus", self._imgbr, self._metadata["ExposureTime"])
 
                         # Re-capture the image with adjusted exposure time
-                        self._camera.set_controls({"ExposureTime": int(self._controls["ExposureTime"]*(2 - float(self._imgbr)/128))}) 
+                        self._camera.stop()
+                        self._camera.set_controls({"ExposureTime": int(self._metadata["ExposureTime"]*(2 - float(self._imgbr)/128))}) 
+                        self._camera.start(show_preview=False)
                         time.sleep(1)
                         self._camera.capture_file(stream, format='jpeg')
                         stream.seek(0) 
                         image = Image.open(stream)
 
-                        # Get image metadata and re-calculate image brightness
+                        # Get image metadata and controls
                         self._capture_metadata()
+                        # Re-calculate image brightness
                         self._averagePerceived(image)
-                        rpiLogger.debug("rpicam::: jobRun(): After: PB=%d, ET=%dus", self._imgbr, self._controls["ExposureTime"])
+                        rpiLogger.debug("rpicam::: jobRun(): After: PB=%d, ET=%dus", self._imgbr, self._metadata["ExposureTime"])
 
                 # Apply +/-90 degree rotation with PIL (CCW)
                 # Rotation with 180 degree is done in the camera configuration!
@@ -285,9 +288,9 @@ class rpiCamClass(rpiBaseClass):
                     draw.text(
                         (2, image.size[1]-18),
                         f"{self._camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M:%S', time.localtime()):s}  "
-                        f"AE:{self._controls['AeState']}, "
-                        f"ET:{self._controls['ExposureTime']}, "
-                        f"LX:{self._controls['Lux']:.1f}, "
+                        f"AE:{self._metadata['AeState']}, "
+                        f"ET:{self._metadata['ExposureTime']}, "
+                        f"LX:{self._metadata['Lux']:.1f}, "
                         f"PB:{float(self._imgbr)/128:.1f}",
                         fill=(0,0,0,0),
                         font=self._TXTfont
@@ -298,8 +301,8 @@ class rpiCamClass(rpiBaseClass):
                     del draw
 
                 # Update EXIF data with exposure info
-                self._custom_exif['Exif'][piexif.ExifIFD.ExposureTime] = self._controls['ExposureTime']/1000 # seconds
-                self._custom_exif['Exif'][piexif.ExifIFD.ExposureMode] = self._controls['AeState'] # Auto=0,Manual=1,AutoBraket=2
+                self._custom_exif['Exif'][piexif.ExifIFD.ExposureTime] = self._metadata['ExposureTime']/1000 # seconds
+                self._custom_exif['Exif'][piexif.ExifIFD.ExposureMode] = self._metadata['AeState'] # Auto=0,Manual=1,AutoBraket=2
                 self._custom_exif['Exif'][piexif.ExifIFD.WhiteBalance] = 0 # Auto=0,Manual=1
                 self._custom_exif['Exif'][piexif.ExifIFD.Contrast]     = 2 if self._dark_exp else 0 # Normal=0,Soft=1,Hard=2
 
@@ -974,8 +977,9 @@ class rpiCamClass(rpiBaseClass):
         """
         if self._camera is not None and RPICAM2:
             self._metadata = self._camera.capture_metadata()
-            rpiLogger.debug("rpicam::: _capture_metadata(): Camera metadata captured.\n%s", json.dumps(self._metadata, indent=2))
-            self._controls = {c: self._metadata[c] for c in ["ExposureTime", "Lux", "AeState"]} 
+            self._controls = self._camera.controls #{c: self._metadata[c] for c in ["ExposureTime", "Lux", "AeState"]} 
+            rpiLogger.debug("rpicam::: _capture_metadata(): Camera metadata captured: %s", self._metadata)
+            rpiLogger.debug("rpicam::: _capture_metadata(): Capture controls: %s", self._controls)
         else:
             rpiLogger.warning("rpicam::: _capture_metadata(): Camera metadata cannot be retrieved when RPICAM2 is not set!")
     

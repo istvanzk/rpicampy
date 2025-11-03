@@ -244,7 +244,7 @@ class rpiCamClass(rpiBaseClass):
                 if self._dark_exp: # and not self._config['use_irl']:
 
                     # Lux and Exposure time (seconds)
-                    rpiLogger.debug("rpicam::: jobRun(): Before exp adjusstment: LX=%.1f, ET=%.3f", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
+                    rpiLogger.debug("rpicam::: jobRun(): Before exp adjustment: LX=%.1f, ET=%.3f", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
 
                     # Recapture image with new exposure time based on the illuminance, if needed
                     if self._metadata['Lux'] >= 10:
@@ -319,7 +319,7 @@ class rpiCamClass(rpiBaseClass):
                         f"{self._camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M:%S', time.localtime()):s}"
                         f"  AE:{self._metadata['AeState']}"
                         f", ET:{self._metadata['ExposureTime']/1000000:.3f}"
-                        f", LX:{self._metadata['Lux']:.1f}"
+                        f", LX:{self._metadata['Lux']:.1f}",
                         #f", PB:{float(self._imgbr)/128:.1f}",
                         fill=(0,0,0,0),
                         font=self._TXTfont

@@ -222,6 +222,9 @@ class rpiCamClass(rpiBaseClass):
                 self._camera.start(show_preview=False)
                 time.sleep(1)
 
+                # Get image metadata and controls
+                self._capture_metadata()
+
                 # Capture image to memory
                 stream = io.BytesIO()
                 self._camera.capture_file(stream, format='jpeg')
@@ -232,21 +235,18 @@ class rpiCamClass(rpiBaseClass):
                 stream.seek(0)
                 image = Image.open(stream)
 
-                # Get image metadata and controls
-                self._capture_metadata()
-
                 # Calculate initial image brightness
                 #self._grayscaleAverage(image)
                 #self._averagePerceived(image)
 
                 # When in 'dark' time
-                # Calculate image brightness and adjust exposure time if needed
+                # Recapture image with new exposure time, if needed
                 if self._dark_exp: # and not self._config['use_irl']:
 
                     # Lux and Exposure time (seconds)
                     rpiLogger.debug("rpicam::: jobRun(): Before exp adjustment: LX=%.1f, ET=%.3f", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
 
-                    # Recapture image with new exposure time based on the illuminance, if needed
+                    # Recapture image with new exposure time based on the illuminance
                     if self._metadata['Lux'] >= 10:
                         self._camera.stop()
                         self._camera.set_controls({"AeEnable": True, "AeExposureMode": controls.AeExposureModeEnum.Long}) 
@@ -267,17 +267,20 @@ class rpiCamClass(rpiBaseClass):
                         _new_et = int((2.9**2) / (max(self._metadata['Lux'],0.1) * 0.4) * 1000000) # micro seconds
                         self._camera.set_controls({"ExposureTime": _new_et, "AeEnable": False}) 
 
+                    # Restart the camera
                     self._camera.start(show_preview=False)
                     time.sleep(1)
-                    self._camera.capture_file(stream, format='jpeg')
-                    stream.seek(0) 
-                    image = Image.open(stream)
 
                     # Get image metadata and controls
                     self._capture_metadata()
                     rpiLogger.debug("rpicam::: jobRun(): After exp adjustment: LX=%.1f, ET=%.3fs", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
-                    
-                    # Recapture image with new exposure time based on the perceived brightness in the image, if needed
+
+                    # Capture image to memory again
+                    self._camera.capture_file(stream, format='jpeg')
+                    stream.seek(0) 
+                    image = Image.open(stream)
+
+                    # Recapture image with new exposure time based on the perceived brightness in the image
                     # if self._imgbr < 118 or \
                     #    self._imgbr > 138: 
  
@@ -402,7 +405,7 @@ class rpiCamClass(rpiBaseClass):
                 self._camoutput, self._camerrors = self._grab_cam.communicate()
 
         except (OSError, TypeError, IOError) as e:
-            rpiLogger.warning("rpicam::: jobRun(): Snapshot %s could not be created!\n%s", self.image_path, e)
+            rpiLogger.warning("rpicam::: jobRun(): Snapshot %s could not be created! %s", self.image_path, e)
             raise rpiBaseClassError(f"rpicam::: jobRun(): Snapshot {self.image_path} could not be created!", ERRLEV2)
 
         except subprocess.TimeoutExpired:

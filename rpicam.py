@@ -237,33 +237,67 @@ class rpiCamClass(rpiBaseClass):
 
                 # Calculate initial image brightness
                 #self._grayscaleAverage(image)
-                self._averagePerceived(image)
+                #self._averagePerceived(image)
 
                 # When in 'dark' time
                 # Calculate image brightness and adjust exposure time if needed
                 if self._dark_exp: # and not self._config['use_irl']:
 
-                    # Recapture image with new exposure time if needed
-                    if self._imgbr < 118 or \
-                        self._imgbr > 138: 
- 
-                        # Exposure time (micro seconds)
-                        rpiLogger.debug("rpicam::: jobRun(): Before: PB=%d, ET=%dus", self._imgbr, self._metadata["ExposureTime"])
+                    # Lux and Exposure time (seconds)
+                    rpiLogger.debug("rpicam::: jobRun(): Before exp adjusstment: LX=%.1f, ET=%.3f", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
 
-                        # Re-capture the image with adjusted exposure time
+                    # Recapture image with new exposure time based on the illuminance, if needed
+                    if self._metadata['Lux'] >= 10:
                         self._camera.stop()
-                        self._camera.set_controls({"ExposureTime": int(self._metadata["ExposureTime"]*(2 - float(self._imgbr)/128))}) 
-                        self._camera.start(show_preview=False)
-                        time.sleep(1)
-                        self._camera.capture_file(stream, format='jpeg')
-                        stream.seek(0) 
-                        image = Image.open(stream)
+                        self._camera.set_controls({"AeEnable": True, "AeExposureMode": controls.AeExposureModeEnum.Long}) 
 
-                        # Get image metadata and controls
-                        self._capture_metadata()
-                        # Re-calculate image brightness
-                        self._averagePerceived(image)
-                        rpiLogger.debug("rpicam::: jobRun(): After: PB=%d, ET=%dus", self._imgbr, self._metadata["ExposureTime"])
+
+                    elif self._metadata['Lux'] < 10:
+                        # https://www.analog.cafe/app/exposure-values-stops-lux-seconds-calculators-definitions
+                        # EV₁₀₀ = log₂(lux × 0.4)
+                        # EV = log₂ (N²/t), N is f/stop Number, t is duration time of shutter speed
+                        # t = N² / 2^EV = N² / (lux × 0.4)
+                        # Lux = 5 --> EV = 1 --> t = N²/2 = 2.9**2/2 = 4.2 sec
+                        # Lux = 500 --> EV = 7.64 --> t = N²/200 = 2.9**2/200 = 0.042 sec
+                        # Lux = 5000 --> EV = 10.64 --> t = N²/2000 = 2.9**2/2000 = 0.004 sec
+                        # Lux = 6760 --> EV = 11.4 --> t = N²/2704 = 2.9**2/2704  = 0.003 sec
+ 
+                        # Re-capture the image with adjusted exposure time 
+                        self._camera.stop()
+                        _new_et = int((2.9**2) / (max(self._metadata['Lux'],0.1) * 0.4) * 1000000) # micro seconds
+                        self._camera.set_controls({"ExposureTime": _new_et, "AeEnable": False}) 
+
+                    self._camera.start(show_preview=False)
+                    time.sleep(1)
+                    self._camera.capture_file(stream, format='jpeg')
+                    stream.seek(0) 
+                    image = Image.open(stream)
+
+                    # Get image metadata and controls
+                    self._capture_metadata()
+                    rpiLogger.debug("rpicam::: jobRun(): After exp adjustment: LX=%.1f, ET=%.3fs", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
+                    
+                    # Recapture image with new exposure time based on the perceived brightness in the image, if needed
+                    # if self._imgbr < 118 or \
+                    #    self._imgbr > 138: 
+ 
+                    #     # Exposure time (micro seconds)
+                    #     rpiLogger.debug("rpicam::: jobRun(): Before: PB=%d, ET=%dus", self._imgbr, self._metadata["ExposureTime"])
+
+                    #     # Re-capture the image with adjusted exposure time
+                    #     self._camera.stop()
+                    #     self._camera.set_controls({"ExposureTime": int(self._metadata["ExposureTime"]*(2 - float(self._imgbr)/128))}) 
+                    #     self._camera.start(show_preview=False)
+                    #     time.sleep(1)
+                    #     self._camera.capture_file(stream, format='jpeg')
+                    #     stream.seek(0) 
+                    #     image = Image.open(stream)
+
+                    #     # Get image metadata and controls
+                    #     self._capture_metadata()
+                    #     # Re-calculate image brightness
+                    #     self._averagePerceived(image)
+                    #     rpiLogger.debug("rpicam::: jobRun(): After: PB=%d, ET=%dus", self._imgbr, self._metadata["ExposureTime"])
 
                 # Apply +/-90 degree rotation with PIL (CCW)
                 # Rotation with 180 degree is done in the camera configuration!
@@ -282,15 +316,15 @@ class rpiCamClass(rpiBaseClass):
                             sN = ' (N)' + sN
                     draw.text(
                         (2, image.size[1]-18),
-                        f"{self._camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M:%S', time.localtime()):s}  "
-                        f"AE:{self._metadata['AeState']}, "
-                        f"ET:{self._metadata['ExposureTime']}, "
-                        f"LX:{self._metadata['Lux']:.1f}, "
-                        f"PB:{float(self._imgbr)/128:.1f}",
+                        f"{self._camid:s}{sN:s}{time.strftime('%b %d %Y, %H:%M:%S', time.localtime()):s}"
+                        f"  AE:{self._metadata['AeState']}"
+                        f", ET:{self._metadata['ExposureTime']/1000000:.3f}"
+                        f", LX:{self._metadata['Lux']:.1f}"
+                        #f", PB:{float(self._imgbr)/128:.1f}",
                         fill=(0,0,0,0),
                         font=self._TXTfont
                     )
-                    #EV:{self._controls['ExposureValue']:.1f}
+                    
                     #n_width, n_height = TXTfont.getsize('#XX')
                     #draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=self._TXTfont)
                     del draw
@@ -300,7 +334,7 @@ class rpiCamClass(rpiBaseClass):
                 self._custom_exif['0th'][piexif.ImageIFD.DateTime] = crt_time
                 self._custom_exif['Exif'][piexif.ExifIFD.DateTimeOriginal] = crt_time
                 self._custom_exif['Exif'][piexif.ExifIFD.ExposureTime] = (self._metadata['ExposureTime'], 1000000) # Rational, seconds
-                self._custom_exif['Exif'][piexif.ExifIFD.ExposureMode] = self._metadata['AeState'] # Auto=0,Manual=1,AutoBraket=2
+                self._custom_exif['Exif'][piexif.ExifIFD.ExposureMode] = 1 if self._dark_exp else self._metadata['AeState'] # Auto=0,Manual=1,AutoBraket=2
                 self._custom_exif['Exif'][piexif.ExifIFD.WhiteBalance] = 0 # Auto=0,Manual=1
                 self._custom_exif['Exif'][piexif.ExifIFD.Contrast]     = 2 if self._dark_exp else 0 # Normal=0,Soft=1,Hard=2
 

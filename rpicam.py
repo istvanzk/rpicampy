@@ -802,9 +802,6 @@ class rpiCamClass(rpiBaseClass):
         if not LIBCAMERA:
             rpiLogger.warning("rpicam::: _setCamExp_libcamera() called when LIBCAMERA is not used!")
             return
-        rpiLogger.debug("rpicam::: _setCamExp_libcamera() called with '%s' settings and use_irl=%s", \
-                        'dark' if self._isDark() else 'daylight', \
-                        'yes' if self._config['use_irl'] else 'no')
 
         # The 'dark' mode settings
         if self._isDark():
@@ -852,6 +849,9 @@ class rpiCamClass(rpiBaseClass):
                 "--shutter", f"{self.shutter_speed}"
             ])
 
+        rpiLogger.debug("rpicam::: _setCamExp_libcamera() called with '%s' settings and use_irl=%s", \
+                        'dark' if self._dark_exp else 'daylight', \
+                        'yes' if self._config['use_irl'] else 'no')
 
     def _setCamExp_rpicam(self):
         """
@@ -862,9 +862,6 @@ class rpiCamClass(rpiBaseClass):
         if not RPICAM2:
             rpiLogger.warning("rpicam::: _setCamExp_rpicam() called when RPICAM2 is not used!")
             return
-        rpiLogger.debug("rpicam::: _setCamExp_rpicam() called with '%s' settings and use_irl=%s", \
-                        'dark' if self._isDark() else 'daylight', \
-                        'yes' if self._config['use_irl'] else 'no')
                         
         if self._isDark():
             # The 'dark' mode settings
@@ -886,6 +883,9 @@ class rpiCamClass(rpiBaseClass):
             self._switchIR(False)
             self._dark_exp = False
 
+        rpiLogger.debug("rpicam::: _setCamExp_rpicam() called with '%s' settings and use_irl=%s", \
+                        'dark' if self._dark_exp else 'daylight', \
+                        'yes' if self._config['use_irl'] else 'no')
 
         # The following code is for picamera V1 API
         # and is kept for reference only, it is not to be used anymore

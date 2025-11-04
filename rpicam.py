@@ -427,7 +427,10 @@ class rpiCamClass(rpiBaseClass):
 
             else:
                 rpiLogger.warning("rpicam::: jobRun(): Snapshot NOT saved: %s!", self.image_name)
-                rpiLogger.warning("rpicam::: jobRun(): List of args: %s", self.cam_clistr)
+                if RPICAM2:
+                    rpiLogger.warning("rpicam::: jobRun(): Exposure: AE=%1d, ET=%.3f, LX=%.1f", self._metadata['AeState'], self._metadata["ExposureTime"]/1000000, self._metadata['Lux'])
+                elif LIBCAMERA:
+                    rpiLogger.warning("rpicam::: jobRun(): List of args: %s", self.cam_clistr)
                 if self._camerrors:
                     rpiLogger.debug("rpicam::: jobRun(): Error was: %s", self._camerrors.decode())
 

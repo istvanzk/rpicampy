@@ -239,7 +239,7 @@ class rpiCamClass(rpiBaseClass):
                             {
                                 "AeEnable": True,
                                 "AeExposureMode": controls.AeExposureModeEnum.Normal,
-                                "ExposureValue": 8.0
+                                "ExposureValue": 4.0
                             }
                         ) 
 

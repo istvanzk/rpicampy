@@ -88,19 +88,18 @@ cam_expday:
 cam_expnight-irl:
   AwbEnable: True  # Turn AWB algorithm on and off
   AwbMode:  'Auto' # controls.AwbModeEnum.Auto, Tungsten, Fluorescent, Incandescent, Indoor, Daylight, Cloudy
-  AeEnable: False   # Turn AEC/AGC algorithm on and off
+  AeEnable: True   # Turn AEC/AGC algorithm on and off
   AeExposureMode: 'Normal' # controls.AeExposureModeEnum.Normal, Short, Long
-  ExposureValue: 8.0 # EV compensation value. Floating point number between -8.0 and 8.0
-  ExposureTime: 400000 # Exposure time for the sensor to use, measured in microseconds
+  ExposureValue: 0.0 # EV compensation value. Floating point number between -8.0 and 8.0
   Contrast:  4.0   # Floating point number from 0.0, 1.0 to 32.0
-  Brightness: 1.0  # Floating point number from -1.0 to 1.0
+  Brightness: 0.5  # Floating point number from -1.0 to 1.0
 cam_expnight:
   AwbEnable: True  # Turn AWB algorithm on and off
   AwbMode:  'Auto' # controls.AwbModeEnum.Auto, Tungsten, Fluorescent, Incandescent, Indoor, Daylight, Cloudy
   AeEnable: False  # Turn AEC/AGC algorithm on and off
   AeExposureMode: 'Normal' # controls.AeExposureModeEnum.Normal, Short, Long
-  ExposureValue: 3.0 # EV compensation value. Floating point number between -8.0 and 8.0
-  ExposureTime: 10000000 # Exposure time for the sensor to use, measured in microseconds
+  ExposureValue: 0.0 # EV compensation value. Floating point number between -8.0 and 8.0
+  ExposureTime: 1000000 # Exposure time for the sensor to use, measured in microseconds
   Contrast: 3.0    # Floating point number from 0.0, 1.0 to 32.0
   Brightness: 1.0  # Floating point number from -1.0 to 1.0
 

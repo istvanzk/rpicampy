@@ -225,26 +225,44 @@ class rpiCamClass(rpiBaseClass):
                 # Get image metadata and controls
                 self._capture_metadata()
 
-                # When in 'dark' time
-                # Recapture image with new exposure time based on the illuminance, if needed
+                # During 'dark' time
+                # Recapture image with new AEG exposure based on the illuminance threshold
                 if self._dark_exp:
 
                     # Lux and Exposure time (seconds)
                     rpiLogger.debug("rpicam::: jobRun(): Before exp adjustment: LX=%.1f, ET=%.3f", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
 
-                    # Recapture image with new exposure based on AEG with new EV target
+                    # If in dusk conditions, we can still use AEG
                     if self._metadata['Lux'] >= 10:
+                        # Stop camera to set new controls
                         self._camera.stop()
-                        self._camera.set_controls(
-                            {
-                                "AeEnable": True,
-                                "AeExposureMode": controls.AeExposureModeEnum.Normal,
-                                "ExposureValue": 4.0
-                            }
-                        ) 
 
+                        # Set AEG controls for night imaging
+                        if self._config['use_irl']:
+                            self._camera.set_controls(
+                                {
+                                    "AeEnable": True,
+                                    "AeExposureMode": controls.AeExposureModeEnum.Normal,
+                                    "ExposureValue": 4.0
+                                }
+                            ) 
+                        else:
+                            self._camera.set_controls(
+                                {
+                                    "AeEnable": True,
+                                    "AeExposureMode": controls.AeExposureModeEnum.Long,
+                                    "ExposureValue": 8.0
+                                }
+                            )
 
-                    # Re-capture the image with adjusted exposure time based on the illuminance
+                        # Restart the camera
+                        self._camera.start(show_preview=False)
+                        time.sleep(1)
+
+                    # Else, use the settings already configured with self._setCamExp_rpicam()
+                    # as provided in the configuration for night imaging (see YAML/JSON)
+
+                    # # Re-capture the image with adjusted exposure time based on the illuminance
                     # elif self._metadata['Lux'] < 10:
                     #     # https://www.analog.cafe/app/exposure-values-stops-lux-seconds-calculators-definitions
                     #     # https://en.wikipedia.org/wiki/Light_meter#Calibration_constants
@@ -254,45 +272,13 @@ class rpiCamClass(rpiBaseClass):
                     #     # Camera V1 has Fstop=2.9 (=N)
                     #     # Lux = 5 (EV = 1) --> t = N²/2 = 2.9**2/2 = 4.2 sec 
                     #     self._camera.stop()
-                    #     self._camera.set_controls(
-                    #         {
-                    #             "AeEnable": True,
-                    #             "AeExposureMode": controls.AeExposureModeEnum.Long,
-                    #             "ExposureValue": 8.0
-                    #         }
-                    #     ) 
+                    #     _new_et = int((2.9**2) / (max(self._metadata['Lux'],0.1) * 0.4) * 1000000) # micro seconds
+                    #     self._camera.set_controls({"ExposureTime": _new_et, "AeEnable": False}) 
 
-                        #_new_et = int((2.9**2) / (max(self._metadata['Lux'],0.1) * 0.4) * 1000000) # micro seconds
-                        #self._camera.set_controls({"ExposureTime": _new_et, "AeEnable": False}) 
-
-                        # Restart the camera
-                        self._camera.start(show_preview=False)
-                        time.sleep(1)
-
-                    # Get image metadata and controls
-                    self._capture_metadata()
-                    rpiLogger.debug("rpicam::: jobRun(): After exp adjustment: LX=%.1f, ET=%.3fs", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
-
-
-                # Capture image to memory
-                stream = io.BytesIO()
-                self._camera.capture_file(stream, format='jpeg')
-
-                # Read stream to a PIL image
-                #(buffer, ), metadata = camera.capture_buffers(["main"])
-                #image = camera.helpers.make_image(buffer, _still_config["main"])
-                stream.seek(0)
-                image = Image.open(stream)
-
-
-                # Recapture image with new exposure time based on the perceived brightness in the image, if needed
-                # if self._dark_exp: # and not self._config['use_irl']:
-
+                    # # Recapture image with new exposure time based on the perceived brightness in the image, if needed
                     # Calculate initial image brightness
-                    #self._grayscaleAverage(image)
-                    #self._averagePerceived(image)
-
-                    # Recapture image with new exposure time based on the perceived brightness in the image
+                    # #self._grayscaleAverage(image)
+                    # self._averagePerceived(image)
                     # if self._imgbr < 118 or \
                     #    self._imgbr > 138: 
  
@@ -314,6 +300,21 @@ class rpiCamClass(rpiBaseClass):
                     #     self._averagePerceived(image)
                     #     rpiLogger.debug("rpicam::: jobRun(): After: PB=%d, ET=%dus", self._imgbr, self._metadata["ExposureTime"])
 
+
+                    # Get image metadata and controls
+                    self._capture_metadata()
+                    rpiLogger.debug("rpicam::: jobRun(): After exp adjustment: LX=%.1f, ET=%.3fs", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
+
+
+                # Capture image to memory
+                stream = io.BytesIO()
+                self._camera.capture_file(stream, format='jpeg')
+
+                # Read stream to a PIL image
+                #(buffer, ), metadata = camera.capture_buffers(["main"])
+                #image = camera.helpers.make_image(buffer, _still_config["main"])
+                stream.seek(0)
+                image = Image.open(stream)
 
                 # Apply +/-90 degree rotation with PIL (CCW)
                 # Rotation with 180 degree is done in the camera configuration!

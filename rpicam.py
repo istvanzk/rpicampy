@@ -235,10 +235,13 @@ class rpiCamClass(rpiBaseClass):
                     # Recapture image with new exposure time based on AEG
                     if self._metadata['Lux'] >= 10:
                         self._camera.stop()
-                        self._camera.set_controls({
-                            "AeEnable": True,
-                            "AeExposureMode": controls.AeExposureModeEnum.Normal
-                            "ExposureValue": 4.0}) 
+                        self._camera.set_controls(
+                            {
+                                "AeEnable": True,
+                                "AeExposureMode": controls.AeExposureModeEnum.Normal,
+                                "ExposureValue": 4.0
+                            }
+                        ) 
 
 
                     # Re-capture the image with adjusted exposure time based on the illuminance
@@ -251,10 +254,13 @@ class rpiCamClass(rpiBaseClass):
                         # Camera V1 has Fstop=2.9 (=N)
                         # Lux = 5 (EV = 1) --> t = N²/2 = 2.9**2/2 = 4.2 sec 
                         self._camera.stop()
-                        self._camera.set_controls({
-                            "AeEnable": True,
-                            "AeExposureMode": controls.AeExposureModeEnum.Long
-                            "ExposureValue": 8.0}) 
+                        self._camera.set_controls(
+                            {
+                                "AeEnable": True,
+                                "AeExposureMode": controls.AeExposureModeEnum.Long,
+                                "ExposureValue": 8.0
+                            }
+                        ) 
 
                         #_new_et = int((2.9**2) / (max(self._metadata['Lux'],0.1) * 0.4) * 1000000) # micro seconds
                         #self._camera.set_controls({"ExposureTime": _new_et, "AeEnable": False}) 

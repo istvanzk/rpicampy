@@ -232,26 +232,32 @@ class rpiCamClass(rpiBaseClass):
                     # Lux and Exposure time (seconds)
                     rpiLogger.debug("rpicam::: jobRun(): Before exp adjustment: LX=%.1f, ET=%.3f", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
 
-                    # Recapture image with new exposure time based on the illuminance
+                    # Recapture image with new exposure time based on AEG
                     if self._metadata['Lux'] >= 10:
                         self._camera.stop()
-                        self._camera.set_controls({"AeEnable": True, "AeExposureMode": controls.AeExposureModeEnum.Long}) 
+                        self._camera.set_controls({
+                            "AeEnable": True,
+                            "AeExposureMode": controls.AeExposureModeEnum.Normal
+                            "ExposureValue": 4.0}) 
 
 
+                    # Re-capture the image with adjusted exposure time based on the illuminance
                     elif self._metadata['Lux'] < 10:
                         # https://www.analog.cafe/app/exposure-values-stops-lux-seconds-calculators-definitions
-                        # EV₁₀₀ = log₂(lux × 0.4)
+                        # https://en.wikipedia.org/wiki/Light_meter#Calibration_constants
+                        # ISO = 100, C = 250 --> EV₁₀₀ = log₂(lux × 100/250) = log₂(lux × 0.4)
                         # EV = log₂ (N²/t), N is f/stop Number, t is duration time of shutter speed
-                        # t = N² / 2^EV = N² / (lux × 0.4)
-                        # Lux = 5 --> EV = 1 --> t = N²/2 = 2.9**2/2 = 4.2 sec
-                        # Lux = 500 --> EV = 7.64 --> t = N²/200 = 2.9**2/200 = 0.042 sec
-                        # Lux = 5000 --> EV = 10.64 --> t = N²/2000 = 2.9**2/2000 = 0.004 sec
-                        # Lux = 6760 --> EV = 11.4 --> t = N²/2704 = 2.9**2/2704  = 0.003 sec
- 
-                        # Re-capture the image with adjusted exposure time 
+                        # --> t = N² / 2^EV = N² / (lux × 0.4)
+                        # Camera V1 has Fstop=2.9 (=N)
+                        # Lux = 5 (EV = 1) --> t = N²/2 = 2.9**2/2 = 4.2 sec 
                         self._camera.stop()
-                        _new_et = int((2.9**2) / (max(self._metadata['Lux'],0.1) * 0.4) * 1000000) # micro seconds
-                        self._camera.set_controls({"ExposureTime": _new_et, "AeEnable": False}) 
+                        self._camera.set_controls({
+                            "AeEnable": True,
+                            "AeExposureMode": controls.AeExposureModeEnum.Long
+                            "ExposureValue": 8.0}) 
+
+                        #_new_et = int((2.9**2) / (max(self._metadata['Lux'],0.1) * 0.4) * 1000000) # micro seconds
+                        #self._camera.set_controls({"ExposureTime": _new_et, "AeEnable": False}) 
 
                     # Restart the camera
                     self._camera.start(show_preview=False)

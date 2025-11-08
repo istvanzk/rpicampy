@@ -148,7 +148,7 @@ executors = {
     'default': ThreadPoolExecutor(20),
 }
 job_defaults = {
-    'coalesce': True,
+    'coalesce': False,
     'max_instances': 1,
     'misfire_grace_time': 10,
 }

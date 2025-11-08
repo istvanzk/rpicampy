@@ -611,8 +611,6 @@ class rpiBaseClass:
                                     seconds=self._interval_sec, 
                                     start_date=self._dtstart, 
                                     end_date=self._dtstop, 
-                                    misfire_grace_time=10,
-                                    coalesce=True,
                                     name=self.name )
             else:
                 self._sched.add_job(self._run, 
@@ -620,8 +618,6 @@ class rpiBaseClass:
                                     id=self.name,
                                     seconds=self._interval_sec,
                                     start_date=self._dtstart,
-                                    misfire_grace_time=10,
-                                    coalesce=True,
                                     name=self.name )
         else: 
             if self._dtstop is not None:
@@ -630,16 +626,12 @@ class rpiBaseClass:
                                     id=self.name,
                                     seconds=self._interval_sec,
                                     end_date=self._dtstop,
-                                    misfire_grace_time=10,
-                                    coalesce=True,
                                     name=self.name )
             else:
                 self._sched.add_job(self._run,
                                     trigger='interval',
                                     id=self.name,
                                     seconds=self._interval_sec,
-                                    misfire_grace_time=10,
-                                    coalesce=True,
                                     name=self.name )
 
 
@@ -772,8 +764,6 @@ class rpiBaseClass:
                                            seconds=self._interval_sec,
                                            start_date=self._dtstart,
                                            end_date=self._dtstop,
-                                           misfire_grace_time=10,
-                                           coalesce=True,
                                            name=self.name )
             else:
                 self._sched.reschedule_job(self._run, 
@@ -781,8 +771,6 @@ class rpiBaseClass:
                                            id=self.name,
                                            seconds=self._interval_sec,
                                            start_date=self._dtstart,
-                                           misfire_grace_time=10,
-                                           coalesce=True,
                                            name=self.name )
         else: 
             if self._dtstop is not None:
@@ -791,16 +779,12 @@ class rpiBaseClass:
                                            id=self.name,
                                            seconds=self._interval_sec,
                                            end_date=self._dtstop,
-                                           misfire_grace_time=10,
-                                           coalesce=True,
                                            name=self.name )
             else:
                 self._sched.reschedule_job(self._run,
                                            trigger='interval',
                                            id=self.name,
                                            seconds=self._interval_sec,
-                                           misfire_grace_time=10,
-                                           coalesce=True,
                                            name=self.name )
 
 

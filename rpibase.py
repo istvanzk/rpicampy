@@ -605,14 +605,42 @@ class rpiBaseClass:
         """
         if self._dtstart is not None:
             if self._dtstop is not None:
-                self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
+                self._sched.add_job(self._run, 
+                                    trigger='interval', 
+                                    id=self.name, 
+                                    seconds=self._interval_sec, 
+                                    start_date=self._dtstart, 
+                                    end_date=self._dtstop, 
+                                    misfire_grace_time=10,
+                                    coalesce=True,
+                                    name=self.name )
             else:
-                self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, misfire_grace_time=10, name=self.name )
+                self._sched.add_job(self._run, 
+                                    trigger='interval',
+                                    id=self.name,
+                                    seconds=self._interval_sec,
+                                    start_date=self._dtstart,
+                                    misfire_grace_time=10,
+                                    coalesce=True,
+                                    name=self.name )
         else: 
             if self._dtstop is not None:
-                self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
+                self._sched.add_job(self._run, 
+                                    trigger='interval',
+                                    id=self.name,
+                                    seconds=self._interval_sec,
+                                    end_date=self._dtstop,
+                                    misfire_grace_time=10,
+                                    coalesce=True,
+                                    name=self.name )
             else:
-                self._sched.add_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, misfire_grace_time=10, name=self.name )
+                self._sched.add_job(self._run,
+                                    trigger='interval',
+                                    id=self.name,
+                                    seconds=self._interval_sec,
+                                    misfire_grace_time=10,
+                                    coalesce=True,
+                                    name=self.name )
 
 
     def _init_state(self):
@@ -738,14 +766,42 @@ class rpiBaseClass:
         """
         if self._dtstart is not None:
             if self._dtstop is not None:
-                self._sched.reschedule_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
+                self._sched.reschedule_job(self._run, 
+                                           trigger='interval',
+                                           id=self.name,
+                                           seconds=self._interval_sec,
+                                           start_date=self._dtstart,
+                                           end_date=self._dtstop,
+                                           misfire_grace_time=10,
+                                           coalesce=True,
+                                           name=self.name )
             else:
-                self._sched.reschedule_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, start_date=self._dtstart, misfire_grace_time=10, name=self.name )
+                self._sched.reschedule_job(self._run, 
+                                           trigger='interval',
+                                           id=self.name,
+                                           seconds=self._interval_sec,
+                                           start_date=self._dtstart,
+                                           misfire_grace_time=10,
+                                           coalesce=True,
+                                           name=self.name )
         else: 
             if self._dtstop is not None:
-                self._sched.reschedule_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, end_date=self._dtstop, misfire_grace_time=10, name=self.name )
+                self._sched.reschedule_job(self._run,
+                                           trigger='interval',
+                                           id=self.name,
+                                           seconds=self._interval_sec,
+                                           end_date=self._dtstop,
+                                           misfire_grace_time=10,
+                                           coalesce=True,
+                                           name=self.name )
             else:
-                self._sched.reschedule_job(self._run, trigger='interval', id=self.name, seconds=self._interval_sec, misfire_grace_time=10, name=self.name )
+                self._sched.reschedule_job(self._run,
+                                           trigger='interval',
+                                           id=self.name,
+                                           seconds=self._interval_sec,
+                                           misfire_grace_time=10,
+                                           coalesce=True,
+                                           name=self.name )
 
 
     def _enddayoam_run(self):

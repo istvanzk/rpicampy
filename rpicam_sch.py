@@ -30,7 +30,8 @@ from typing import List
 
 #from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_ADDED, EVENT_JOB_REMOVED
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_ADDED, EVENT_JOB_REMOVED, EVENT_JOB_MAX_INSTANCES
+from apscheduler.executors.pool import ThreadPoolExecutor
 
 ### The rpicampy modules
 from rpilogger import rpiLogger
@@ -82,7 +83,7 @@ def jobListener(event):
         if jb.id in eventsRPi.event_ids.values():
             sch_jobs.append(jb)
 
-    status_str = None
+    status_str = ''
     if e_code == EVENT_JOB_ERROR:
 
         # Set job error flag and start counter
@@ -92,7 +93,7 @@ def jobListener(event):
         eventsRPi.eventRuncountList[e_jobid] += 1
 
         rpiLogger.error("rpicamsch:: jobListener - the job %s crashed %d times (%s)!", e_jobid, eventsRPi.eventErrcountList[e_jobid], time.ctime(eventsRPi.eventErrtimeList[e_jobid]))
-        status_str = "%s: Crash %d" % (e_jobid, eventsRPi.eventErrcountList[e_jobid])
+        status_str = f"{e_jobid}: Crash {eventsRPi.eventErrcountList[e_jobid]}"
 
     elif e_code == EVENT_JOB_EXECUTED:
 
@@ -101,7 +102,11 @@ def jobListener(event):
         eventsRPi.jobRuncount += 1
 
         if not eventsRPi.eventErrList[e_jobid].is_set():
-            status_str = "%s: Run %d" % (e_jobid, eventsRPi.eventRuncountList[e_jobid])
+            status_str = f"{e_jobid}: Run {eventsRPi.eventRuncountList[e_jobid]}"
+
+    elif e_code == EVENT_JOB_MAX_INSTANCES:
+        rpiLogger.warning("rpicamsch:: jobListener - job %s reached max instances!", e_jobid)
+        status_str = f"{e_jobid}: MaxInst (1)"
 
     elif e_code == EVENT_JOB_ADDED:
         if len(sch_jobs):
@@ -109,10 +114,10 @@ def jobListener(event):
                 if not (jb.id == e_jobid):
                     if not jb.pending:
                         rpiLogger.debug("rpicamsch:: jobListener - job %s (%s): %s", jb.id, jb.name, jb.next_run_time)
-                        status_str = "%s: Add (%d)" % (jb.name, len(sch_jobs))
+                        status_str = f"{e_jobid}: Added ({len(sch_jobs)})"
                     else:
                         rpiLogger.debug("%rpicamsch:: jobListener - job %s (%s): waiting to be added", jb.id, jb.name)
-                        status_str = "%s: Pen (%d)" % (jb.name, len(sch_jobs))
+                        status_str = f"{e_jobid}: Pending ({len(sch_jobs)})"
 
     elif e_code == EVENT_JOB_REMOVED:
         if len(sch_jobs) == 1:
@@ -121,7 +126,7 @@ def jobListener(event):
             status_str = "NoRPIJobs"
 
         else:
-            status_str = "%s: Rem (%d)" % (e_jobid, len(sch_jobs))
+            status_str = f"{e_jobid}: Removed ({len(sch_jobs)})"
 
     else:
         rpiLogger.warning("rpicamsch:: jobListener - unhandled event.code = %s", e_code)
@@ -138,8 +143,16 @@ def send_log_journal(log_level:str, message: str):
     journal_send(message)
     eval(f"rpiLogger.{log_level}('rpicamsch:: %s', message)")
 
-### The APScheduler
-schedRPi = BackgroundScheduler(alias='BkgScheduler', timezone="Europe/Berlin")
+### Instantiate the background APScheduler
+executors = {
+    'default': ThreadPoolExecutor(20),
+}
+job_defaults = {
+    'coalesce': True,
+    'max_instances': 1,
+    'misfire_grace_time': 10,
+}
+schedRPi = BackgroundScheduler(alias='BkgScheduler', executors=executors, job_defaults=job_defaults, timezone="Europe/Berlin")
 
 # Add job execution event handler
 schedRPi.add_listener(jobListener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_JOB_ADDED | EVENT_JOB_REMOVED)

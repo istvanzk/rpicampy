@@ -106,8 +106,18 @@ def jobListener(event):
 
     elif e_code == EVENT_JOB_MAX_INSTANCES:
         rpiLogger.warning("rpicamsch:: jobListener - job %s reached max instances!", e_jobid)
-        #imgCam.setStop()
-        #imgCam.setResch()
+        if e_jobid == RPIJOBNAMES['cam']:
+            imgCam.setStop()
+            imgCam.setResch()
+        elif e_jobid == RPIJOBNAMES['dir']:
+            imgDir.setStop()
+            imgDir.setResch()
+        elif e_jobid == RPIJOBNAMES['dbx']:
+            imgDbx.setStop()
+            imgDbx.setResch()
+        elif e_jobid == RPIJOBNAMES['timer']:
+            mainTimer.setStop()
+            mainTimer.setResch()
         status_str = f"{e_jobid}: MaxInst (1). {RPIJOBNAMES['cam']} job stopped and rescheduled."
 
     elif e_code == EVENT_JOB_ADDED:

@@ -83,7 +83,6 @@ def jobListener(event):
         if jb.id in eventsRPi.event_ids.values():
             sch_jobs.append(jb)
 
-    status_str = ''
     if e_code == EVENT_JOB_ERROR:
 
         # Set job error flag and start counter
@@ -92,8 +91,7 @@ def jobListener(event):
         eventsRPi.eventErrcountList[e_jobid] += 1
         eventsRPi.eventRuncountList[e_jobid] += 1
 
-        rpiLogger.error("rpicamsch:: jobListener - the job %s crashed %d times (%s)!", e_jobid, eventsRPi.eventErrcountList[e_jobid], time.ctime(eventsRPi.eventErrtimeList[e_jobid]))
-        status_str = f"{e_jobid}: Crash {eventsRPi.eventErrcountList[e_jobid]}"
+        rpiLogger.error("rpicamsch:: jobListener - job %s crashed %d times (%s)!", e_jobid, eventsRPi.eventErrcountList[e_jobid], time.ctime(eventsRPi.eventErrtimeList[e_jobid]))
 
     elif e_code == EVENT_JOB_EXECUTED:
 
@@ -101,11 +99,8 @@ def jobListener(event):
         eventsRPi.eventRuncountList[e_jobid] += 1
         eventsRPi.jobRuncount += 1
 
-        if not eventsRPi.eventErrList[e_jobid].is_set():
-            status_str = f"{e_jobid}: Run {eventsRPi.eventRuncountList[e_jobid]}"
-
     elif e_code == EVENT_JOB_MAX_INSTANCES:
-        rpiLogger.warning("rpicamsch:: jobListener - job %s reached max instances!", e_jobid)
+        rpiLogger.warning("rpicamsch:: jobListener - job %s reached max instances (1)! Will be stopped and rescheduled!", e_jobid)
         if e_jobid == RPIJOBNAMES['cam']:
             imgCam.setStop()
             imgCam.setResch()
@@ -118,33 +113,26 @@ def jobListener(event):
         elif e_jobid == RPIJOBNAMES['timer']:
             mainTimer.setStop()
             mainTimer.setResch()
-        status_str = f"{e_jobid}: MaxInst (1). {RPIJOBNAMES['cam']} job stopped and rescheduled."
 
     elif e_code == EVENT_JOB_ADDED:
         if len(sch_jobs):
             for jb in sch_jobs:
                 if not (jb.id == e_jobid):
                     if not jb.pending:
-                        rpiLogger.debug("rpicamsch:: jobListener - job %s (%s): %s", jb.id, jb.name, jb.next_run_time)
-                        status_str = f"{e_jobid}: Added ({len(sch_jobs)})"
+                        rpiLogger.debug("rpicamsch:: jobListener - job %s added, next run: %s", jb.id, jb.next_run_time)
                     else:
-                        rpiLogger.debug("%rpicamsch:: jobListener - job %s (%s): waiting to be added", jb.id, jb.name)
-                        status_str = f"{e_jobid}: Pending ({len(sch_jobs)})"
+                        rpiLogger.debug("%rpicamsch:: jobListener - job %s waiting to be added", jb.id)
 
     elif e_code == EVENT_JOB_REMOVED:
-        if len(sch_jobs) == 1:
+        if len(sch_jobs) == 0:
             rpiLogger.info("rpicamsch:: jobListener - all %s jobs have been removed!", eventsRPi.event_ids.values())
             eventsRPi.eventAllJobsEnd.set()
-            status_str = "NoRPIJobs"
-
         else:
-            status_str = f"{e_jobid}: Removed ({len(sch_jobs)})"
+            rpiLogger.info("rpicamsch:: jobListener - job %s has been removed!", e_jobid)
 
     else:
-        rpiLogger.warning("rpicamsch:: jobListener - unhandled event.code = %s", e_code)
+        rpiLogger.warning("rpicamsch:: jobListener - job %s unhandled event.code = %s", e_jobid, e_code)
 
-    # Update timer status message
-    timerConfig['status'] = status_str
 
 def send_log_journal(log_level:str, message: str):
     """

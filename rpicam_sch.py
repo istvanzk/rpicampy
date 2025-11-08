@@ -145,12 +145,12 @@ def send_log_journal(log_level:str, message: str):
 
 ### Instantiate the background APScheduler
 executors = {
-    'default': ThreadPoolExecutor(20),
+    'default': ThreadPoolExecutor(NUMBER_OF_THREADS),
 }
 job_defaults = {
-    'coalesce': False,
-    'max_instances': 1,
-    'misfire_grace_time': 10,
+    'coalesce': JOB_COALESCE,
+    'max_instances': NUMBER_OF_JOB_INSTANCES,
+    'misfire_grace_time': JOB_MISFIRE_GRACE_TIME,
 }
 schedRPi = BackgroundScheduler(alias='BkgScheduler', executors=executors, job_defaults=job_defaults, timezone="Europe/Berlin")
 

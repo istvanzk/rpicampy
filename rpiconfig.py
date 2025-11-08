@@ -27,6 +27,7 @@ import signal
 from rpilogger import rpiLogger
 
 __all__ = ('HOST_NAME', 'RPICAMPY_VER', 'IMAGE_COPYRIGHT',
+           'JOB_MISFIRE_GRACE_TIME', 'JOB_COALESCE', 'NUMBER_OF_JOB_INSTANCES', 'NUMBER_OF_THREADS',
             'timerConfig', 'camConfig', 'dirConfig', 'dbxConfig', 'rcConfig',
             'RPIJOBNAMES', 'INTERNETUSE', 'DROPBOXUSE', 'LOCUSBUSE', 
             'SYSTEMDUSE', 'WATCHDOG_USEC',
@@ -75,6 +76,13 @@ if not PY39:
 
 ### Hostname
 HOST_NAME = socket.gethostname() # subprocess.check_output(["hostname", ""], shell=True).strip().decode('utf-8')
+
+### APScheduler parameters
+JOB_MISFIRE_GRACE_TIME = 10  # seconds
+JOB_COALESCE = False
+NUMBER_OF_JOB_INSTANCES = 1
+NUMBER_OF_THREADS = 20
+
 
 ### Gracefull exit handler
 # The program will also handle SIGINT, SIGTERM and SIGABRT signals for gracefull exit.

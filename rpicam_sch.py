@@ -106,7 +106,8 @@ def jobListener(event):
 
     elif e_code == EVENT_JOB_MAX_INSTANCES:
         rpiLogger.warning("rpicamsch:: jobListener - job %s reached max instances!", e_jobid)
-        status_str = f"{e_jobid}: MaxInst (1)"
+        imgCam.setStop()
+        status_str = f"{e_jobid}: MaxInst (1). {RPIJOBNAMES['cam']} job force-stopped."
 
     elif e_code == EVENT_JOB_ADDED:
         if len(sch_jobs):
@@ -155,7 +156,7 @@ job_defaults = {
 schedRPi = BackgroundScheduler(alias='BkgScheduler', executors=executors, job_defaults=job_defaults, timezone="Europe/Berlin")
 
 # Add job execution event handler
-schedRPi.add_listener(jobListener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_JOB_ADDED | EVENT_JOB_REMOVED)
+schedRPi.add_listener(jobListener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_JOB_ADDED | EVENT_JOB_REMOVED | EVENT_JOB_MAX_INSTANCES)
 
 
 ### The rpicampy events

@@ -106,8 +106,9 @@ def jobListener(event):
 
     elif e_code == EVENT_JOB_MAX_INSTANCES:
         rpiLogger.warning("rpicamsch:: jobListener - job %s reached max instances!", e_jobid)
-        imgCam.setStop()
-        status_str = f"{e_jobid}: MaxInst (1). {RPIJOBNAMES['cam']} job force-stopped."
+        #imgCam.setStop()
+        #imgCam.setResch()
+        status_str = f"{e_jobid}: MaxInst (1). {RPIJOBNAMES['cam']} job stopped and rescheduled."
 
     elif e_code == EVENT_JOB_ADDED:
         if len(sch_jobs):

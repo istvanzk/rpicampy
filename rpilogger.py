@@ -33,6 +33,10 @@ LOG_FILENAME = 'rpicam.log'
 LOGFILEBYTES = 500*1024
 BACKUPCOUNT  = 10
 
+### This should provide lots of useful information about what’s going on inside the APScheduler.
+#logging.basicConfig()
+#logging.getLogger('apscheduler').setLevel(logging.DEBUG)
+
 ### Define the logging filter
 # Filter out all messages which are not from the main Jobs
 class NoRunningFilter(logging.Filter):
@@ -113,7 +117,7 @@ def rpi_logger():
     """Build and return the logger.
     :return: logger -- Logger instance
     """
-    _logger = logging.getLogger()
+    _logger = logging.getLogger('rpicampy')
 
     # Use the RPILOGGING logger configuration
     logging.config.dictConfig(RPILOGGING)

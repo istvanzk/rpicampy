@@ -128,8 +128,8 @@ def jobListener(event):
                         rpiLogger.debug("%rpicamsch:: jobListener - job %s waiting to be added", jb.id)
 
     elif e_code == EVENT_JOB_REMOVED:
-        if len(sch_jobs) == 0:
-            rpiLogger.info("rpicamsch:: jobListener - all %s jobs have been removed!", eventsRPi.event_ids.values())
+        if len(sch_jobs) == 1:
+            rpiLogger.info("rpicamsch:: jobListener - all %s jobs have been removed!", eventsRPi.event_ids.values(){1:})
             eventsRPi.eventAllJobsEnd.set()
         else:
             rpiLogger.info("rpicamsch:: jobListener - job %s has been removed!", e_jobid)

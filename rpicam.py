@@ -353,7 +353,7 @@ class rpiCamClass(rpiBaseClass):
                 self._custom_exif['0th'][piexif.ImageIFD.DateTime] = crt_time
                 self._custom_exif['Exif'][piexif.ExifIFD.DateTimeOriginal] = crt_time
                 self._custom_exif['Exif'][piexif.ExifIFD.ExposureTime] = (self._metadata['ExposureTime'], 1000000) # Rational, seconds
-                self._custom_exif['Exif'][piexif.ExifIFD.ExposureMode] = 1 if self._dark_exp else self._metadata['AeState'] # Auto=0,Manual=1,AutoBraket=2
+                self._custom_exif['Exif'][piexif.ExifIFD.ExposureMode] = self._metadata['AeState'] # Auto=0,Manual=1,AutoBraket=2
                 self._custom_exif['Exif'][piexif.ExifIFD.WhiteBalance] = 0 # Auto=0,Manual=1
                 self._custom_exif['Exif'][piexif.ExifIFD.Contrast]     = 2 if self._dark_exp else 0 # Normal=0,Soft=1,Hard=2
 
@@ -812,61 +812,73 @@ class rpiCamClass(rpiBaseClass):
         Set camera exposure according to the 'daylight'/'dark' time threshold.
         Used only with LIBCAMERA!
         See Camera software, https://www.raspberrypi.com/documentation/computers/camera_software.html#rpicam-still
-        TODO: Check & tune values!
         """
         if not LIBCAMERA:
             rpiLogger.warning("rpicam::: _setCamExp_libcamera() called when LIBCAMERA is not used!")
             return
 
-        # The 'dark' mode settings
         if self._isDark():
+            # The 'dark' mode settings
             if self._config['use_irl']:
-                self.gain       = 4.0
-                self.contrast   = 1.5 
-                self.brightness = 20/50  
+                self._check_dynconfig('cam_expnight-irl')
+                self._set_cliargs('cam_expnight-irl')
             else:
-                self.gain       = 8.0
-                self.contrast   = 1.3
-                self.brightness = 20/50                    
-                #self.framerate = Fraction(1, 2)
-                self.shutter_speed = 5000000
+                self._check_dynconfig('cam_expnight')
+                self._set_cliargs('cam_expnight')
 
             self._switchIR(True)
             self._dark_exp = True
+
         else:
-            # The 'daylight' default settings
-            self.shutter_speed = None
-            self.awb_mode      = 'auto'
-            self.exposure_mode = 'normal'
-            self.gain       = 1.0 # ISO = 100 * analog gain (V1 camera)
-            self.contrast   = 1.2 # 0 ... 1 ...    
-            self.brightness = 0   #-1 ... 0 ... +1
-            self.saturation = 1.0 # 0 ... 1 ...
-            self.ev         = 0 # -10 ... 0 ... 10
-            self.metering   = 'average'
+            # The 'daylight' default setting 
+            self._check_dynconfig('cam_expday')
+            self._set_cliargs('cam_expday')
 
             self._switchIR(False)
             self._dark_exp = False
 
-        # Set the list with the parameter values
-        self.camexp_cliargs = [
-            "--awb", f"{self.awb_mode:s}",
-            "--gain", f"{self.gain}",
-            "--exposure", f"{self.exposure_mode:s}",
-            "--contrast", f"{self.contrast}",
-            "--brightness", f"{self.brightness}",
-            "--saturation", f"{self.saturation}",
-            "--ev", f"{self.ev}",
-            "--metering", f"{self.metering:s}",
-        ]
-        if self.shutter_speed is not None:
-            self.camexp_cliargs.extend([
-                "--shutter", f"{self.shutter_speed}"
-            ])
-
         rpiLogger.debug("rpicam::: _setCamExp_libcamera() called with '%s' settings and use_irl=%s", \
                         'dark' if self._dark_exp else 'daylight', \
                         'yes' if self._config['use_irl'] else 'no')
+
+    def _set_cliargs(self, exp_cfg:str = ''):
+        """ 
+        Set the camera controls parameter _c to value _v in the CLI arguments list,
+        where _c and _v are the keys and values in the self._config[exp_cfg] dict.
+        Only valid exp_cfg keys listed in self._valid_expkeys are considered.
+        """
+        if exp_cfg in self._valid_expkeys:
+            _ae_enable  = True
+            _awb_enable = True
+            self.camexp_cliargs = []
+            for _c, _v in self._config[exp_cfg].items():
+                if isinstance(_v, bool):
+                    if _c in ['AeEnable']:
+                        _ae_enable = _v
+                    elif _c in ['AwbEnable']:
+                        _awb_enable = _v
+
+            for _c, _v in self._config[exp_cfg].items():
+                if isinstance(_v, str):
+                    if _c in ['AeMeteringMode']:
+                        self.camexp_cliargs.extend(["--metering", f"{_v.lower()}"])
+                    elif _c in ['AeExposureMode']:
+                        self.camexp_cliargs.extend(["--exposure", f"{_v.lower()}"])
+                    elif _c in ['AwbMode']:
+                        self.camexp_cliargs.extend(["--awb", f"{_v.lower()}"])
+
+                if isinstance(_v, float) or isinstance(_v, int):
+                    if _c in ['ExposureTime']:
+                        if not _ae_enable:
+                            self.camexp_cliargs.extend(["--shutter", f"{_v}"])
+                    elif _c in ['ExposureValue']:
+                        if _ae_enable:
+                            self.camexp_cliargs.extend(["--ev", f"{_v}"])
+                    elif _c in ['Brightness']:
+                        self.camexp_cliargs.extend(["--brightness", f"{_v}"])
+                    elif _c in ['Contrast']:
+                        self.camexp_cliargs.extend(["--contrast", f"{_v}"])
+
 
     def _setCamExp_rpicam(self):
         """
@@ -976,6 +988,9 @@ class rpiCamClass(rpiBaseClass):
                 if isinstance(_v, float) or isinstance(_v, int):
                     if _c in ['ExposureTime']:
                         if not _ae_enable:
+                            self._camera.set_controls({_c: _v})
+                    elif _c in ['ExposureValue']:
+                        if _ae_enable:
                             self._camera.set_controls({_c: _v})
                     else:
                         self._camera.set_controls({_c: _v})

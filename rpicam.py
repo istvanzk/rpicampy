@@ -237,7 +237,7 @@ class rpiCamClass(rpiBaseClass):
                         # Stop camera to set new controls
                         self._camera.stop()
 
-                        # Set AEG controls for night imaging
+                        # Set AE/AGC controls for night imaging
                         if self._config['use_irl']:
                             self._camera.set_controls(
                                 {
@@ -256,7 +256,7 @@ class rpiCamClass(rpiBaseClass):
                                 }
                             )
                             self._camera.set_controls({"AeEnable": True})
-                            
+
                         # Restart the camera
                         self._camera.start(show_preview=False)
                         time.sleep(1)
@@ -964,7 +964,7 @@ class rpiCamClass(rpiBaseClass):
 
             for _c, _v in self._config[exp_cfg].items():
                 if _ae_enable and isinstance(_v, str) and _c in ['AeExposureMode', 'AeMeteringMode']:
-                    self._camera.set_controls("AeEnable": False, _c: eval(f"controls.{_c}Enum.{_v}")})
+                    self._camera.set_controls({"AeEnable": False, _c: eval(f"controls.{_c}Enum.{_v}")})
                     self._camera.set_controls({"AeEnable": True})
                     #ctrl.__setattr__(_c, eval(f"controls.{_c}Enum.{_v}"))
                 elif _awb_enable and isinstance(_v, str) and _c in ['AwbMode']:

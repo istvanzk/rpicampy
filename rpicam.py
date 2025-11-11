@@ -226,13 +226,13 @@ class rpiCamClass(rpiBaseClass):
                 self._capture_metadata()
 
                 # During 'dark' time
-                # Recapture image with new AEG exposure based on the illuminance threshold
+                # Recapture image with new AE/AGC exposure based on the illuminance threshold
                 if self._dark_exp:
 
                     # Lux and Exposure time (seconds)
                     rpiLogger.debug("rpicam::: jobRun(): Before exp adjustment: LX=%.1f, ET=%.3f", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
 
-                    # If in dusk conditions, we can still use AEG
+                    # If in dusk conditions, we can still use AE/AGC
                     if self._metadata['Lux'] >= 10:
                         # Stop camera to set new controls
                         self._camera.stop()
@@ -241,20 +241,22 @@ class rpiCamClass(rpiBaseClass):
                         if self._config['use_irl']:
                             self._camera.set_controls(
                                 {
-                                    "AeEnable": True,
+                                    "AeEnable": False,
                                     "AeExposureMode": controls.AeExposureModeEnum.Normal,
                                     "ExposureValue": 4.0
                                 }
                             ) 
+                            self._camera.set_controls({"AeEnable": True})
                         else:
                             self._camera.set_controls(
                                 {
-                                    "AeEnable": True,
+                                    "AeEnable": False,
                                     "AeExposureMode": controls.AeExposureModeEnum.Long,
                                     "ExposureValue": 8.0
                                 }
                             )
-
+                            self._camera.set_controls({"AeEnable": True})
+                            
                         # Restart the camera
                         self._camera.start(show_preview=False)
                         time.sleep(1)
@@ -938,16 +940,46 @@ class rpiCamClass(rpiBaseClass):
         Set the camera controls parameter _c to value _v
         where _c and _v are the keys and values in the self._config[exp_cfg] dict.
         Only valid exp_cfg keys listed in self._valid_expkeys are considered.
+
+        However: https://github.com/raspberrypi/picamera2/issues/1322
+        The bug is that the libcamera C++ library ignores exposure mode updates unless you've disabled AE/AGC, which is just a mistake. 
+        The workaround is to disable it and update the exposure mode at the same time, 
+        then you need to let a frame or two elapse before re-enabling everything.
+            for _ in range(2):
+                self._camera.capture_metadata()
         """
         if exp_cfg in self._valid_expkeys:
-            with self._camera.controls as ctrl:
-                for _c, _v in self._config[exp_cfg].items():
-                    if isinstance(_v, bool) or isinstance(_v, float) or isinstance(_v, int):
-                        #self._camera.set_controls({_c: _v})
-                        ctrl.__setattr__(_c, _v)
-                    elif isinstance(_v, str) and _c in ['AwbMode', 'AeExposureMode', 'AeMeteringMode']:
-                        #self._camera.set_controls({_c: eval(f"controls.{_c}Enum.{_v}")})
-                        ctrl.__setattr__(_c, eval(f"controls.{_c}Enum.{_v}"))
+            _ae_enable = True
+            _awb_enable = True
+            #with self._camera.controls as ctrl:
+            for _c, _v in self._config[exp_cfg].items():
+                if isinstance(_v, bool) and _c in ['AeEnable']:
+                    self._camera.set_controls({_c: _v})
+                    _ae_enable = _v
+                    #ctrl.__setattr__(_c, _v)
+                elif isinstance(_v, bool) and _c in ['AwbEnable']:
+                    self._camera.set_controls({_c: _v})
+                    _awb_enable = _v
+                    #ctrl.__setattr__(_c, _v)
+
+            for _c, _v in self._config[exp_cfg].items():
+                if _ae_enable and isinstance(_v, str) and _c in ['AeExposureMode', 'AeMeteringMode']:
+                    self._camera.set_controls("AeEnable": False, _c: eval(f"controls.{_c}Enum.{_v}")})
+                    self._camera.set_controls({"AeEnable": True})
+                    #ctrl.__setattr__(_c, eval(f"controls.{_c}Enum.{_v}"))
+                elif _awb_enable and isinstance(_v, str) and _c in ['AwbMode']:
+                    self._camera.set_controls({"AwbEnable": False, _c: eval(f"controls.{_c}Enum.{_v}")})
+                    self._camera.set_controls({"AwbEnable": True})
+                    #ctrl.__setattr__(_c, eval(f"controls.{_c}Enum.{_v}"))
+
+            for _c, _v in self._config[exp_cfg].items():
+                if isinstance(_v, float) or isinstance(_v, int):
+                    if _c in ['ExposureTime']:
+                        if not _ae_enable:
+                            self._camera.set_controls({_c: _v})
+                    else:
+                        self._camera.set_controls({_c: _v})
+                    #ctrl.__setattr__(_c, _v)
 
             time.sleep(0.5)
 

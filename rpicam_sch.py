@@ -19,6 +19,8 @@
 
 TODOs:
 1) Enable & debug PIR usage
+2) Debug WebSockets use for remote control and status monitoring
+3) Debug Adafruit IO use for remote control and status monitoring
 
 """
 import os
@@ -100,23 +102,19 @@ def jobListener(event):
         eventsRPi.jobRuncount += 1
 
     elif e_code == EVENT_JOB_MAX_INSTANCES:
-        rpiLogger.warning("rpicamsch:: jobListener - job %s reached max instances (1)! Will be stopped and rescheduled!", e_jobid)
+        rpiLogger.warning("rpicamsch:: jobListener - job %s reached max instances (%d)!", e_jobid, NUMBER_OF_JOB_INSTANCES)
+        # The APScheduler will not run the job until the running instance(s) finish.
+        # There is not need to re-schedule the job, because APScheduler will run it automatically after the running instance(s) finish,
+        # depending on the job coalesce setting and the next scheduled run time.
+        # Add here extra handling for the job that reached max instances, if needed.
         if e_jobid == RPIJOBNAMES['cam']:
-            imgCam.setStop()
-            time.sleep( 1 )
-            imgCam.setResch()
+            pass
         elif e_jobid == RPIJOBNAMES['dir']:
-            imgDir.setStop()
-            time.sleep( 1 )
-            imgDir.setResch()
+            pass
         elif e_jobid == RPIJOBNAMES['dbx']:
-            imgDbx.setStop()
-            time.sleep( 1 )
-            imgDbx.setResch()
+            pass
         elif e_jobid == RPIJOBNAMES['timer']:
-            mainTimer.setStop()
-            time.sleep( 1 )
-            mainTimer.setResch()
+            pass
 
     elif e_code == EVENT_JOB_ADDED:
         if len(sch_jobs):
@@ -125,7 +123,7 @@ def jobListener(event):
                     if not jb.pending:
                         rpiLogger.debug("rpicamsch:: jobListener - job %s added, next run: %s", jb.id, jb.next_run_time)
                     else:
-                        rpiLogger.debug("%rpicamsch:: jobListener - job %s waiting to be added", jb.id)
+                        rpiLogger.debug("rpicamsch:: jobListener - job %s waiting to be added", jb.id)
 
     elif e_code == EVENT_JOB_REMOVED:
         if len(sch_jobs) == 1:

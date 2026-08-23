@@ -25,6 +25,7 @@ import sys
 #import posixpath
 #import atexit
 import pickle
+import threading
 try:
     import json
 except ImportError:
@@ -64,7 +65,7 @@ class rpiImageDbxClass(rpiBaseClass):
         super().__init__(name, rpi_apscheduler, rpi_events, rpi_config)
 
         ### Get the Dbx error event
-        #self._eventDbErr   = rpi_events.eventErrList["DBXJob"]
+        #self._eventDbErr: Event   = rpi_events.eventErrList["DBXJob"]
 
         ### Get FIFO buffer for images from the camera (deque)
         self._imageFIFO: rpififo.rpiFIFOClass = cam_rpififo
@@ -72,6 +73,9 @@ class rpiImageDbxClass(rpiBaseClass):
         ### The FIFO buffer for the uploaded images (deque)
         self.imageUpldFIFO = rpififo.rpiFIFOClass([], 576)
         self.imageUpldFIFO.crtSubDir = ''
+
+        ### Lock for the jobRun() method
+        self._job_lock = threading.Lock()
 
         ### As last step, run automatically the initClass()
         self.initClass()
@@ -96,6 +100,10 @@ class rpiImageDbxClass(rpiBaseClass):
 
     def jobRun(self):
 
+        if not self._job_lock.acquire(blocking=False):
+            rpiLogger.warning("rpimgdb::: jobRun(): Job is already running, skipping this run.")
+            return
+        
         try:
             # Lock the buffer
             self._imageFIFO.acquireSemaphore()
@@ -185,6 +193,9 @@ class rpiImageDbxClass(rpiBaseClass):
         finally:
             # Release the buffer
             self._imageFIFO.releaseSemaphore()
+
+            # Release the job lock
+            self._job_lock.release()
 
 
     def initClass(self):

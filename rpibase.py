@@ -25,7 +25,8 @@ from collections import deque
 from threading import RLock
 import atexit
 from threading import Event
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Callable
+from multiprocessing import Process
 
 ### The rpi(cam)py modules
 from rpilogger import rpiLogger
@@ -58,6 +59,13 @@ ERRLEV1 = 2 #Non critical error, pass
 ERRLEV0 = 1 #Non critical error, pass
 ERRNONE = 0 #No error
 
+# Decorator for registering handler functions for supported remote commands
+CMD_HANDLERS: Dict[int, Callable] = {}
+def cmd_handler(cmd_type):
+    def decorator(func):
+        CMD_HANDLERS.update({cmd_type: func})
+        return func
+    return decorator
 
 class rpiBaseClassError(Exception):
     """
@@ -121,10 +129,11 @@ class rpiBaseClass:
         self._dtstop  = None
         self._interval_sec = INTERVAL_SEC
 
-        # The commands queue, check/process interval, job name
+        # The commands and requuests queues, check/process interval, job name
         self._cmds: Queue = Queue(10)
-        self._proccmd_interval_sec = PROCCMD_INTERVAL_SEC
-        self._cmdname: str = "%s_Cmd%d" % (self.name, self._proccmd_interval_sec)
+        self._reqs: Queue = Queue(10)
+        self._proc_cmdreq_interval_sec = PROCCMD_INTERVAL_SEC
+        self._proc_cmdreq_name: str = "%s_CmdReq_%d" % (self.name, self._proc_cmdreq_interval_sec)
 
         # The state flags and state/cmd value codes
         self._state: Dict    = dict()
@@ -150,14 +159,14 @@ class rpiBaseClass:
         return "<%s (name=%s, rpi_apscheduler=%s, rpi_events=dict())>" % (self.__class__.__name__, self._sched, self.name)
 
     def __str__(self):
-        return "rpibase for %s::: Cmd(tstart_per:%s, tstop_per:%s, interval_sec=%d), eventErr(count: %d, time: %s, delay: %s), state: %s, stateVal: %d, cmds: %s, statusmsg: %s" % \
-            (self.name, self._dtstart, self._dtstop, self._interval_sec, self._eventErrcount, time.ctime(self._eventErrtime), self._eventErrdelay, self._state, self._stateVal, self._cmds, self._statusmsg)
+        return "rpibase for %s::: Cmd(tstart_per:%s, tstop_per:%s, interval_sec=%d), eventErr(count: %d, time: %s, delay: %s), state: %s, stateVal: %d, cmds: %s, reqs: %s, statusmsg: %s" % \
+            (self.name, self._dtstart, self._dtstop, self._interval_sec, self._eventErrcount, time.ctime(self._eventErrtime), self._eventErrdelay, self._state, self._stateVal, self._cmds, self._reqs, self._statusmsg)
 
     def __del__(self):
         if self._sched is not None:
             with self._sched_lock:
-                if self._sched.get_job(self._cmdname) is not None:
-                    self._sched.remove_job(self._cmdname)
+                if self._sched.get_job(self._proc_cmdreq_name) is not None:
+                    self._sched.remove_job(self._proc_cmdreq_name)
                 if self._sched.get_job(self.name) is not None:
                     self._sched.remove_job(self.name)
 
@@ -195,9 +204,16 @@ class rpiBaseClass:
         """
         pass
 
-    def runCustomCmd(self, cmdstr:str):
+    def procCustomReq(self, reqstr:str):
         """
-        Run a custom command with arguments in cmdstr.
+        Process a custom request with arguments in reqstr.
+        To be overriden by user defined method.
+        """
+        pass
+
+    def procCustomCmd(self, cmdstr:str):
+        """
+        Process a custom command with arguments in cmdstr.
         To be overriden by user defined method.
         """
         pass
@@ -208,7 +224,7 @@ class rpiBaseClass:
 
     def manualRun(self, ch):
         """
-        Trigger the execution of the job just as it would be executed by the scheduler
+        Trigger the execution of the job just as it would be executed by the scheduler.
         """
         #rpiLogger.info(f"{self.name}::: Waiting for RLock to execute Manual trigger")
         #with self._sched_lock:
@@ -230,6 +246,20 @@ class rpiBaseClass:
         self._cmds.put(cmdrx_tuple, True, 5)
         return True
 
+    def queueReq(self, reqrx_tuple) -> bool:
+        """
+        Puts a request (tuple) in the req queue.
+        Returns boolean to indicate success status.
+        """
+
+        if self._reqs.full():
+            self._seteventerr('queueCmd()',ERRLEV0)
+            rpiLogger.warning("rpibase for %s::: Req queue is full: %s", self.name, self._reqs)
+            return False
+
+        self._reqs.put(reqrx_tuple, True, 5)
+        return True
+
     def setInit(self) -> bool:
         """
         Run Init mode and set flags.
@@ -242,6 +272,7 @@ class rpiBaseClass:
             self._initclass()
             return True
 
+    @cmd_handler(CMDRUN)
     def setRun(self, tstartstopintv=None) -> bool:
         """
         Run Run mode and set flags.
@@ -260,6 +291,7 @@ class rpiBaseClass:
                 self._resume_run()
             return True
 
+    @cmd_handler(CMDSTOP)
     def setStop(self) -> bool:
         """
         Run Stop mode and set flags.
@@ -272,6 +304,7 @@ class rpiBaseClass:
             self._remove_run()
             return True
 
+    @cmd_handler(CMDSTOP)
     def setPause(self) -> bool:
         """
         Run Pause mode and set flags.
@@ -284,6 +317,7 @@ class rpiBaseClass:
             self._pause_run()
             return True
 
+    @cmd_handler(CMDRESCH)
     def setResch(self) -> bool:
         """
         Run Re-schedule mode and set flags.
@@ -295,6 +329,7 @@ class rpiBaseClass:
             self._reschedule_run()
             return True
 
+    @cmd_handler(CMDEOD)
     def setEndDayOAM(self) -> bool:
         """
         Run End-of-Day OAM mode and set flags.
@@ -308,6 +343,7 @@ class rpiBaseClass:
             self._enddayoam_run()
             return True
 
+    @cmd_handler(CMDEND)
     def setEndOAM(self) -> bool:
         """
         Run End OAM mode and set flags.
@@ -383,7 +419,7 @@ class rpiBaseClass:
     @property
     def errorCount(self):
         """
-        Return the number of times the job has run while in the delay time period (self._eventErrdelay).
+        Return the number of times the job has run while in the delay time period (self._eventErrcount).
         """
         return self._eventErrcount
 
@@ -413,9 +449,9 @@ class rpiBaseClass:
             # after self._eventErrdelay seconds from the last failed access/run attempt
             if self._eventErr.is_set():
                 self._eventErrcount += 1
-                rpiLogger.info("rpibase for %s::: eventErr is set (run %d)!", self.name, self._eventErrcount)
+                rpiLogger.info("rpibase for %s::: eventErr is set (count %d)!", self.name, self._eventErrcount)
                 if (time.time() - self._eventErrtime) < self._eventErrdelay:
-                    rpiLogger.debug("rpibase for %s::: eventErr was set at %s (run %d)!", self.name, time.ctime(self._eventErrtime), self._eventErrcount)
+                    rpiLogger.debug("rpibase for %s::: eventErr was set at %s (count %d)!", self.name, time.ctime(self._eventErrtime), self._eventErrcount)
                     return
 
                 self._initclass()
@@ -426,7 +462,15 @@ class rpiBaseClass:
             self._run_state()
 
             # Run the user defined method
-            self.jobRun()
+            # Launches the job in a separate process and enforces a timeout.
+            p = Process(target=self.jobRun)
+            p.start()
+            p.join(timeout=0.9*self._interval_sec)
+            if p.is_alive():
+                self._seteventerr('_run()', ERRLEV2)
+                rpiLogger.warning("rpibase for %s::: jobRun timed out and was terminated", self.name)
+                p.terminate()
+                p.join()
 
         except rpiBaseClassError as e:
             if  e.errval > ERRNONE:
@@ -463,12 +507,12 @@ class rpiBaseClass:
 
         rpiLogger.info("rpibase for %s::: Initialize class", self.name)
 
-        ### Stop and remove the self._run()  and self._proccmd() jobs from the scheduler
+        ### Stop and remove the self._run()  and self._proc_cmdreq() jobs from the scheduler
         self._remove_run()
         if self._sched is not None:
             with self._sched_lock:
-                if self._sched.get_job(self._cmdname) is not None:
-                    self._sched.remove_job(self._cmdname)
+                if self._sched.get_job(self._proc_cmdreq_name) is not None:
+                    self._sched.remove_job(self._proc_cmdreq_name)
 
         ### Empty the cmd queue
         while not self._cmds.empty():
@@ -486,67 +530,75 @@ class rpiBaseClass:
         self.eventDayEnd.clear()
         self.eventEnd.clear()
 
-        ### Add the self._proccmd() job to the scheduler
+        ### Add the self._proc_cmdreq() job to the scheduler
         if self._sched is not None:
             with self._sched_lock:
-                self._sched.add_job(self._proccmd, trigger='interval', id=self._cmdname , seconds=self._proccmd_interval_sec, misfire_grace_time=5, name=self._cmdname )
+                self._sched.add_job(self._proc_cmdreq, trigger='interval', id=self._proc_cmdreq_name , seconds=self._proc_cmdreq_interval_sec, misfire_grace_time=5, name=self._proc_cmdreq_name )
 
         ### Set Init state
         self._init_state()
 
 
-    def _proccmd(self):
+    def _proc_cmdreq(self):
         """
-        Set the Stop state if the Job is not scheduled.
+        If the Job is not scheduled, set the Stop state.
         Process and act upon received commands.
+        Process and act upon received requests.
         """
-
         # Set the Stop state if the Job is not scheduled
         if self._sched is not None:
             with self._sched_lock:
                 if not self._state['stop'] and self._sched.get_job(self.name) is None:
                     self._stop_state()
 
-        # Process and act upon received commands.
+        # Process and act upon received (enqueued) commands and requests
+        self._proc_cmd()
+        self._proc_req()
+
+    def _proc_cmd(self):
+        """
+        Process and act upon received commands.
+        """
         if self._cmds.empty():
-            rpiLogger.debug("rpibase for %s::: _proccmd: Cmd queue is empty!", self.name)
+            rpiLogger.debug("rpibase for %s::: _proc_cmd: Cmd queue is empty!", self.name)
+            return
 
-        elif (not self.eventDayEnd.is_set()) and (not self.eventEnd.is_set()):
+        if (not self.eventDayEnd.is_set()) and (not self.eventEnd.is_set()):
 
-            # Process the command
+            # Get a command
             (cmdstr, cmdval) = self._cmds.get()
 
-            rpiLogger.debug("rpibase for %s::: _proccmd: Get cmdstr:%s, cmdval:%d", self.name, cmdstr, cmdval)
+            rpiLogger.debug("rpibase for %s::: _proc_cmd: Get cmdstr:%s, cmdval:%d", self.name, cmdstr, cmdval)
 
-            if cmdval==CMDRUN and self.setRun():
-                self._statusmsg.append(("%s run" % self.name, ERRNONE))
+            if cmdval != CMDCUSTOM and CMD_HANDLERS[cmdval]():
+                self._statusmsg.append(("cmd %s" % CMD_HANDLERS[cmdval].__name__, ERRNONE))
 
-            elif cmdval==CMDSTOP and self.setStop():
-                self._statusmsg.append(("%s stop" % self.name, ERRNONE))
-
-            elif cmdval==CMDPAUSE and self.setPause():
-                self._statusmsg.append(("%s pause" % self.name, ERRNONE))
-
-            elif cmdval==CMDINIT and self.setInit():
-                self._statusmsg.append(("%s init" % self.name, ERRNONE))
-
-            elif cmdval==CMDRESCH and self.setResch():
-                self._statusmsg.append(("%s init" % self.name, ERRNONE))
-
-            elif cmdval==CMDEOD and self.setEndDayOAM():
-                self._statusmsg.append(("%s eod" % self.name, ERRNONE))
-
-            elif cmdval==CMDEND and self.setEndOAM():
-                self._statusmsg.append(("%s end" % self.name, ERRNONE))
-
-            elif cmdval==CMDCUSTOM:
-                self.runCustomCmd(cmdstr)
-                self._statusmsg.append(("%s custom cmd %s:%d" % self.name, ERRNONE))
+            elif cmdval == CMDCUSTOM:
+                self.procCustomCmd(cmdstr)
+                self._statusmsg.append(("cmd procCustomCmd(%s)" % cmdstr, ERRNONE))
                 
-
             self._cmds.task_done()
 
+    def _proc_req(self):
+        """
+        Process and act upon received requests.
+        """
+        if self._reqs.empty():
+            rpiLogger.debug("rpibase for %s::: _proc_req: Req queue is empty!", self.name)
+            return
 
+        if (not self.eventDayEnd.is_set()) and (not self.eventEnd.is_set()):
+
+            # Get a command
+            (reqstr, reqval) = self._reqs.get()
+
+            rpiLogger.debug("rpibase for %s::: _proc_req: Get reqstr:%s, reqval:%d", self.name, reqstr, reqval)
+
+            if reqval:
+                self.procCustomReq(reqstr)
+                self._statusmsg.append(("cmd procCustomReq(%s)" % reqstr, ERRNONE))
+
+            self._reqs.task_done()
 
     def _setstateval(self):
         """
@@ -839,7 +891,7 @@ class rpiBaseClass:
     def _clean_exit(self):
         """
         An atexit handler for the current job.
-        Stop and remove the self._run()  and self._proccmd() jobs from the scheduler.
+        Stop and remove the self._run()  and self._proc_cmdreq() jobs from the scheduler.
         """
         rpiLogger.warning("rpibase for %s::: The job is exiting!", self.name)
 
@@ -847,8 +899,8 @@ class rpiBaseClass:
         
         if self._sched is not None:
             with self._sched_lock:
-                if self._sched.get_job(self._cmdname) is not None:
-                    self._sched.remove_job(self._cmdname)
+                if self._sched.get_job(self._proc_cmdreq_name) is not None:
+                    self._sched.remove_job(self._proc_cmdreq_name)
 
         rpiLogger.debug("rpibase for %s::: Exit!", self.name)
         self._statusmsg.append((f"{self.name} Exit", ERRNONE))

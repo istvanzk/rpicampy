@@ -56,7 +56,7 @@ class NoRunningFilter(logging.Filter):
 ### Define the logging configuration
 RPILOGGING = {
     'version': 1,
-    'disable_existing_loggers': 'False',
+    'disable_existing_loggers': False,
     'root': {
         'level': LOGLEVEL,
         'handlers': ['file', 'console']

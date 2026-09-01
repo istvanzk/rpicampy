@@ -463,14 +463,14 @@ class rpiBaseClass:
 
             # Run the user defined method
             # Launches the job in a separate process and enforces a timeout.
-            p = Process(target=self.jobRun, daemon=True)
+            p = Process(target=self.jobRun)
             p.start()
             p.join(timeout=0.8*self._interval_sec)
             if p.is_alive():
                 self._seteventerr('_run()', ERRLEV2)
                 p.terminate()
                 p.join(timeout=0.2*self._interval_sec)
-                rpiLogger.warning("rpibase for %s::: jobRun timed out and was terminated", self.name)
+                rpiLogger.warning("rpibase for %s::: jobRun processs timed out and was terminated", self.name)
             p.close()
 
         except rpiBaseClassError as e:
@@ -489,16 +489,17 @@ class rpiBaseClass:
 
         except RuntimeError as e:
             self._seteventerr('_run()',ERRCRIT)
-            rpiLogger.exception("rpibase for %s::: RuntimeError: \nExiting!", self.name)
+            rpiLogger.exception("rpibase for %s::: RuntimeError: \nExiting job!", self.name)
             raise
 
         except TimeoutError as e:
             self._seteventerr('_run()',ERRLEV2)
             rpiLogger.warning("rpibase for %s::: jobRun process timed out and was terminated", self.name)
             pass
+
         except:
             self._seteventerr('_run()',ERRCRIT)
-            rpiLogger.exception("rpibase for %s::: Unhandled Exception: \nExiting!", self.name)
+            rpiLogger.exception("rpibase for %s::: Unhandled Exception: \nExiting job!", self.name)
             raise
 
         finally:

@@ -463,15 +463,16 @@ class rpiBaseClass:
 
             # Run the user defined method
             # Launches the job in a separate process and enforces a timeout.
-            p = Process(target=self.jobRun)
+            p = Process(target=self.jobRun, daemon=True)
             p.start()
-            p.join(timeout=0.9*self._interval_sec)
+            p.join(timeout=0.85*self._interval_sec)
             if p.is_alive():
                 self._seteventerr('_run()', ERRLEV2)
-                rpiLogger.warning("rpibase for %s::: jobRun timed out and was terminated", self.name)
                 p.terminate()
-                p.join()
-
+                p.join(timeout=0.1*self._interval_sec)
+                rpiLogger.warning("rpibase for %s::: jobRun timed out and was terminated", self.name)
+            p.close()
+            
         except rpiBaseClassError as e:
             if  e.errval > ERRNONE:
                 if e.errval < ERRCRIT:
@@ -619,11 +620,11 @@ class rpiBaseClass:
         if err_val > ERRNONE:
             str = "%s: %s SetError %d" % (self.name, str_func, err_val)
             self._statusmsg.append((str, -1*err_val))
-            rpiLogger.debug("rpibase for %s::: Set eventErr %d in %s at %s!", self.name, err_val, str_func, time.ctime(self._eventErrtime))
             self._eventErr.set()
             self._eventErrtime = time.time()
             self._state['errval'] = err_val
             self._setstateval()
+            rpiLogger.debug("rpibase for %s::: Set eventErr %d in %s at %s!", self.name, err_val, str_func, time.ctime(self._eventErrtime))
 
     def _cleareventerr(self,str_func):
         """
@@ -732,7 +733,7 @@ class rpiBaseClass:
 
     def _stop_state(self):
         """
-        Set Run state for the scheduled self._run() job.
+        Set Stop state for the scheduled self._run() job.
         """
         self._state['run']   = False
         self._state['stop']  = True

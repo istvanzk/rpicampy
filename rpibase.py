@@ -26,7 +26,7 @@ from threading import RLock
 import atexit
 from threading import Event
 from typing import Any, Dict, List, Tuple, Callable
-from multiprocessing import Process
+from multiprocessing import Process, TimeoutError
 
 ### The rpi(cam)py modules
 from rpilogger import rpiLogger
@@ -465,14 +465,14 @@ class rpiBaseClass:
             # Launches the job in a separate process and enforces a timeout.
             p = Process(target=self.jobRun, daemon=True)
             p.start()
-            p.join(timeout=0.85*self._interval_sec)
+            p.join(timeout=0.8*self._interval_sec)
             if p.is_alive():
                 self._seteventerr('_run()', ERRLEV2)
                 p.terminate()
-                p.join(timeout=0.1*self._interval_sec)
+                p.join(timeout=0.2*self._interval_sec)
                 rpiLogger.warning("rpibase for %s::: jobRun timed out and was terminated", self.name)
             p.close()
-            
+
         except rpiBaseClassError as e:
             if  e.errval > ERRNONE:
                 if e.errval < ERRCRIT:
@@ -492,6 +492,10 @@ class rpiBaseClass:
             rpiLogger.exception("rpibase for %s::: RuntimeError: \nExiting!", self.name)
             raise
 
+        except TimeoutError as e:
+            self._seteventerr('_run()',ERRLEV2)
+            rpiLogger.warning("rpibase for %s::: jobRun process timed out and was terminated", self.name)
+            pass
         except:
             self._seteventerr('_run()',ERRCRIT)
             rpiLogger.exception("rpibase for %s::: Unhandled Exception: \nExiting!", self.name)

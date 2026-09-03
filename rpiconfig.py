@@ -45,7 +45,7 @@ IMAGE_COPYRIGHT = 'Copyright (c) 2026 Istvan Z. Kovacs - All rights reserved'
 YAMLCFG_FILE = 'rpiconfig.yaml'
 
 ### RPi Job names
-RPIJOBNAMES = {'tim':'TIMERJob', 'cam':'CAMJob', 'dir':'DIRJob', 'dbx':'DBXJob'}
+RPIJOBNAMES = {'timer':'TIMERJob', 'cam':'CAMJob', 'dir':'DIRJob', 'dbx':'DBXJob'}
 
 ### Commmunication channels and levels
 # NOTE: Not all combinations of channels and levels are implemented - see rpitimer.py!

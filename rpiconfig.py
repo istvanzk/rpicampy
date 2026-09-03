@@ -29,22 +29,36 @@ from rpilogger import rpiLogger
 __all__ = ('HOST_NAME', 'RPICAMPY_VER', 'IMAGE_COPYRIGHT',
            'JOB_MISFIRE_GRACE_TIME', 'JOB_COALESCE', 'NUMBER_OF_JOB_INSTANCES', 'NUMBER_OF_THREADS',
             'timerConfig', 'camConfig', 'dirConfig', 'dbxConfig', 'rcConfig',
-            'RPIJOBNAMES', 'INTERNETUSE', 'DROPBOXUSE', 'LOCUSBUSE', 
+            'RPIJOBNAMES', 'COMM_CHANNELS', 'COMM_LEVELS',
+            'INTERNETUSE', 'DROPBOXUSE', 'LOCUSBUSE', 
             'SYSTEMDUSE', 'WATCHDOG_USEC',
             'FAKESNAP', 'RPICAM2', 'LIBCAMERA', 'LIBCAMERA_JSON', 'CONTROLS_JSON',
             'rpigexit')
 
 ### The version string
-RPICAMPY_VER = 'RPiCamPy/V8'
+RPICAMPY_VER = 'RPiCamPy/V8.1'
 
 ### Image copyright info (saved in EXIF tag)
-IMAGE_COPYRIGHT = 'Copyright (c) 2025 Istvan Z. Kovacs - All rights reserved'
+IMAGE_COPYRIGHT = 'Copyright (c) 2026 Istvan Z. Kovacs - All rights reserved'
 
 ### Configuration file
 YAMLCFG_FILE = 'rpiconfig.yaml'
 
 ### RPi Job names
-RPIJOBNAMES = {'timer':'TIMERJob', 'cam':'CAMJob', 'dir':'DIRJob', 'dbx':'DBXJob'}
+RPIJOBNAMES = {'tim':'TIMERJob', 'cam':'CAMJob', 'dir':'DIRJob', 'dbx':'DBXJob'}
+
+### Commmunication channels and levels
+# NOTE: Not all combinations of channels and levels are implemented - see rpitimer.py!
+# Communication channels
+#   'ts-*'  = ThingSpeak feeds
+#   'aio-*' = Adafruit IO feeds 
+#   'ws-*'  = WebSocket (server)
+COMM_CHANNELS = {'ts': 'ThingSpeak', 'aio': 'Adafruit IO', 'ws': 'WebSocket'}
+# Levels of communications
+#  L1: '*-sr' = Periodic status report send/receive, 
+#  L2: '*-rr' = L1 + config param exchange (equest and reply)
+#  L3: '*-cc' = L2 + command and control (c2)
+COMM_LEVELS   = {'sr': 'L1: Periodic status report', 'rr': 'L2: L1 + Config params exchange', 'cc': 'L3: L2 + Command and control (c2)'}
 
 ### SystemD use
 # Requires the python-systemd module installed.
@@ -69,7 +83,7 @@ LIBCAMERA_JSON = None
 CONTROLS_JSON = "cam_controls.json" 
 
 ### Python version
-PY39 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 9)
+PY39 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 12)
 if not PY39:
     rpiLogger.error("rpiconfig::: This program requires minimum Python 3.9!")
     os._exit(1)
@@ -79,7 +93,7 @@ HOST_NAME = socket.gethostname() # subprocess.check_output(["hostname", ""], she
 
 ### APScheduler parameters
 JOB_MISFIRE_GRACE_TIME = 10  # seconds
-JOB_COALESCE = False
+JOB_COALESCE = True
 NUMBER_OF_JOB_INSTANCES = 1
 NUMBER_OF_THREADS = 20
 
@@ -103,11 +117,13 @@ class GracefulKiller:
 ### SystemD functions
 def journal_send(msg_str):
     """ Send a message to the journald """
+    global SYSTEMDUSE
     if SYSTEMDUSE:
         journal.send(msg_str)
 
 def daemon_notify(msg_str):
     """ Send notification message to the systemd daemon """
+    global SYSTEMDUSE
     if SYSTEMDUSE:
         daemon.notify(msg_str)
 
@@ -135,12 +151,16 @@ if SYSTEMDUSE:
         from systemd import daemon
         from systemd import journal
         SYSTEMD_MOD = True
-
     except ImportError as e:
         rpiLogger.warning("rpiconfig::: The python-systemd module was not found. Continuing without systemd features.")
         SYSTEMD_MOD = False
         pass
 
+    rpiLogger.warning(
+        "systemd module: booted=%s, SYSTEMD_MOD=%s",
+        daemon.booted(),
+        SYSTEMD_MOD,
+    )
     SYSTEMDUSE = SYSTEMD_MOD and daemon.booted()
     if SYSTEMDUSE:
         try:
@@ -329,39 +349,34 @@ if INTERNETUSE:
     else:
         DROPBOXUSE = True
 
-    # Check Remote Control use
-    if 'rc_type' not in rcConfig or not rcConfig['rc_type']:
-        rpiLogger.info("rpiconfig::: No Remote Control option used.")
+    # Check communication channel and levels to use
+    # Set the token_file for each communication channel, if configured
+    if 'rc_type' not in rcConfig \
+        or rcConfig['rc_type'] == [] \
+        or 'token_file' not in rcConfig \
+        or rcConfig['token_file'] == []:
+            for _comm_ch in COMM_CHANNELS:
+                for _comm_lvl in COMM_LEVELS:
+                    _comm_type = f"{_comm_ch}-{_comm_lvl}"
+                    try:
+                        rcConfig['rc_type'].remove(_comm_type)
+                    except ValueError as e:
+                        pass
+            rpiLogger.info("rpiconfig::: No communication channel can be configured.")
 
     else:
-        # Check ThingSpeak API and TalkBack APP use
-        if ('ts-status' in rcConfig['rc_type'] \
-            or 'ts-cmd' in rcConfig['rc_type'] ) \
-            and (
-                'token_file' not in rcConfig \
-                 or rcConfig['token_file'] == []
-            ):
-            try:
-                rcConfig['rc_type'].remove('ts-status')
-                rcConfig['rc_type'].remove('ts-cmd')
-            except ValueError as e:
-                pass
-            rpiLogger.info("rpiconfig::: No 'token_file' configured. ThingSpeak feed and Talkback cannot be used.")
-
-        # Check Websocket use
-        if ('ws-status' in rcConfig['rc_type'] \
-            or 'ws-cmd' in rcConfig['rc_type'] ) \
-            and (
-                'port' not in rcConfig or rcConfig['port'] == 0 \
-                or 'token_file' not in rcConfig \
-                or rcConfig['token_file'] == []
-            ):
-            try:
-                rcConfig['rc_type'].remove('ws-status')
-                rcConfig['rc_type'].remove('ws-cmd')
-            except ValueError as e:
-                pass
-            rpiLogger.info("rpiconfig::: No 'port' or 'token_file' configured. WebSocket cannot be used.")
+        # Check the communication channel configurations
+        for _comm_ch in COMM_CHANNELS:
+            for _comm_lvl in COMM_LEVELS:
+                _comm_type = f"{_comm_ch}-{_comm_lvl}"
+                if _comm_type in rcConfig['rc_type']:
+                    _tf = [f for f in rcConfig.get('token_file', []) if f.startswith(f"{_comm_ch}_") and f.endswith(".txt")]
+                    if _tf:
+                        rcConfig[f"{_comm_ch}_token_file"] = _tf[0]
+                        rpiLogger.info("rpiconfig::: Communication channel '%s' with level '%s' ('%s') is configured." % (COMM_CHANNELS[_comm_ch], COMM_LEVELS[_comm_lvl], _comm_type))
+                    else:
+                        rcConfig['rc_type'].remove(_comm_type)
+                        rpiLogger.info("rpiconfig::: Communication channel '%s' ('%s') is NOT configured due to missing token file." % (COMM_CHANNELS[_comm_ch], _comm_ch))
             
 else:
     rpiLogger.info("rpiconfig::: Internet connection not used!")

@@ -469,7 +469,7 @@ class rpiBaseClass:
             if p.is_alive():
                 self._seteventerr('_run()', ERRLEV2)
                 p.terminate()
-                p.join(timeout=0.2*self._interval_sec)
+                p.join(timeout=0.1*self._interval_sec)
                 rpiLogger.warning("rpibase for %s::: jobRun processs timed out and was terminated", self.name)
             #p.close()
 

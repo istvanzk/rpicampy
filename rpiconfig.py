@@ -85,7 +85,7 @@ CONTROLS_JSON = "cam_controls.json"
 ### Python version
 PY39 = (sys.version_info[0] == 3) and (sys.version_info[1] >= 12)
 if not PY39:
-    rpiLogger.error("rpiconfig::: This program requires minimum Python 3.9!")
+    rpiLogger.error("rpiconfig::: This program requires minimum Python 3.12!")
     os._exit(1)
 
 ### Hostname
@@ -157,26 +157,26 @@ if SYSTEMDUSE:
         pass
 
     rpiLogger.warning(
-        "systemd module: booted=%s, SYSTEMD_MOD=%s",
+        "SystemD module: booted=%s, SYSTEMD_MOD=%s",
         daemon.booted(),
         SYSTEMD_MOD,
     )
     SYSTEMDUSE = SYSTEMD_MOD and daemon.booted()
-    if SYSTEMDUSE:
-        try:
-            WATCHDOG_USEC = int(os.environ['WATCHDOG_USEC'])
+else:
+    rpiLogger.info("rpiconfig::: SystemD features not configured.")
 
-        except KeyError as e:
-            rpiLogger.warning("rpiconfig::: Environment variable WATCHDOG_USEC is not set (yet?).")
-            pass
+if SYSTEMDUSE:
+    try:
+        WATCHDOG_USEC = int(os.environ['WATCHDOG_USEC'])
 
-        rpiLogger.info("rpiconfig::: SystemD features used: READY=1, STATUS=, WATCHDOG=1 (WATCHDOG_USEC=%d), STOPPING=1." % WATCHDOG_USEC)
+    except KeyError as e:
+        rpiLogger.warning("rpiconfig::: Environment variable WATCHDOG_USEC is not set (yet?).")
+        pass
 
-    else:
-        rpiLogger.warning("rpiconfig::: The system is not running under SystemD. Continuing without SystemD features.")
+    rpiLogger.info("rpiconfig::: SystemD features used: READY=1, STATUS=, WATCHDOG=1 (WATCHDOG_USEC=%d), STOPPING=1." % WATCHDOG_USEC)
 
 else:
-    rpiLogger.info("rpiconfig::: SystemD features not used.")
+    rpiLogger.warning("rpiconfig::: The system cannot be running under SystemD. Continuing without SystemD features.")
 
 
 ### Read the configuration parameters from the YAML file
@@ -325,7 +325,7 @@ except ImportError as e:
 ### When the DNS server google-public-dns-a.google.com is reachable on port 53/tcp,
 # then the internet connection is up and running.
 # https://github.com/arvydas/blinkstick-python/wiki/Example:-Display-Internet-connectivity-status
-if not INTERNETUSE:
+if INTERNETUSE:
     try:
         socket.setdefaulttimeout(5)
         socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("8.8.8.8", 53))

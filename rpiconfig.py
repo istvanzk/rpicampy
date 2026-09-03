@@ -119,7 +119,13 @@ def journal_send(msg_str):
     """ Send a message to the journald """
     global SYSTEMDUSE
     if SYSTEMDUSE:
-        journal.send(msg_str)
+        try:
+            journal.send(
+                MESSAGE=msg_str,
+                SYSLOG_IDENTIFIER="rpicamsch",
+            )
+        except Exception as e:
+            rpiLogger.exception("rpiconfig::: Could not send message to journald. %s", str(e))
 
 def daemon_notify(msg_str):
     """ Send notification message to the systemd daemon """

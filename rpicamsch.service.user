@@ -17,7 +17,7 @@
 # systemctl --user stop rpicamsch
 # systemctl --user start rpicamsch
 # systemctl --user status rpicamsch
-# journalctl --user -xeu rpicamsch
+# sudo journalctl -b -t rpicamsch
 
 ## References:
 # https://wiki.archlinux.org/title/Systemd/User

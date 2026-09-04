@@ -837,7 +837,7 @@ class rpiBaseClass:
                                             start_date=self._dtstart,
                                             end_date=self._dtstop,
                                             name=self.name )
-        else:
+            else:
                 self._sched.reschedule_job(job_id=self.name,
                                             trigger='interval',
                                             seconds=self._interval_sec,

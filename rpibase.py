@@ -54,7 +54,7 @@ CMDCUSTOM= 9
 
 # Error values (levels, 4 bits)
 ERRCRIT = 4 #Critical error, raise & exit
-ERRLEV2 = 3 #Non critical error, pass
+ERRLEV2 = 3 #Non critical timout error, count and pass
 ERRLEV1 = 2 #Non critical error, pass
 ERRLEV0 = 1 #Non critical error, pass
 ERRNONE = 0 #No error
@@ -442,24 +442,38 @@ class rpiBaseClass:
         Catch all rpiBaseClassError exceptions.
         """
 
-        ### Run the internal functionalities first then the user defined method (self.jobRun)
+        ### Run the erro state check first then the user defined method (self.jobRun)
         try:
-            # Apply re-initialization grace period after a fatal error (ERRCRIT level)
-            # Re-initialize the self._run() method
-            # after self._eventErrdelay seconds from the last failed access/run attempt
             if self._eventErr.is_set():
+                # Apply re-initialization grace period after a fatal error (ERRCRIT level)
+                # Re-initialize the self._run() method
+                # after self._eventErrdelay seconds from the last failed access/run attempt
                 self._eventErrcount += 1
-                rpiLogger.info("rpibase for %s::: eventErr is set (count %d)!", self.name, self._eventErrcount)
-                if (time.time() - self._eventErrtime) < self._eventErrdelay:
-                    rpiLogger.debug("rpibase for %s::: eventErr was set at %s (count %d)!", self.name, time.ctime(self._eventErrtime), self._eventErrcount)
-                    return
+                rpiLogger.info("rpibase for %s::: eventErr count %d!", self.name, self._eventErrcount)
+                if self._state['errval'] == ERRCRIT:
+                    if (time.time() - self._eventErrtime) < self._eventErrdelay:
+                        rpiLogger.debug("rpibase for %s::: eventErr was set at %s!", self.name, time.ctime(self._eventErrtime))
+                        return
 
-                self._initclass()
-                self._add_run()
-                #return
+                    rpiLogger.info("rpibase for %s::: eventErr grace period %d seconds has passed, re-initializing class!", self.name, self._eventErrdelay)
+                    self._initclass()
+                    self._add_run()
 
-            # Set Run state
-            self._run_state()
+                # Handle non-critical error states
+                # ERRLEV2: a process timeout occurred -> increase current job run interval to 110% of the current interval
+                #          and re-initialize the self._run() method
+                elif self._state['errval'] == ERRLEV2:
+                    if self._eventErrcount < 3:
+                        return
+                    
+                    rpiLogger.warning("rpibase for %s::: eventErr ERRLEV2 count exceeded threshold! Increase job run interval.", self.name)
+                    self._initclass()
+                    self._interval_sec = int(1.1*self._interval_sec)
+                    self._add_run()
+
+            else:
+                # Set Run state
+                self._run_state()
 
             # Run the user defined method
             # Launches the job in a separate process and enforces a timeout.
@@ -471,7 +485,7 @@ class rpiBaseClass:
                 p.terminate()
                 p.join(timeout=0.1*self._interval_sec)
                 rpiLogger.warning("rpibase for %s::: jobRun processs timed out and was terminated", self.name)
-            #p.close()
+            
 
         except rpiBaseClassError as e:
             if  e.errval > ERRNONE:
@@ -508,7 +522,8 @@ class rpiBaseClass:
 
     def _initclass(self):
         """"
-        (re)Initialize the class.
+        (re)Initialize some of the class attributes related to the job state and error events.
+        Do not schedule the self._run() job here, it is done in the setRun() method.
         """
 
         rpiLogger.info("rpibase for %s::: Initialize class", self.name)

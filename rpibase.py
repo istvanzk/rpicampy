@@ -457,7 +457,7 @@ class rpiBaseClass:
 
                     rpiLogger.info("rpibase for %s::: eventErr grace period %d seconds has passed, re-initializing class!", self.name, self._eventErrdelay)
                     self._initclass()
-                    self._add_run()
+                    self._reschedule_run()
 
                 # Handle non-critical error states
                 # ERRLEV2: a process timeout occurred -> increase current job run interval to 110% of the current interval
@@ -465,11 +465,10 @@ class rpiBaseClass:
                 elif self._state['errval'] == ERRLEV2:
                     if self._eventErrcount < 3:
                         return
-                    
-                    rpiLogger.warning("rpibase for %s::: eventErr ERRLEV2 count exceeded threshold! Increase job run interval.", self.name)
-                    self._initclass()
-                    self._interval_sec = int(1.1*self._interval_sec)
-                    self._add_run()
+
+                    rpiLogger.info("rpibase for %s::: eventErr ERRLEV2 count exceeded threshold! Increase job run interval to %.1fsec.", self.name, 1.1*self._interval_sec)
+                    self._interval_sec = 1.1*self._interval_sec
+                    self._reschedule_run()
 
             else:
                 # Set Run state

@@ -449,13 +449,13 @@ class rpiBaseClass:
                 # Re-initialize the self._run() method
                 # after self._eventErrdelay seconds from the last failed access/run attempt
                 self._eventErrcount += 1
-                rpiLogger.info("rpibase for %s::: eventErr count %d!", self.name, self._eventErrcount)
+                rpiLogger.info("rpibase for %s::: eventErr %d, count %d!", self.name, self._state['errval'], self._eventErrcount)
                 if self._state['errval'] == ERRCRIT:
                     if (time.time() - self._eventErrtime) < self._eventErrdelay:
-                        rpiLogger.debug("rpibase for %s::: eventErr was set at %s!", self.name, time.ctime(self._eventErrtime))
+                        rpiLogger.debug("rpibase for %s::: eventErr %d (ERRCRIT) was set at %s!", self.name, self._state['errval'], time.ctime(self._eventErrtime))
                         return
 
-                    rpiLogger.info("rpibase for %s::: eventErr grace period %d seconds has passed, re-initializing class!", self.name, self._eventErrdelay)
+                    rpiLogger.info("rpibase for %s::: eventErr %d (ERRCRIT) grace period %d seconds has passed, re-initializing class!", self.name, self._state['errval'], self._eventErrdelay)
                     self._initclass()
                     self._add_run()
 
@@ -466,7 +466,7 @@ class rpiBaseClass:
                     if self._eventErrcount < 3:
                         return
 
-                    rpiLogger.info("rpibase for %s::: eventErr ERRLEV2 count exceeded threshold! Increase job run interval to %.1fsec.", self.name, 1.1*self._interval_sec)
+                    rpiLogger.info("rpibase for %s::: eventErr %d (ERRLEV2) count exceeded threshold! Increase job run interval to %.1f secoonds.", self.name, self._state['errval'], 1.1*self._interval_sec)
                     self._interval_sec = 1.1*self._interval_sec
                     self._cleareventerr('_run()')
                     self._reschedule_run()
@@ -491,14 +491,14 @@ class rpiBaseClass:
             if  e.errval > ERRNONE:
                 if e.errval < ERRCRIT:
                     self._seteventerr('_run()', e.errval)
-                    rpiLogger.warning("rpibase for %s::: %s", self.name, e.errmsg)
+                    rpiLogger.warning("rpibase for %s::: eventErr %d: %s", self.name, self._state['errval'], e.errmsg)
                     pass
                 else:
                     self._seteventerr('_run()', ERRCRIT)
-                    rpiLogger.exception("rpibase for %s::: %s\nExiting job!", self.name, e.errmsg)
+                    rpiLogger.exception("rpibase for %s::: eventErr %d: %s\nExiting job!", self.name, self._state['errval'], e.errmsg)
                     raise
             else:
-                rpiLogger.warning("rpibase for %s::: A non-error was raised: %s", self.name, e.errmsg)
+                rpiLogger.warning("rpibase for %s::: eventErr %d: A non-error was raised: %s", self.name, self._state['errval'], e.errmsg)
                 pass
 
         except RuntimeError as e:
@@ -831,27 +831,27 @@ class rpiBaseClass:
         """
         if self._dtstart is not None:
             if self._dtstop is not None:
-                self._sched.scheduled_job(trigger='interval',
+                self._sched.reschedule_job(trigger='interval',
                                            id=self.name,
                                            seconds=self._interval_sec,
                                            start_date=self._dtstart,
                                            end_date=self._dtstop,
                                            name=self.name )
             else:
-                self._sched.scheduled_job(trigger='interval',
+                self._sched.reschedule_job(trigger='interval',
                                            id=self.name,
                                            seconds=self._interval_sec,
                                            start_date=self._dtstart,
                                            name=self.name )
         else: 
             if self._dtstop is not None:
-                self._sched.scheduled_job(trigger='interval',
+                self._sched.reschedule_job(trigger='interval',
                                            id=self.name,
                                            seconds=self._interval_sec,
                                            end_date=self._dtstop,
                                            name=self.name )
             else:
-                self._sched.scheduled_job(trigger='interval',
+                self._sched.reschedule_job(trigger='interval',
                                            id=self.name,
                                            seconds=self._interval_sec,
                                            name=self.name )

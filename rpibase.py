@@ -831,27 +831,27 @@ class rpiBaseClass:
         """
         if self._dtstart is not None:
             if self._dtstop is not None:
-                self._sched.reschedule_job(job_id=self.name,
+                self._sched.reschedule_job(self.name,
                                             trigger='interval',
                                             seconds=self._interval_sec,
                                             start_date=self._dtstart,
                                             end_date=self._dtstop,
                                             name=self.name )
             else:
-                self._sched.reschedule_job(job_id=self.name,
+                self._sched.reschedule_job(self.name,
                                             trigger='interval',
                                             seconds=self._interval_sec,
                                             start_date=self._dtstart,
                                             name=self.name )
         else: 
             if self._dtstop is not None:
-                self._sched.reschedule_job(job_id=self.name,
+                self._sched.reschedule_job(self.name,
                                            trigger='interval',
                                            seconds=self._interval_sec,
                                            end_date=self._dtstop,
                                            name=self.name )
             else:
-                self._sched.reschedule_job(job_id=self.name,
+                self._sched.reschedule_job(self.name,
                                            trigger='interval',
                                            seconds=self._interval_sec,
                                            name=self.name )

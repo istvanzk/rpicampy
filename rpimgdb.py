@@ -152,7 +152,7 @@ class rpiImageDbxClass(rpiBaseClass):
         except exceptions.Timeout as e:
             # Catching this error will catch both ReadTimeout and ConnectTimeout.
             rpiLogger.warning("rpimgdb::: jobRun(): Connect/ReadTimeoutError!\n%s", str(e))
-            raise rpiBaseClassError("rpimgdb::: jobRun(): Connect/ReadTimeoutError!", ERRLEV2)
+            raise rpiBaseClassError("rpimgdb::: jobRun(): Connect/ReadTimeoutError!", ERRLEV1)
 
         except exceptions.ConnectionError as e:
             # A Connection error occurred.

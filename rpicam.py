@@ -691,9 +691,11 @@ class rpiCamClass(rpiBaseClass):
     @job_event_handler(EVENT_JOB_ERROR)
     def handleJobError(self):
         """
-        Job run raised an exception for a critical error (ERRCRIT or ERRLEV2).
-        The number of critical errors is counted and logged. 
-        The job run is stopped after a number of critical errors.
+        Job run raised an exception with a critical error (ERRCRIT or ERRLEV2).
+        The number of ERRLEV2 critical errors is counted. 
+        The job is removed from the scheduler after: 
+        - first ERRCRIT critical error.
+        - MAX_ERRLEV2_ERRORS number of ERRLEV2 critical errors.
         """
         _count = self.errorCount
         _level = self.errorLevel

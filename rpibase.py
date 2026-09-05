@@ -56,7 +56,7 @@ CMDCUSTOM= 9
 # Error values (levels, 4 bits)
 ERRCRIT = 4 #Critical error, raise & exit
 ERRLEV2 = 3 #Critical error, count and stop job run
-ERRLEV1 = 2 #Non critical timout error, pass
+ERRLEV1 = 2 #Non critical timeout error, pass
 ERRLEV0 = 1 #Non critical error, pass
 ERRNONE = 0 #No error
 
@@ -232,47 +232,6 @@ class rpiBaseClass:
         """
         pass
 
-    @job_event_handler(EVENT_JOB_EXECUTED)
-    def handleJobExecuted(self):
-        """
-        Handle the job executed event.
-        The registered handler function should be decorated with @rpibase.job_event_handler(EVENT_JOB_EXECUTED).
-        """
-        pass
-
-    @job_event_handler(EVENT_JOB_MAX_INSTANCES)
-    def handleJobMaxInstances(self):
-        """
-        Handle the job max instances event.
-        The registered handler function should be decorated with @rpibase.job_event_handler(EVENT_JOB_MAX_INSTANCES).
-        """
-        pass
-
-    @job_event_handler(EVENT_JOB_ERROR)
-    def handleJobError(self):
-        """
-        Handle the job error event.
-        The registered handler function should be decorated with @rpibase.job_event_handler(EVENT_JOB_ERROR).
-        """
-        pass
-
-    @job_event_handler(EVENT_JOB_ADDED)
-    def handleJobAdded(self):
-        """
-        Handle the job added event.
-        The registered handler function should be decorated with @rpibase.job_event_handler(EVENT_JOB_ADDED).
-        """
-        pass
-
-    @job_event_handler(EVENT_JOB_REMOVED)
-    def handleJobRemoved(self):
-        """
-        Handle the job removed event.
-        The registered handler function should be decorated with @rpibase.job_event_handler(EVENT_JOB_REMOVED).
-        """
-        pass
-
-
 
     #
     # Subclass interface methods to be used externally. NO overriding by user defined methods!
@@ -283,7 +242,7 @@ class rpiBaseClass:
         The registered handler functions should be decorated with @job_event_handler(event_code).
         """
         if event_code in JOB_EVENT_HANDLERS:
-            JOB_EVENT_HANDLERS[event_code](self)
+            JOB_EVENT_HANDLERS[event_code]()
         else:
             rpiLogger.warning("rpibase for %s::: No handler registered for job event code %d", self.name, event_code)
 

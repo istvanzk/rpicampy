@@ -31,14 +31,21 @@ import math
 import json
 from threading import Event, RLock
 from typing import Any, Dict, List, Tuple
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR #EVENT_JOB_ADDED, EVENT_JOB_REMOVED, EVENT_JOB_MAX_INSTANCES
+
 
 ### The rpicampy modules
 import rpififo
+from rpibase import job_event_handler
 from rpiconfig import RPICAMPY_VER, LIBCAMERA_JSON, IMAGE_COPYRIGHT, FAKESNAP, RPICAM2, LIBCAMERA, CONTROLS_JSON 
 from rpilogger import rpiLogger
 from rpibase import rpiBaseClass, rpiBaseClassError
 from rpibase import ERRCRIT, ERRLEV2, ERRLEV1, ERRLEV0, ERRNONE
 
+
+### Constants
+INTERVAL_INCREASE_FACTOR = 1.1 # 110% increase of the job run interval after a timeout error (ERRLEV1) has occured
+MAX_ERRLEV2_ERRORS = 3 # Maximum number of non-critical errors (ERRLEV2) before the job is stopped
 
 ### Initialize camera capture 'back-end' used
 if not(FAKESNAP or LIBCAMERA or RPICAM2):
@@ -82,7 +89,7 @@ if LIBCAMERA or RPICAM2:
         raise rpiBaseClassError("rpicam::: The RPi.GPIO (rpi-lgpio) module could not be loaded!", ERRCRIT)
 else:
     rpiLogger.warning("rpicam::: The RPi.GPIO module is not used!")
-    raise rpiBaseClassError("rpicam::: The RPi.GPIO module is not used!", ERRLEV2)
+    raise rpiBaseClassError("rpicam::: The RPi.GPIO module is not used!", ERRLEV0)
 
 
 class rpiCamClass(rpiBaseClass):
@@ -101,7 +108,7 @@ class rpiCamClass(rpiBaseClass):
         super().__init__(name, rpi_apscheduler, rpi_events, rpi_config)
 
         ### Get the Dbx error event
-        self._eventDbErr: List[Event] = rpi_events.eventErrList["DBXJob"]
+        self._eventDbErr: Event = rpi_events.eventErrList["DBXJob"]
 
         ### The FIFO buffer (deque)
         self.imageFIFO: rpififo.rpiFIFOClass = rpififo.rpiFIFOClass([], self._config['list_size'])
@@ -428,6 +435,7 @@ class rpiCamClass(rpiBaseClass):
         except subprocess.TimeoutExpired:
             rpiLogger.warning("rpicam::: jobRun(): Libcamera-still timeout!")
             self._grab_cam.kill()
+            raise rpiBaseClassError(f"rpicam::: jobRun(): Libcamera-still timeout!", ERRLEV1)
 
         finally:
 
@@ -517,7 +525,7 @@ class rpiCamClass(rpiBaseClass):
                     else:
                         GPIO.cleanup()
                         rpiLogger.error("rpicam::: initClass(): GPIO.getmode() returned None!\n")   
-                        raise rpiBaseClassError("rpicam::: initClass(): GPIO.getmode() returned None!", ERRCRIT)
+                        raise rpiBaseClassError("rpicam::: initClass(): GPIO.getmode() returned None!", ERRLEV2)
                     
                 except RuntimeError as e:
                     rpiLogger.error("rpicam::: initClass(): GPIO could not be configured!\n%s\n" , str(e))   
@@ -651,7 +659,55 @@ class rpiCamClass(rpiBaseClass):
 #       End OAM procedure.
 #       """
 
-    def runCustomCmd(self, cmdstr: str) -> Dict[str, Any]:
+    @job_event_handler(EVENT_JOB_EXECUTED)
+    def handleJobExecuted(self):
+        """
+        Normal execution of the job, no error or non-critical error occured.
+        The job execution could still have raised a non-critical error (ERRLEV1, or ERRLEV0), which is handled here.
+        The clean, no error (ERRNONE) execution of the job is also handled here.
+        """
+        _level = self.errorLevel
+        _time = self.errorTime
+        _delay = self.errorDelay
+        _count = self.errorCount
+        if _level == ERRNONE:
+            return
+        elif _level == ERRLEV0: 
+            return
+        elif _level == ERRLEV1: 
+            # Timeout error (jobRun Process timeout, see _run() method)
+            if (time.time() - _time) >= _delay:
+                # The previous job execution parameters
+                tstart_per, tstop_per, tinterval_per = self.timePeriodIntv
+                rpiLogger.info("rpicam:: handleJobExecuted(): ERRLEV1 (timeout): Grace period %d seconds has passed. Job will be rescheduled with increased run interval to %.1f seconds.", _delay, INTERVAL_INCREASE_FACTOR * tinterval_per)
+                # Clear error level and time,and increase the job run interval
+                self.setResch((tstart_per, tstop_per, INTERVAL_INCREASE_FACTOR * tinterval_per))
+        else:
+            rpiLogger.warning("rpicam:: handleJobExecuted(): ERRLEV=%d: Unexpected error occurred at %s. Error count: %d.", _level, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)), _count)
+
+    @job_event_handler(EVENT_JOB_ERROR)
+    def handleJobError(self):
+        """
+        Job run raised an exception for a critical error (ERRCRIT or ERRLEV2).
+        The number of critical errors is counted and logged. 
+        The job run is stopped after a number of critical errors.
+        """
+        _count = self.errorCount
+        _level = self.errorLevel
+        _time = self.errorTime
+        if _level == ERRCRIT:
+            rpiLogger.critical("rpicam:: handleJobError(): ERRCRIT: Critical error occured at %s. Stopping job run.", time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)))
+            self.setStop()
+        elif _level == ERRLEV2:
+            if _count >= MAX_ERRLEV2_ERRORS:
+                rpiLogger.critical("rpicam:: handleJobError(): ERRLEV2: Maximum number of critical errors (%d) reached at %s. Stopping job run.", _count, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)))
+                self.setStop()
+            else:
+                rpiLogger.critical("rpicam:: handleJobError(): ERRLEV2: Critical error occurred at %s. Error count: %d.", time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)), _count)
+
+
+
+    def procCustomCmd(self, cmdstr: str) -> Dict[str, Any]:
         """
         Run a custom command with arguments extracted from cmdstr.
 
@@ -780,8 +836,7 @@ class rpiCamClass(rpiBaseClass):
                         result = {target: values}
                                        
                 else:
-                    raise KeyError(f"Target '{target}' not found in configuration")
-                
+                    rpiLogger.error("rpicam::: Target '%s' not found in configuration", target)
 
             # If using dynamic controls, save the updated configuration
             if self._config['use_dynctrl']:
@@ -1020,7 +1075,7 @@ class rpiCamClass(rpiBaseClass):
 
         except (json.JSONDecodeError, FileNotFoundError, ValueError) as e:
             rpiLogger.error("rpicam::: _load_dynconfig(): Error loading dynamic camera controls configuration file %s!\n%s\n", self._dynconfig_path, str(e))
-            raise rpiBaseClassError(f"rpicam::: _load_dynconfig(): Error loading dynamic camera controls configuration file {self._dynconfig_path}!", ERRCRIT)
+            raise rpiBaseClassError(f"rpicam::: _load_dynconfig(): Error loading dynamic camera controls configuration file {self._dynconfig_path}!", ERRLEV2)
     
     def _save_dynconfig(self):
         """ 
@@ -1039,7 +1094,7 @@ class rpiCamClass(rpiBaseClass):
 
         except (FileNotFoundError, ValueError, KeyError) as e:
             rpiLogger.error("rpicam:::Error saving dynamic camera controls configuration file %s!\n%s\n", self._dynconfig_path, str(e))
-            raise rpiBaseClassError(f"rpicam::: _save_dynconfig(): Error saving dynamic camera controls configuration file {self._dynconfig_path}!", ERRCRIT)  
+            raise rpiBaseClassError(f"rpicam::: _save_dynconfig(): Error saving dynamic camera controls configuration file {self._dynconfig_path}!", ERRLEV2)  
         
     def _check_dynconfig(self, exp_cfg:str = ''):
         """ 

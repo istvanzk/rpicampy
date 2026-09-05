@@ -28,7 +28,7 @@ import sys
 import time
 import logging
 from datetime import datetime, timedelta
-from typing import List
+from typing import Any, List
 
 #from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -66,57 +66,35 @@ def jobListener(event):
     Process only the main rpi jobs listed in eventsRPi.event_ids.
     :param event: the job event
     """
-
-    #e_exception = getattr(event, 'exception', None)
-    e_code = getattr(event, 'code', None)
-    e_jobid = getattr(event, 'job_id', None)
+    # Get the event attributes
+    e_code: Any | None = getattr(event, 'code', None)
+    e_jobid: Any | None = getattr(event, 'job_id', None)
+    #e_exception: Any | None = getattr(event, 'exception', None)
 
     #print("%s, %d, %s" % (e_exception, e_code, e_jobid))
     #print(eventsRPi)
-
 
     # Collect and process only the main rpi jobs
     if e_jobid not in eventsRPi.event_ids.values():
         return
 
+    # Handle the job events for the main rpicam jobs
+    if e_jobid == RPIJOBNAMES['cam']:
+        imgCam.handleJobEvent(e_code)
+    elif e_jobid == RPIJOBNAMES['dir']:
+        imgDir.handleJobEvent(e_code)
+    elif e_jobid == RPIJOBNAMES['dbx']:
+        imgDbx.handleJobEvent(e_code)
+
+    # Global/default handling of some of the job events for the main rpicam jobs
     all_sch_jobs = schedRPi.get_jobs()
     sch_jobs=[]
     for jb in all_sch_jobs:
         if jb.id in eventsRPi.event_ids.values():
             sch_jobs.append(jb)
 
-    if e_code == EVENT_JOB_ERROR:
-
-        # Set job error flag and start counter
-        eventsRPi.eventErrList[e_jobid].set()
-        eventsRPi.eventErrtimeList[e_jobid]  = time.time()
-        eventsRPi.eventErrcountList[e_jobid] += 1
-        eventsRPi.eventRuncountList[e_jobid] += 1
-
-        rpiLogger.error("rpicamsch:: jobListener - job %s crashed %d times (%s)!", e_jobid, eventsRPi.eventErrcountList[e_jobid], time.ctime(eventsRPi.eventErrtimeList[e_jobid]))
-
-    elif e_code == EVENT_JOB_EXECUTED:
-
-        eventsRPi.eventErrcountList[e_jobid]  = 0
-        eventsRPi.eventRuncountList[e_jobid] += 1
-        eventsRPi.jobRuncount += 1
-
-    elif e_code == EVENT_JOB_MAX_INSTANCES:
-        rpiLogger.warning("rpicamsch:: jobListener - job %s reached max instances (%d)!", e_jobid, NUMBER_OF_JOB_INSTANCES)
-        # The APScheduler will not run the job until the running instance(s) finish.
-        # There is not need to re-schedule the job, because APScheduler will run it automatically after the running instance(s) finish,
-        # depending on the job coalesce setting and the next scheduled run time.
-        # Add here extra handling for the job that reached max instances, if needed.
-        if e_jobid == RPIJOBNAMES['cam']:
-            pass
-        elif e_jobid == RPIJOBNAMES['dir']:
-            pass
-        elif e_jobid == RPIJOBNAMES['dbx']:
-            pass
-        elif e_jobid == RPIJOBNAMES['timer']:
-            pass
-
-    elif e_code == EVENT_JOB_ADDED:
+    if e_code == EVENT_JOB_ADDED:
+        # Simple notification that a job was added to the scheduler. The job will be run at the next scheduled time.
         if len(sch_jobs):
             for jb in sch_jobs:
                 if not (jb.id == e_jobid):
@@ -126,15 +104,18 @@ def jobListener(event):
                         rpiLogger.debug("rpicamsch:: jobListener - job %s waiting to be added", jb.id)
 
     elif e_code == EVENT_JOB_REMOVED:
+        # Simple notification that a job was removed from the scheduler. The job will not be run anymore.
         if len(sch_jobs) == 1:
             rpiLogger.info("rpicamsch:: jobListener - all %s jobs have been removed!", list(eventsRPi.event_ids.values())[1:])
             eventsRPi.eventAllJobsEnd.set()
         else:
             rpiLogger.info("rpicamsch:: jobListener - job %s has been removed!", e_jobid)
 
-    else:
-        rpiLogger.warning("rpicamsch:: jobListener - job %s unhandled event.code = %s", e_jobid, e_code)
-
+    # elif e_code == EVENT_JOB_MAX_INSTANCES:
+    #     # The APScheduler will not run the job until the running instance(s) finish.
+    #     # There is no need to re-schedule the job, because APScheduler will run it automatically after the running instance(s) finish,
+    #     # depending on the job coalesce setting and the next scheduled run time.
+    #     # Add here extra handling for the job that reached max instances, if needed.
 
 def send_log_journal(log_level:str, message: str):
     """

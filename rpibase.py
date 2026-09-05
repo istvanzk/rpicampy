@@ -27,6 +27,7 @@ import atexit
 from threading import Event
 from typing import Any, Dict, List, Tuple, Callable
 from multiprocessing import Process, TimeoutError
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_ADDED, EVENT_JOB_REMOVED, EVENT_JOB_MAX_INSTANCES
 
 ### The rpi(cam)py modules
 from rpilogger import rpiLogger
@@ -54,14 +55,27 @@ CMDCUSTOM= 9
 
 # Error values (levels, 4 bits)
 ERRCRIT = 4 #Critical error, raise & exit
-ERRLEV2 = 3 #Non critical timout error, count and pass
-ERRLEV1 = 2 #Non critical error, pass
+ERRLEV2 = 3 #Critical error, count and stop job run
+ERRLEV1 = 2 #Non critical timout error, pass
 ERRLEV0 = 1 #Non critical error, pass
 ERRNONE = 0 #No error
 
-# Decorator for registering handler functions for supported remote commands
+
+JOB_EVENT_HANDLERS: Dict[int, Callable] = {}
+def job_event_handler(event_code: int):
+    """
+    Decorator for registering handler functions for supported job events.
+    """
+    def decorator(func):
+        JOB_EVENT_HANDLERS.update({event_code: func})
+        return func
+    return decorator
+
 CMD_HANDLERS: Dict[int, Callable] = {}
-def cmd_handler(cmd_type):
+def cmd_handler(cmd_type: int):
+    """
+    Decorator for registering handler functions for supported remote commands. 
+    """
     def decorator(func):
         CMD_HANDLERS.update({cmd_type: func})
         return func
@@ -218,9 +232,60 @@ class rpiBaseClass:
         """
         pass
 
+    @job_event_handler(EVENT_JOB_EXECUTED)
+    def handleJobExecuted(self):
+        """
+        Handle the job executed event.
+        The registered handler function should be decorated with @rpibase.job_event_handler(EVENT_JOB_EXECUTED).
+        """
+        pass
+
+    @job_event_handler(EVENT_JOB_MAX_INSTANCES)
+    def handleJobMaxInstances(self):
+        """
+        Handle the job max instances event.
+        The registered handler function should be decorated with @rpibase.job_event_handler(EVENT_JOB_MAX_INSTANCES).
+        """
+        pass
+
+    @job_event_handler(EVENT_JOB_ERROR)
+    def handleJobError(self):
+        """
+        Handle the job error event.
+        The registered handler function should be decorated with @rpibase.job_event_handler(EVENT_JOB_ERROR).
+        """
+        pass
+
+    @job_event_handler(EVENT_JOB_ADDED)
+    def handleJobAdded(self):
+        """
+        Handle the job added event.
+        The registered handler function should be decorated with @rpibase.job_event_handler(EVENT_JOB_ADDED).
+        """
+        pass
+
+    @job_event_handler(EVENT_JOB_REMOVED)
+    def handleJobRemoved(self):
+        """
+        Handle the job removed event.
+        The registered handler function should be decorated with @rpibase.job_event_handler(EVENT_JOB_REMOVED).
+        """
+        pass
+
+
+
     #
-    # Subclass interface methods to be used externally.
+    # Subclass interface methods to be used externally. NO overriding by user defined methods!
     #
+    def handleJobEvent(self, event_code: Any | None = ERRNONE):
+        """
+        Handle the job event and call the registered handler functions.
+        The registered handler functions should be decorated with @job_event_handler(event_code).
+        """
+        if event_code in JOB_EVENT_HANDLERS:
+            JOB_EVENT_HANDLERS[event_code](self)
+        else:
+            rpiLogger.warning("rpibase for %s::: No handler registered for job event code %d", self.name, event_code)
 
     def manualRun(self, ch):
         """
@@ -318,14 +383,17 @@ class rpiBaseClass:
             return True
 
     @cmd_handler(CMDRESCH)
-    def setResch(self) -> bool:
+    def setResch(self, tstartstopintv=None) -> bool:
         """
         Run Re-schedule mode and set flags.
+        When the tstartstopintv=(start, stop, interval) tuple is specified (re)configure.
         Return boolean to indicate state change.
         """
         if self._state['resch'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
             return False
         else:
+            if tstartstopintv is not None:
+                self.timePeriodIntv = tstartstopintv
             self._reschedule_run()
             return True
 
@@ -356,7 +424,7 @@ class rpiBaseClass:
         else:
             self._endoam_run()
             return True
-        
+
 
     @property
     def statusUpdate(self):
@@ -417,6 +485,13 @@ class rpiBaseClass:
         return self._eventErrtime
 
     @property
+    def errorLevel(self):
+        """
+        Return the current error level (ERRLEV0, ERRLEV1, ERRLEV2 or ERRCRIT).
+        """
+        return self._state['errval']
+
+    @property
     def errorCount(self):
         """
         Return the number of times the job has run while in the delay time period (self._eventErrcount).
@@ -432,48 +507,19 @@ class rpiBaseClass:
         return self._stateVal
 
 
+
     #
     # Private
     #
 
     def _run(self):
         """
-        Run first the internal functionalities, and then call the user defined runJob method.
-        Catch all rpiBaseClassError exceptions.
+        Run first the internal functionalities, and then call the user defined runJob method in a Process.
+        Catch all rpiBaseClassError exceptions such that the job executor can handle the error events and logging.
         """
-
-        ### Run the erro state check first then the user defined method (self.jobRun)
         try:
-            if self._eventErr.is_set():
-                # Apply re-initialization grace period after a fatal error (ERRCRIT level)
-                # Re-initialize the self._run() method
-                # after self._eventErrdelay seconds from the last failed access/run attempt
-                self._eventErrcount += 1
-                rpiLogger.info("rpibase for %s::: eventErr %d, count %d!", self.name, self._state['errval'], self._eventErrcount)
-                if self._state['errval'] == ERRCRIT:
-                    if (time.time() - self._eventErrtime) < self._eventErrdelay:
-                        rpiLogger.debug("rpibase for %s::: eventErr %d (ERRCRIT) was set at %s!", self.name, self._state['errval'], time.ctime(self._eventErrtime))
-                        return
-
-                    rpiLogger.info("rpibase for %s::: eventErr %d (ERRCRIT) grace period %d seconds has passed, re-initializing class!", self.name, self._state['errval'], self._eventErrdelay)
-                    self._initclass()
-                    self._add_run()
-
-                # Handle non-critical error states
-                # ERRLEV2: a process timeout occurred -> increase current job run interval to 110% of the current interval
-                #          and re-initialize the self._run() method
-                elif self._state['errval'] == ERRLEV2:
-                    if self._eventErrcount < 3:
-                        return
-
-                    rpiLogger.info("rpibase for %s::: eventErr %d (ERRLEV2) count exceeded threshold! Increase job run interval to %.1f secoonds.", self.name, self._state['errval'], 1.1*self._interval_sec)
-                    self._interval_sec = 1.1*self._interval_sec
-                    self._cleareventerr('_run()')
-                    self._reschedule_run()
-
-            else:
-                # Set Run state
-                self._run_state()
+            # Set Run state
+            self._run_state()
 
             # Run the user defined method
             # Launches the job in a separate process and enforces a timeout.
@@ -481,37 +527,47 @@ class rpiBaseClass:
             p.start()
             p.join(timeout=0.8*self._interval_sec)
             if p.is_alive():
-                self._seteventerr('_run()', ERRLEV2)
+                self._seteventerr('_run()', ERRLEV1)
                 p.terminate()
                 p.join(timeout=0.1*self._interval_sec)
                 rpiLogger.warning("rpibase for %s::: jobRun processs timed out and was terminated", self.name)
-            
+            else:
+                self._cleareventerr('_run()')
 
         except rpiBaseClassError as e:
+            # Route exceptions to the appropriate error level handling and logging.
+            # The user defined jobRun() and related methods should raise rpiBaseClassError exceptions with the appropriate error level.
+            # The user defined handleJobError() and handleJobExecuted() methods can be used to handle the events, in a job specific manner.
             if  e.errval > ERRNONE:
-                if e.errval < ERRCRIT:
+                if e.errval < ERRLEV2:
+                    # Can be handled by the user defined handleJobExecuted() method
                     self._seteventerr('_run()', e.errval)
                     rpiLogger.warning("rpibase for %s::: eventErr %d: %s", self.name, self._state['errval'], e.errmsg)
                     pass
                 else:
+                    # Can be handled by the user defined handleJobError() method
                     self._seteventerr('_run()', ERRCRIT)
                     rpiLogger.exception("rpibase for %s::: eventErr %d: %s\nExiting job!", self.name, self._state['errval'], e.errmsg)
                     raise
             else:
+                self._seteventerr('_run()', ERRNONE)
                 rpiLogger.warning("rpibase for %s::: eventErr %d: A non-error was raised: %s", self.name, self._state['errval'], e.errmsg)
                 pass
 
         except RuntimeError as e:
+            # Can be handled by the user defined handleJobError() method
             self._seteventerr('_run()',ERRCRIT)
             rpiLogger.exception("rpibase for %s::: RuntimeError: \nExiting job!", self.name)
             raise
 
         except TimeoutError as e:
-            self._seteventerr('_run()',ERRLEV2)
+            # Can be handled by the user defined handleJobExecuted() method
+            self._seteventerr('_run()',ERRLEV1)
             rpiLogger.warning("rpibase for %s::: jobRun process timed out and was terminated", self.name)
             pass
 
         except:
+            # Can be handled by the user defined handleJobError() method
             self._seteventerr('_run()',ERRCRIT)
             rpiLogger.exception("rpibase for %s::: Unhandled Exception: \nExiting job!", self.name)
             raise

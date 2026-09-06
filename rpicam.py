@@ -313,6 +313,8 @@ class rpiCamClass(rpiBaseClass):
                     self._capture_metadata()
                     rpiLogger.debug("rpicam::: jobRun(): After exp adjustment: LX=%.1f, ET=%.3fs", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
 
+                else:
+                    rpiLogger.debug("rpicam::: jobRun(): Day time exp: LX=%.1f, ET=%.3fs", self._metadata['Lux'], self._metadata["ExposureTime"]/1000000)
 
                 # Capture image to memory
                 stream = io.BytesIO()

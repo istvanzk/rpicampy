@@ -355,6 +355,7 @@ class rpiCamClass(rpiBaseClass):
                     #n_width, n_height = TXTfont.getsize('#XX')
                     #draw.text((image.size[0]-n_width-2,image.size[1]-18), '#XX', fill=(0,0,0,0), font=self._TXTfont)
                     del draw
+                    rpiLogger.debug("rpicam::: jobRun(): Overlay text added to the image")
 
                 # Update EXIF info
                 crt_time = time.strftime('%Y:%m:%d %H:%M:%S', time.localtime())
@@ -364,6 +365,7 @@ class rpiCamClass(rpiBaseClass):
                 self._custom_exif['Exif'][piexif.ExifIFD.ExposureMode] = self._metadata['AeState'] # Auto=0,Manual=1,AutoBraket=2
                 self._custom_exif['Exif'][piexif.ExifIFD.WhiteBalance] = 0 # Auto=0,Manual=1
                 self._custom_exif['Exif'][piexif.ExifIFD.Contrast]     = 2 if self._dark_exp else 0 # Normal=0,Soft=1,Hard=2
+                rpiLogger.debug("rpicam::: jobRun(): EXIF info updated")
 
                 # Save image to the output file
                 #camera.helpers.save(img=image, metadata, file_output=image_path, format='jpeg', exif_data=self._custom_exif)

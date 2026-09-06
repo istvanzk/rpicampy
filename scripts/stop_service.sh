@@ -1,3 +1,3 @@
 #!/bin/bash
-systemctl --user stop rpicamsch.service
-systemctl --user --no-pager status rpicamsch.service
+systemctl --user stop rpicamsch
+systemctl --user --no-pager status rpicamsch

@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "==================== Status for rpicamsch ====================="
 echo "-------------------- journalctl --------------------"
-journalctl --user -eu rpicamsch.service
+sudo journalctl -b -t rpicamsch
 echo "-------------------- systemctl ---------------------"
-systemctl --user --no-pager status rpicamsch.service
+systemctl --user --no-pager status rpicamsch
 echo "==============================================================="

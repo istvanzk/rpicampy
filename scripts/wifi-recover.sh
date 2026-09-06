@@ -6,6 +6,8 @@
 # Used by:
 # /etc/systemd/system/wifi-recover.service
 # /etc/systemd/system/wifi-recover.timer
+# Check logs:
+# journalctl -b -t wifi-watchdog --no-pager | grep -iE "ERROR|CRITICAL"
 #
 # Generated with Microsoft Copilot
 #

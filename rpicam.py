@@ -669,6 +669,7 @@ class rpiCamClass(rpiBaseClass):
         _time = self.errorTime
         _delay = self.errorDelay
         _count = self.errorCount
+        rpiLogger.debug("rpicam:: handleJobExecuted(): ERR=%d: Check error count %d after started at %s", _level, _count, time.ctime(self.eventErrFirstTime[_level]))
         if _level == ERRNONE:
             return
         elif _level == ERRLEV0: 

@@ -751,7 +751,7 @@ class rpiBaseClass:
         self._state['resch'] = False
         self._state['cmdval'] = CMDRUN
 
-        self._cleareventerr('_run_state()')
+        self._setstateval()
 
         rpiLogger.debug("rpibase for %s::: Run state.", self.name)
 

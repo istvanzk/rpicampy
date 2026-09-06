@@ -669,7 +669,8 @@ class rpiCamClass(rpiBaseClass):
         _time = self.errorTime
         _delay = self.errorDelay
         _count = self.errorCount
-        rpiLogger.debug("rpicam:: handleJobExecuted(): ERR=%d: Check error count %d after started at %s", _level, _count, time.ctime(self.eventErrFirstTime[_level]))
+        _err_str = f"ERRLEV{_level-1}" if _level > 0 else "ERRNONE"
+        rpiLogger.debug("rpicam:: handleJobExecuted(): %s: Error count %d started at %s", _err_str, _count, time.ctime(self.eventErrFirstTime[_level]))
         if _level == ERRNONE:
             return
         elif _level == ERRLEV0: 
@@ -682,9 +683,10 @@ class rpiCamClass(rpiBaseClass):
                 tstart_per, tstop_per, tinterval_per = self.timePeriodIntv
                 rpiLogger.info("rpicam:: handleJobExecuted(): ERRLEV1 (timeout): Grace period %d seconds has passed. Job will be rescheduled with increased run interval to %.1f seconds.", _delay, INTERVAL_INCREASE_FACTOR * tinterval_per)
                 # Clear error level and time,and increase the job run interval
-                self.setResch((tstart_per, tstop_per, INTERVAL_INCREASE_FACTOR * tinterval_per))
+                if not self.setResch((tstart_per, tstop_per, INTERVAL_INCREASE_FACTOR * tinterval_per)):
+                    rpiLogger.warning("rpicam:: handleJobExecuted(): ERRLEV1 (timeout): Grace period %d seconds has passed. Job rescheduling failed!", _delay)
         else:
-            rpiLogger.warning("rpicam:: handleJobExecuted(): ERRLEV=%d: Unexpected error occurred at %s. Error count: %d.", _level, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)), _count)
+            rpiLogger.warning("rpicam:: handleJobExecuted(): ERRLEV=%d: Unexpected error occurred at %s", _level, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)))
 
     @rpiBaseClass.job_event_handler(EVENT_JOB_ERROR)
     def handleJobError(self):
@@ -707,7 +709,7 @@ class rpiCamClass(rpiBaseClass):
                 rpiLogger.critical("rpicam:: handleJobError(): ERRLEV2: Maximum number of critical errors (%d) reached at %s. Stopping job run.", _count, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)))
                 self.setStop()
         else:
-            rpiLogger.warning("rpicam:: handleJobExecuted(): ERRLEV=%d: Unexpected critical error occurred at %s. Error count: %d.", _level, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)), _count)
+            rpiLogger.warning("rpicam:: handleJobExecuted(): ERRLEV=%d: Unexpected critical error occurred at %s.", _level, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)))
 
 
     def procCustomCmd(self, cmdstr: str) -> Dict[str, Any]:

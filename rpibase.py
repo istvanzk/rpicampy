@@ -683,6 +683,7 @@ class rpiBaseClass:
             str = "%s: %s SetError %d" % (self.name, str_func, err_val)
             self._statusmsg.append((str, -1*err_val))
             self._eventErr.set()
+            self._eventErrcount += 1
             self._eventErrtime = time.time()
             if self.eventErrFirstTime[err_val] == 0:
                 self.eventErrFirstTime[err_val] = self._eventErrtime
@@ -697,6 +698,7 @@ class rpiBaseClass:
         str = "%s: %s ClrError %d" % (self.name, str_func, self._state['errval'])
         self._statusmsg.append((str, ERRNONE))
         self._eventErr.clear()
+        self._eventErrcount = 0
         self._eventErrtime = 0
         for _e in range(len(self.eventErrFirstTime)):
             self.eventErrFirstTime[_e] = 0
@@ -855,11 +857,6 @@ class rpiBaseClass:
         Re-schedule the self._run() job.
         Set the ReScheduled state.
         """
-        if self._sched is not None and not self._state['resch']:
-            with self._sched_lock:
-                if self._sched.get_job(self.name) is not None:
-                    self._reschedule_job()
-
         self._state['run']   = False
         self._state['stop']  = False
         self._state['pause'] = False
@@ -868,6 +865,11 @@ class rpiBaseClass:
         self._state['cmdval'] = CMDRESCH
 
         self._cleareventerr('_reschedule_run()')
+
+        if self._sched is not None and not self._state['resch']:
+            with self._sched_lock:
+                if self._sched.get_job(self.name) is not None:
+                    self._reschedule_job()
 
         rpiLogger.debug("rpibase for %s::: Rescheduled state." % self.name)
 

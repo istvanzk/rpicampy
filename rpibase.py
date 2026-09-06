@@ -61,23 +61,12 @@ ERRLEV0 = 1 #Non critical error, pass
 ERRNONE = 0 #No error
 
 
-JOB_EVENT_HANDLERS: Dict[int, Callable] = {}
-def job_event_handler(event_code: int):
-    """
-    Decorator for registering handler functions for supported job events.
-    """
-    def decorator(func):
-        JOB_EVENT_HANDLERS.update({event_code: func})
-        return func
-    return decorator
-
-CMD_HANDLERS: Dict[int, Callable] = {}
 def cmd_handler(cmd_type: int):
     """
-    Decorator for registering handler functions for supported remote commands. 
+    Decorator to mark a method as the handler for a remote command.
     """
-    def decorator(func):
-        CMD_HANDLERS.update({cmd_type: func})
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        func._cmd_type = cmd_type
         return func
     return decorator
 
@@ -103,13 +92,34 @@ class rpiBaseClass:
     Implements the base class for common functionalities.
     """
 
+    # Registered handler functions 
+    job_event_handlers_registry: Dict[int, Callable[..., Any]] = {}
+    cmd_handlers_registry: Dict[int, Callable[..., Any]] = {}
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls.job_event_handlers_registry = {}
+        cls.cmd_handlers_registry = {}
+
+        for handler in cls.__dict__.values():
+            event_code = getattr(handler, '_event_code', None)
+            if event_code is not None:
+                cls.job_event_handlers_registry[event_code] = handler
+
+        # Give each subclass its own registry containing the common handlers.
+        # A handler declared by the subclass replaces the inherited entry.
+        for base_class in reversed(cls.__mro__):
+            for handler in base_class.__dict__.values():
+                command_type = getattr(handler, '_cmd_type', None)
+                if command_type is not None:
+                    cls.cmd_handlers_registry[command_type] = handler
+
     def __init__(self, name, rpi_apscheduler, rpi_events, rpi_config, *args, **kwargs):
 
         # Public
 
         # Custom name
         self.name: str    = name or "Job"
-
 
         # EoD and End OAM events
         self.eventDayEnd: Event = Event()
@@ -123,7 +133,7 @@ class rpiBaseClass:
         self._config: Dict = rpi_config
 
         # Reference to the APScheduler
-        self._sched  = rpi_apscheduler or None
+        self._sched  = rpi_apscheduler
         self._sched_lock: RLock = self._create_lock()
  
         # Reference to own entry in eventErr from the rpi_events
@@ -188,6 +198,7 @@ class rpiBaseClass:
         rpiLogger.debug("rpibase for %s::: Deleted!", self.name)
         self._statusmsg.append((f"{self.name} Deleted", ERRNONE))
 
+
     #
     # Subclass interface methods to be overriden by user defined methods.
     #
@@ -237,15 +248,29 @@ class rpiBaseClass:
     #
     # Subclass interface methods to be used externally. NO overriding by user defined methods!
     #
+    @classmethod
+    def job_event_handler(cls, event_code: int):
+        """
+        Decorator for marking a handler for a supported job event.
+        """
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+            func._event_code = event_code
+            return func
+        return decorator
+
     def handleJobEvent(self, event_code: Any | None = ERRNONE):
         """
         Handle the job event and call the registered handler functions.
         The user registered handler functions should be decorated with @job_event_handler(event_code).
         """
-        if event_code in JOB_EVENT_HANDLERS:
-            JOB_EVENT_HANDLERS[event_code]()
-        else:
+        if event_code is None:
+            event_code = ERRNONE
+        handler_func = self.job_event_handlers_registry.get(event_code)
+        if handler_func is None:
             rpiLogger.warning("rpibase for %s::: No handler registered for job event code %d", self.name, event_code)
+            return
+        
+        handler_func(self)
 
     def manualRun(self, ch):
         """
@@ -329,7 +354,7 @@ class rpiBaseClass:
             self._remove_run()
             return True
 
-    @cmd_handler(CMDSTOP)
+    @cmd_handler(CMDPAUSE)
     def setPause(self) -> bool:
         """
         Run Pause mode and set flags.
@@ -604,8 +629,12 @@ class rpiBaseClass:
 
             rpiLogger.debug("rpibase for %s::: _proc_cmd: Get cmdstr:%s, cmdval:%d", self.name, cmdstr, cmdval)
 
-            if cmdval != CMDCUSTOM and CMD_HANDLERS[cmdval]():
-                self._statusmsg.append(("cmd %s" % CMD_HANDLERS[cmdval].__name__, ERRNONE))
+            if cmdval != CMDCUSTOM:
+                handler_func = self.cmd_handlers_registry.get(cmdval)
+                if handler_func is None:
+                    rpiLogger.warning("rpibase for %s::: No handler registered for command %d", self.name, cmdval)
+                elif handler_func(self):
+                    self._statusmsg.append(("cmd %s" % handler_func.__name__, ERRNONE))
 
             elif cmdval == CMDCUSTOM:
                 self.procCustomCmd(cmdstr)
@@ -659,7 +688,7 @@ class rpiBaseClass:
                 self.eventErrFirstTime[err_val] = self._eventErrtime
             self._state['errval'] = err_val
             self._setstateval()
-            rpiLogger.debug("rpibase for %s::: Set eventErr %d in %s at %s!", self.name, err_val, str_func, time.ctime(self._eventErrtime))
+            rpiLogger.debug("rpibase for %s::: Set eventErr %d in %s at %s! First error time was: %s", self.name, err_val, str_func, time.ctime(self._eventErrtime), time.ctime(self.eventErrFirstTime[err_val]))
 
     def _cleareventerr(self,str_func):
         """

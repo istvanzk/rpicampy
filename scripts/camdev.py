@@ -150,6 +150,7 @@ def _switchIR(bONOFF):
     else:
         GPIO.output(IRLport,GPIO.LOW)
 
+
 def main():
     """ Main function """
     
@@ -232,9 +233,16 @@ def main():
         _switchIR(True)
 
     # Start the camera
-    camera.start()
+    camera.start(show_preview=False)
     time.sleep(1)
 
+    # Get image metadata and controls
+    _metadata = camera.capture_metadata()
+    _controls = camera.controls #{c: self._metadata[c] for c in ["ExposureTime", "Lux", "AeState"]} 
+    print(f"Camera metadata captured: {_metadata}")
+    print(f"Capture controls: {_controls}")
+    print(f"Exposure adjustment: LX={_metadata['Lux']:.1f}, ET={_metadata['ExposureTime']/1000000:.3f}s")
+    
     # Capture image to memory
     stream = io.BytesIO()
     camera.capture_file(stream, format='jpeg', exif_data=_custom_exif)

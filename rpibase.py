@@ -137,6 +137,7 @@ class rpiBaseClass:
         self._eventErrdelay = 0
         self._eventErrcount = 0
         self._eventErrtime  = 0
+        self.eventErrFirstTime: List[float] = [0, 0, 0, 0]  # First error time for ERRLEV0, ERRLEV1, ERRLEV2, ERRCRIT
 
         # Job start/stop and interval times
         self._dtstart = None
@@ -239,7 +240,7 @@ class rpiBaseClass:
     def handleJobEvent(self, event_code: Any | None = ERRNONE):
         """
         Handle the job event and call the registered handler functions.
-        The registered handler functions should be decorated with @job_event_handler(event_code).
+        The user registered handler functions should be decorated with @job_event_handler(event_code).
         """
         if event_code in JOB_EVENT_HANDLERS:
             JOB_EVENT_HANDLERS[event_code]()
@@ -531,9 +532,6 @@ class rpiBaseClass:
             rpiLogger.exception("rpibase for %s::: Unhandled Exception: \nExiting job!", self.name)
             raise
 
-        finally:
-            self._setstateval()
-
 
     def _initclass(self):
         """"
@@ -657,6 +655,8 @@ class rpiBaseClass:
             self._statusmsg.append((str, -1*err_val))
             self._eventErr.set()
             self._eventErrtime = time.time()
+            if self.eventErrFirstTime[err_val] == 0:
+                self.eventErrFirstTime[err_val] = self._eventErrtime
             self._state['errval'] = err_val
             self._setstateval()
             rpiLogger.debug("rpibase for %s::: Set eventErr %d in %s at %s!", self.name, err_val, str_func, time.ctime(self._eventErrtime))
@@ -667,11 +667,13 @@ class rpiBaseClass:
         """
         str = "%s: %s ClrError %d" % (self.name, str_func, self._state['errval'])
         self._statusmsg.append((str, ERRNONE))
-        rpiLogger.debug("rpibase for %s::: Clear eventErr %d in %s!", self.name, self._state['errval'], str_func)
         self._eventErr.clear()
         self._eventErrtime = 0
+        for _e in range(len(self.eventErrFirstTime)):
+            self.eventErrFirstTime[_e] = 0
         self._state['errval'] = ERRNONE
         self._setstateval()
+        rpiLogger.debug("rpibase for %s::: Clear eventErr %d in %s!", self.name, self._state['errval'], str_func)
 
 
     def _add_run(self):
@@ -734,7 +736,7 @@ class rpiBaseClass:
         self._state['resch'] = False
         self._state['cmdval'] = CMDINIT
 
-        self._setstateval()
+        self._cleareventerr('_init_state()')
 
         rpiLogger.debug("rpibase for %s::: Init state.", self.name)
 
@@ -749,7 +751,7 @@ class rpiBaseClass:
         self._state['resch'] = False
         self._state['cmdval'] = CMDRUN
 
-        self._setstateval()
+        self._cleareventerr('_run_state()')
 
         rpiLogger.debug("rpibase for %s::: Run state.", self.name)
 
@@ -762,7 +764,7 @@ class rpiBaseClass:
         self._state['resch'] = False
         self._state['cmdval'] = CMDPAUSE
 
-        self._setstateval()
+        self._cleareventerr('_pause_state()')
 
         rpiLogger.debug("rpibase for %s::: Pause state.", self.name)
 
@@ -777,7 +779,7 @@ class rpiBaseClass:
         self._state['resch'] = False
         self._state['cmdval'] = CMDSTOP
 
-        self._setstateval()
+        self._cleareventerr('_stop_state()')
 
         rpiLogger.debug("rpibase for %s::: Stop state.", self.name)
 
@@ -836,7 +838,7 @@ class rpiBaseClass:
         self._state['resch'] = True
         self._state['cmdval'] = CMDRESCH
 
-        self._setstateval()
+        self._cleareventerr('_reschedule_run()')
 
         rpiLogger.debug("rpibase for %s::: Rescheduled state." % self.name)
 

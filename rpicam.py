@@ -670,16 +670,13 @@ class rpiCamClass(rpiBaseClass):
         _time = self.errorTime
         _delay = self.errorDelay
         _count = self.errorCount
-        _time_first = 0
         if _level == ERRNONE:
             return
         elif _level == ERRLEV0: 
             return
         elif _level == ERRLEV1: 
             # Timeout error (jobRun timeout, jobRun Process timeout, see _run() method)
-            if _time_first == 0:
-                _time_first=time.time()
-            if (time.time() - _time_first) >= _delay:
+            if (time.time() - self.eventErrFirstTime[ERRLEV1]) >= _delay:
                 # The previous job execution parameters
                 tstart_per, tstop_per, tinterval_per = self.timePeriodIntv
                 rpiLogger.info("rpicam:: handleJobExecuted(): ERRLEV1 (timeout): Grace period %d seconds has passed. Job will be rescheduled with increased run interval to %.1f seconds.", _delay, INTERVAL_INCREASE_FACTOR * tinterval_per)

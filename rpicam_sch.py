@@ -95,13 +95,11 @@ def jobListener(event):
 
     if e_code == EVENT_JOB_ADDED:
         # Simple notification that a job was added to the scheduler. The job will be run at the next scheduled time.
-        if len(sch_jobs):
-            for jb in sch_jobs:
-                if not (jb.id == e_jobid):
-                    if not jb.pending:
-                        rpiLogger.debug("rpicamsch:: jobListener - job %s added, next run: %s", jb.id, jb.next_run_time)
-                    else:
-                        rpiLogger.debug("rpicamsch:: jobListener - job %s waiting to be added", jb.id)
+        for job in sch_jobs:
+            if not job.pending:
+                rpiLogger.debug("rpicamsch:: jobListener - job %s added, next run: %s", job.id, job.next_run_time)
+            else:
+                rpiLogger.debug("rpicamsch:: jobListener - job %s waiting to be added to job store (pending)", job.id)
 
     elif e_code == EVENT_JOB_REMOVED:
         # Simple notification that a job was removed from the scheduler. The job will not be run anymore.

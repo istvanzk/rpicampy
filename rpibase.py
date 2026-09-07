@@ -857,25 +857,22 @@ class rpiBaseClass:
         Re-schedule the self._run() job.
         Set the ReScheduled state.
         """
-        self._state['run']   = False
-        self._state['stop']  = False
-        self._state['pause'] = False
-        self._state['init']  = False
-        self._state['resch'] = True
-        self._state['cmdval'] = CMDRESCH
-
         self._cleareventerr('_reschedule_run()')
-
+        self._state['cmdval'] = CMDRESCH
+        
         if self._sched is not None and not self._state['resch']:
             with self._sched_lock:
                 if self._sched.get_job(self.name) is not None:
+                    self._state['resch'] = True
                     self._reschedule_job()
+
+            self._run_state()
 
         rpiLogger.debug("rpibase for %s::: Rescheduled state." % self.name)
 
     def _reschedule_job(self):
         """ 
-        Re-schedule the self._run() job depending on the specified start/stop times. 
+        Re-schedule the self.name job id with the specified start/stop times. 
         """
         if self._dtstart is not None:
             if self._dtstop is not None:

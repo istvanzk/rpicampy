@@ -878,25 +878,35 @@ class rpiBaseClass:
         """ 
         Re-schedule the self.name job id with the specified start/stop times. 
         """
-        if self._dtstart is not None:
-            if self._dtstop is not None:
-                self._sched.modify_job(self.name,
+        try:
+            if self._dtstart is not None:
+                if self._dtstop is not None:
+                    self._sched.reschedule_job(self.name,
+                                            trigger='interval',
                                             seconds=self._interval_sec,
                                             start_date=self._dtstart,
                                             end_date=self._dtstop)
-            else:
-                self._sched.modify_job(self.name,
+                else:
+                    self._sched.reschedule_job(self.name,
+                                            trigger='interval',
                                             seconds=self._interval_sec,
                                             start_date=self._dtstart)
-        else: 
-            if self._dtstop is not None:
-                self._sched.modify_job(self.name,
-                                           seconds=self._interval_sec,
-                                           end_date=self._dtstop)
-            else:
-                self._sched.modify_job(self.name,
-                                           seconds=self._interval_sec)
-
+            else: 
+                if self._dtstop is not None:
+                    self._sched.reschedule_job(self.name,
+                                            trigger='interval',
+                                            seconds=self._interval_sec,
+                                            end_date=self._dtstop)
+                else:
+                    self._sched.reschedule_job(self.name,
+                                            trigger='interval',
+                                            seconds=self._interval_sec)
+        except AttributeError as e:
+            rpiLogger.exception("rpibase for %s::: Failed to reschedule job: %s", self.name, e)
+            raise rpiBaseClassError("Failed to reschedule job: %s" % e, ERRCRIT)
+        except Exception as e:
+            rpiLogger.exception("rpibase for %s::: Failed to reschedule job: %s", self.name, e)
+            raise rpiBaseClassError("Failed to reschedule job: %s" % e, ERRCRIT)
 
     def _enddayoam_run(self):
         """

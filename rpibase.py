@@ -511,17 +511,18 @@ class rpiBaseClass:
             self._run_state()
 
             # Run the user defined method
-            # Launches the job in a separate process and enforces a timeout.
-            p = Process(target=self.jobRun)
-            p.start()
-            p.join(timeout=0.8*self._interval_sec)
-            if p.is_alive():
-                self._seteventerr('_run()', ERRLEV1)
-                p.terminate()
-                p.join(timeout=0.1*self._interval_sec)
-                rpiLogger.warning("rpibase for %s::: jobRun processs timed out and was terminated", self.name)
-            else:
-                self._cleareventerr('_run()')
+            self.jobRun()
+            # # Launches the job in a separate process and enforces a timeout.
+            # p = Process(target=self.jobRun)
+            # p.start()
+            # p.join(timeout=0.8*self._interval_sec)
+            # if p.is_alive():
+            #     self._seteventerr('_run()', ERRLEV1)
+            #     p.terminate()
+            #     p.join(timeout=0.1*self._interval_sec)
+            #     rpiLogger.warning("rpibase for %s::: jobRun processs timed out and was terminated", self.name)
+            # else:
+            #     self._cleareventerr('_run()')
 
         except rpiBaseClassError as e:
             # Route exceptions to the appropriate error level handling and logging.

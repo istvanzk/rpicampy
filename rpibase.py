@@ -859,7 +859,7 @@ class rpiBaseClass:
         """
         self._cleareventerr('_reschedule_run()')
         self._state['cmdval'] = CMDRESCH
-        
+
         if self._sched is not None and not self._state['resch']:
             with self._sched_lock:
                 if self._sched.get_job(self.name) is not None:
@@ -876,30 +876,22 @@ class rpiBaseClass:
         """
         if self._dtstart is not None:
             if self._dtstop is not None:
-                self._sched.reschedule_job(self.name,
-                                            trigger='interval',
+                self._sched.modify_job(self.name,
                                             seconds=self._interval_sec,
                                             start_date=self._dtstart,
-                                            end_date=self._dtstop,
-                                            name=self.name )
+                                            end_date=self._dtstop)
             else:
-                self._sched.reschedule_job(self.name,
-                                            trigger='interval',
+                self._sched.modify_job(self.name,
                                             seconds=self._interval_sec,
-                                            start_date=self._dtstart,
-                                            name=self.name )
+                                            start_date=self._dtstart)
         else: 
             if self._dtstop is not None:
-                self._sched.reschedule_job(self.name,
-                                           trigger='interval',
+                self._sched.modify_job(self.name,
                                            seconds=self._interval_sec,
-                                           end_date=self._dtstop,
-                                           name=self.name )
+                                           end_date=self._dtstop)
             else:
-                self._sched.reschedule_job(self.name,
-                                           trigger='interval',
-                                           seconds=self._interval_sec,
-                                           name=self.name )
+                self._sched.modify_job(self.name,
+                                           seconds=self._interval_sec)
 
 
     def _enddayoam_run(self):

@@ -375,11 +375,13 @@ class rpiBaseClass:
         Return boolean to indicate state change.
         """
         if self._state['resch'] or self.eventDayEnd.is_set() or self.eventEnd.is_set():
+            rpiLogger.debug("rpibase for %s::: %s: _reschedule_run not run", self.name, sys._getframe().f_code.co_filename)
             return False
         else:
             if tstartstopintv is not None:
                 self.timePeriodIntv = tstartstopintv
             self._reschedule_run()
+            rpiLogger.debug("rpibase for %s::: with (%s): _reschedule_run run", self.name, self.timePeriodIntv)
             return True
 
     @cmd_handler(CMDEOD)
@@ -394,6 +396,7 @@ class rpiBaseClass:
             return False
         else:
             self._enddayoam_run()
+            rpiLogger.debug("rpibase for %s::: _enddayoam_run run", self.name)
             return True
 
     @cmd_handler(CMDEND)
@@ -408,6 +411,7 @@ class rpiBaseClass:
             return False
         else:
             self._endoam_run()
+            rpiLogger.debug("rpibase for %s::: _endoam_run run", self.name)
             return True
 
 

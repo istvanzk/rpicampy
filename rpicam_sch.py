@@ -95,20 +95,14 @@ def jobListener(event):
 
     if e_code == EVENT_JOB_ADDED:
         # Simple notification that a job was added to the scheduler. The job will be run at the next scheduled time.
-        for job in sch_jobs:
-            if job.id == e_jobid:
-                if not job.pending:
-                    rpiLogger.debug("rpicamsch:: jobListener - job %s added, next run: %s", job.id, job.next_run_time)
-                else:
-                    rpiLogger.debug("rpicamsch:: jobListener - job %s waiting to be added to job store (pending)", job.id)
+        if len(sch_jobs) == len(RPIJOBNAMES)-1:
+            rpiLogger.info("rpicamsch:: jobListener - all %s jobs have been added!", list(eventsRPi.event_ids.values())[1:])
 
-    elif e_code == EVENT_JOB_REMOVED:
+    if e_code == EVENT_JOB_REMOVED:
         # Simple notification that a job was removed from the scheduler. The job will not be run anymore.
         if len(sch_jobs) == 1:
             rpiLogger.info("rpicamsch:: jobListener - all %s jobs have been removed!", list(eventsRPi.event_ids.values())[1:])
             eventsRPi.eventAllJobsEnd.set()
-        else:
-            rpiLogger.info("rpicamsch:: jobListener - job %s has been removed!", e_jobid)
 
     # elif e_code == EVENT_JOB_MAX_INSTANCES:
     #     # The APScheduler will not run the job until the running instance(s) finish.

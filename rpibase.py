@@ -381,7 +381,7 @@ class rpiBaseClass:
             if tstartstopintv is not None:
                 self.timePeriodIntv = tstartstopintv
             self._reschedule_run()
-            rpiLogger.debug("rpibase for %s::: with (%s): _reschedule_run run", self.name, self.timePeriodIntv)
+            rpiLogger.debug("rpibase for %s::: _reschedule_run run with %s", self.name, self.timePeriodIntv)
             return True
 
     @cmd_handler(CMDEOD)
@@ -868,11 +868,11 @@ class rpiBaseClass:
             with self._sched_lock:
                 if self._sched.get_job(self.name) is not None:
                     self._state['resch'] = True
+                    rpiLogger.debug("rpibase for %s::: Rescheduled state." % self.name)
                     self._reschedule_job()
 
             self._run_state()
 
-        rpiLogger.debug("rpibase for %s::: Rescheduled state." % self.name)
 
     def _reschedule_job(self):
         """ 

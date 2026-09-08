@@ -116,7 +116,7 @@ class GracefulKiller:
 
 ### SystemD functions
 def journal_send(msg_str):
-    """ Send a message to the journald """
+    """ Send a message to the system wide journald """
     global SYSTEMDUSE
     if SYSTEMDUSE:
         try:
@@ -179,7 +179,7 @@ if SYSTEMDUSE:
         rpiLogger.warning("rpiconfig::: Environment variable WATCHDOG_USEC is not set (yet?).")
         pass
 
-    rpiLogger.info("rpiconfig::: SystemD features used: READY=1, STATUS=, WATCHDOG=1 (WATCHDOG_USEC=%d), STOPPING=1." % WATCHDOG_USEC)
+    rpiLogger.info("rpiconfig::: SystemD features used: READY=1, STATUS=1, WATCHDOG=1 (WATCHDOG_USEC=%d), STOPPING=1." % WATCHDOG_USEC)
 
 else:
     rpiLogger.warning("rpiconfig::: The system cannot be running under SystemD. Continuing without SystemD features.")

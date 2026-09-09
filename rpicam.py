@@ -31,7 +31,7 @@ import math
 import json
 from threading import Event, RLock
 from typing import Any, Dict, List, Tuple
-from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR #EVENT_JOB_ADDED, EVENT_JOB_REMOVED, EVENT_JOB_MAX_INSTANCES
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MAX_INSTANCES #EVENT_JOB_ADDED, EVENT_JOB_REMOVED, 
 
 
 ### The rpicampy modules
@@ -662,6 +662,36 @@ class rpiCamClass(rpiBaseClass):
 #       End OAM procedure.
 #       """
 
+    @rpiBaseClass.job_event_handler(EVENT_JOB_MAX_INSTANCES)
+    def handleMaxInstances(self):
+        """
+        Handle the case when the maximum number of instances of the job is reached.
+        This method is called when the job is about to be executed, but the maximum number of instances is already running.
+        """
+        _level = self.errorLevel
+        _time = self.errorTime
+        _delay = self.errorDelay
+        _count = self.errorCount
+        _err_str = f"ERRLEV{_level-1}" if _level > 0 else "ERRNONE"
+        rpiLogger.debug("rpicam:: handleMaxInstances(): %s: Error count %d started at %s", _err_str, _count, time.ctime(self.eventErrFirstTime[_level]))
+        if _level == ERRNONE:
+            return
+        elif _level == ERRLEV0: 
+            return
+        elif _level == ERRLEV1: 
+            # Timeout error (jobRun timeout)
+            rpiLogger.debug("rpicam:: handleMaxInstances(): ERRLEV1 (timeout): Check grace period %d seconds started at %s", _delay, time.ctime(self.eventErrFirstTime[ERRLEV1]))
+            if (time.time() - self.eventErrFirstTime[ERRLEV1]) >= _delay:
+                # The previous job execution parameters
+                tstart_per, tstop_per, tinterval_per = self.timePeriodIntv
+                rpiLogger.info("rpicam:: handleMaxInstances(): ERRLEV1 (timeout): Grace period %d seconds has passed. Job will be rescheduled with increased run interval to %.1f seconds.", _delay, INTERVAL_INCREASE_FACTOR * tinterval_per)
+                # Clear error level and time,and increase the job run interval
+                if not self.setResch((tstart_per, tstop_per, INTERVAL_INCREASE_FACTOR * tinterval_per)):
+                    rpiLogger.warning("rpicam:: handleMaxInstances(): ERRLEV1 (timeout): Grace period %d seconds has passed. Job rescheduling failed!", _delay)
+        else:
+            rpiLogger.warning("rpicam:: handleMaxInstances(): ERRLEV=%d: Unexpected error occurred at %s", _level, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)))
+
+
     @rpiBaseClass.job_event_handler(EVENT_JOB_EXECUTED)
     def handleJobExecuted(self):
         """
@@ -671,7 +701,7 @@ class rpiCamClass(rpiBaseClass):
         """
         _level = self.errorLevel
         _time = self.errorTime
-        _delay = self.errorDelay
+        #_delay = self.errorDelay
         _count = self.errorCount
         _err_str = f"ERRLEV{_level-1}" if _level > 0 else "ERRNONE"
         rpiLogger.debug("rpicam:: handleJobExecuted(): %s: Error count %d started at %s", _err_str, _count, time.ctime(self.eventErrFirstTime[_level]))
@@ -680,15 +710,7 @@ class rpiCamClass(rpiBaseClass):
         elif _level == ERRLEV0: 
             return
         elif _level == ERRLEV1: 
-            # Timeout error (jobRun timeout, jobRun Process timeout, see _run() method)
-            rpiLogger.debug("rpicam:: handleJobExecuted(): ERRLEV1 (timeout): Check grace period %d seconds started at %s", _delay, time.ctime(self.eventErrFirstTime[ERRLEV1]))
-            if (time.time() - self.eventErrFirstTime[ERRLEV1]) >= _delay:
-                # The previous job execution parameters
-                tstart_per, tstop_per, tinterval_per = self.timePeriodIntv
-                rpiLogger.info("rpicam:: handleJobExecuted(): ERRLEV1 (timeout): Grace period %d seconds has passed. Job will be rescheduled with increased run interval to %.1f seconds.", _delay, INTERVAL_INCREASE_FACTOR * tinterval_per)
-                # Clear error level and time,and increase the job run interval
-                if not self.setResch((tstart_per, tstop_per, INTERVAL_INCREASE_FACTOR * tinterval_per)):
-                    rpiLogger.warning("rpicam:: handleJobExecuted(): ERRLEV1 (timeout): Grace period %d seconds has passed. Job rescheduling failed!", _delay)
+            return
         else:
             rpiLogger.warning("rpicam:: handleJobExecuted(): ERRLEV=%d: Unexpected error occurred at %s", _level, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)))
 

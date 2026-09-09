@@ -513,6 +513,9 @@ class rpiBaseClass:
             # Run the user defined method
             self.jobRun()
             # # Launches the job in a separate process and enforces a timeout.
+            # # NOTE: This does work when the jobRun() method is not self-contained, 
+            # # like the separate initClass() and jobRun() implementation using the Picamera2 in rpicam.py
+            # # because the Process here would generate a forked version of the Picamera2 instance already cerated in initClass().
             # p = Process(target=self.jobRun)
             # p.start()
             # p.join(timeout=0.8*self._interval_sec)

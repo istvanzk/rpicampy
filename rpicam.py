@@ -399,12 +399,15 @@ class rpiCamClass(rpiBaseClass):
                     "-o", f"{self.image_path:s}"])
                 
                 # Capture image
-                self._grab_cam = subprocess.Popen(self.cam_clistr, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                self._grab_cam = subprocess.Popen(
+                    self.cam_clistr,
+                    stderr=subprocess.PIPE,
+                    stdout=subprocess.PIPE)
                 #time.sleep(5)
 
                 # Check return/errors
                 #self.grab_cam.wait()
-                self._camoutput, self._camerrors = self._grab_cam.communicate(timeout=10)
+                self._camoutput, self._camerrors = self._grab_cam.communicate(timeout=0.9*self._interval_sec)
 
                 #self._grab_cam = subprocess.run(self.cam_clistr, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
                 #self._camoutput, self._camerrors = self._grab_cam.stdout, self._grab_cam.stderr
@@ -425,12 +428,16 @@ class rpiCamClass(rpiBaseClass):
                     f"{self.image_path:s}"])
 
                 # Capture image
-                self._grab_cam = subprocess.Popen(self.cam_clistr, stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+                self._grab_cam = subprocess.Popen(
+                    self.cam_clistr,
+                    stderr=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    shell=True)
 
                 ### Check return/errors
-                self._camoutput, self._camerrors = self._grab_cam.communicate()
+                self._camoutput, self._camerrors = self._grab_cam.communicate(timeout=0.9*self._interval_sec)
 
-        except (OSError, TypeError, IOError) as e:
+        except (OSError, TypeError, IOError, subprocess.CalledProcessError) as e:
             rpiLogger.warning("rpicam::: jobRun(): Snapshot %s could not be created! Error: %s", self.image_path, e)
             self._camerrors = str(e).encode()
             raise rpiBaseClassError(f"rpicam::: jobRun(): Snapshot {self.image_path} could not be created!", ERRLEV2)
@@ -488,15 +495,18 @@ class rpiCamClass(rpiBaseClass):
         """
         ### Clean up camera and GPIO
         self._del_cam_gpio()
-              
+
+        ### Time info for ERRNONE
+        self._firstTimeOut = 0
+
         ### Init the FIFO buffer
         self.imageFIFO.camID = self._config['cam_id']
         self.imageFIFO.clear()
         self.crtlenFIFO = 0
 
         ### Init GPIO ports, BCMxx pin. NO CHECK!
-        self.IRLport = None
-        self.PIRport = None
+        self.IRLport: int | None = None
+        self.PIRport: int | None = None
         if not FAKESNAP:
             if self._config['use_irl'] or self._config['use_pir']:
                 try:
@@ -665,31 +675,42 @@ class rpiCamClass(rpiBaseClass):
     @rpiBaseClass.job_event_handler(EVENT_JOB_MAX_INSTANCES)
     def handleMaxInstances(self):
         """
-        Handle the case when the maximum number of instances of the job is reached.
         This method is called when the job is about to be executed, but the maximum number of instances is already running.
+        The APScheduler will not run the job until the running instance(s) finish,
+        depending on the job coalesce setting and the next scheduled run time.
+        Add here extra handling for the job that reached max instances, if needed.
+
+        The scenario handled here is that the job took longer time to run than the configured scheduling interval
+        i.e. a timeout has occured, even if no errors have been raised/detected (ERRNONE).
         """
         _level = self.errorLevel
         _time = self.errorTime
         _delay = self.errorDelay
         _count = self.errorCount
         _err_str = f"ERRLEV{_level-1}" if _level > 0 else "ERRNONE"
-        rpiLogger.debug("rpicam:: handleMaxInstances(): %s: Error count %d started at %s", _err_str, _count, time.ctime(self.eventErrFirstTime[_level]))
         if _level == ERRNONE:
-            return
-        elif _level == ERRLEV0: 
-            return
-        elif _level == ERRLEV1: 
-            # Timeout error (jobRun timeout)
-            rpiLogger.debug("rpicam:: handleMaxInstances(): ERRLEV1 (timeout): Check grace period %d seconds started at %s", _delay, time.ctime(self.eventErrFirstTime[ERRLEV1]))
-            if (time.time() - self.eventErrFirstTime[ERRLEV1]) >= _delay:
+            # No error was raised but execution of previoux job took longer then the set interval
+            if self._firstTimeOut == 0:
+                self._firstTimeOut = time.time()
+
+            rpiLogger.debug("rpicam:: handleMaxInstances(): %s: Check grace period %d seconds started at %s", _err_str, _delay, time.ctime(self._firstTimeOut))
+            if (time.time() - self._firstTimeOut) >= _delay:
+                self._firstTimeOut = 0
                 # The previous job execution parameters
                 tstart_per, tstop_per, tinterval_per = self.timePeriodIntv
-                rpiLogger.info("rpicam:: handleMaxInstances(): ERRLEV1 (timeout): Grace period %d seconds has passed. Job will be rescheduled with increased run interval to %.1f seconds.", _delay, INTERVAL_INCREASE_FACTOR * tinterval_per)
+                rpiLogger.info("rpicam:: handleMaxInstances(): %s: Grace period %d seconds has passed. Job will be rescheduled with increased run interval to %.1f seconds.", _err_str, _delay, INTERVAL_INCREASE_FACTOR * tinterval_per)
                 # Clear error level and time,and increase the job run interval
                 if not self.setResch((tstart_per, tstop_per, INTERVAL_INCREASE_FACTOR * tinterval_per)):
-                    rpiLogger.warning("rpicam:: handleMaxInstances(): ERRLEV1 (timeout): Grace period %d seconds has passed. Job rescheduling failed!", _delay)
+                    rpiLogger.warning("rpicam:: handleMaxInstances(): %s: Grace period %d seconds has passed. Job rescheduling failed!", _err_str, _delay)
+
+        elif _level == ERRLEV0: 
+            rpiLogger.debug("rpicam:: handleMaxInstances(): %s: Error count %d started at %s", _err_str, _count, time.ctime(self.eventErrFirstTime[_level]))
+            return
         else:
             rpiLogger.warning("rpicam:: handleMaxInstances(): ERRLEV=%d: Unexpected error occurred at %s", _level, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)))
+            return
+        
+
 
 
     @rpiBaseClass.job_event_handler(EVENT_JOB_EXECUTED)
@@ -717,15 +738,20 @@ class rpiCamClass(rpiBaseClass):
     @rpiBaseClass.job_event_handler(EVENT_JOB_ERROR)
     def handleJobError(self):
         """
-        Job run raised an exception with a critical error (ERRCRIT or ERRLEV2).
+        Job run raised an exception with a critical error (ERRCRIT or ERRLEV2) or job raised a timmout error (ERRLEV1).
+        
         The number of ERRLEV2 critical errors is counted. 
         The job is removed from the scheduler after: 
         - first ERRCRIT critical error.
         - MAX_ERRLEV2_ERRORS number of ERRLEV2 critical errors.
+
+        When the subprocess.TimeoutExpired was raised (ERRLEV1)
+        after a certain grace period, the job will be rescheduled with another interval.        
         """
         _count = self.errorCount
         _level = self.errorLevel
         _time = self.errorTime
+        _delay = self.errorDelay
         if _level == ERRCRIT:
             rpiLogger.critical("rpicam:: handleJobError(): ERRCRIT: Critical error occured at %s. Stopping job run.", time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)))
             self.setStop()
@@ -734,6 +760,17 @@ class rpiCamClass(rpiBaseClass):
             if _count >= MAX_ERRLEV2_ERRORS:
                 rpiLogger.critical("rpicam:: handleJobError(): ERRLEV2: Maximum number of critical errors (%d) reached at %s. Stopping job run.", _count, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)))
                 self.setStop()
+        elif _level == ERRLEV1: 
+            # Timeout error (jobRun subprocess timeout) was raised
+            rpiLogger.debug("rpicam:: handleMaxInstances(): ERRLEV1: Check grace period %d seconds started at %s", _delay, time.ctime(self.eventErrFirstTime[ERRLEV1]))
+            if (time.time() - self.eventErrFirstTime[ERRLEV1]) >= _delay:
+                # The previous job execution parameters
+                tstart_per, tstop_per, tinterval_per = self.timePeriodIntv
+                rpiLogger.info("rpicam:: handleMaxInstances(): ERRLEV1: Grace period %d seconds has passed. Job will be rescheduled with increased run interval to %.1f seconds.", _delay, INTERVAL_INCREASE_FACTOR * tinterval_per)
+                # Clear error level and time,and increase the job run interval
+                if not self.setResch((tstart_per, tstop_per, INTERVAL_INCREASE_FACTOR * tinterval_per)):
+                    rpiLogger.warning("rpicam:: handleMaxInstances(): ERRLEV1: Grace period %d seconds has passed. Job rescheduling failed!", _delay)
+
         else:
             rpiLogger.warning("rpicam:: handleJobExecuted(): ERRLEV=%d: Unexpected critical error occurred at %s.", _level, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_time)))
 

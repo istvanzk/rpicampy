@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
     Time-lapse with Raspberry Pi controlled camera - Main method
-    VER 8 for Python 3.12+
+    V8.2 for Python 3.12+
     Copyright (C) 2016- Istvan Z. Kovacs
 
     Licensed under the Apache License, Version 2.0 (the "License");

@@ -41,7 +41,7 @@ class rpiImageDirClass(rpiBaseClass):
         super().__init__(name, rpi_apscheduler, rpi_events, rpi_config)
 
         ### Get the Dbx error event
-        self._eventDbErr: List[Event] = rpi_events.eventErrList["DBXJob"]
+        self._eventDbErr: Event = rpi_events.eventErrList["DBXJob"]
 
         ### Get FIFO buffer for images from the camera (deque)
         self._imageFIFO: rpififo.rpiFIFOClass = cam_rpififo

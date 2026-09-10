@@ -137,15 +137,26 @@ interval_sec: [61.3, 121.3, 61.3]
 # Loaded into rcConfig.
 # NOTE: The  main timer interval_sec value is used as time period to send status messages and/or to check for remote control commands.
 
-# The list of RC options for remote control commands.
-# Currently supported  RC options:
-#   'ts-status' (ThingSpeak upload status as REST feed) and 'ts-cmd' (ThingSpeak receive command on TalkBack REST feed)
-#   'ws-status' (WebSockets send status msg) and 'ws-cmd' (WebSockets receive command msg)
-# If rc_type is empty [], any upload and remote control is disabled.
-rc_type: [] #['ts-status', 'ts-cmd'] 
-# List of token/authentication txt files for 'ts-*' and 'ws-*' rc_type.
-# If the list is empty or the entry in the list is empty '', any upload and remote control is disabled.
-token_file: ['ts_tokens.txt', 'ws_tokens.txt'] 
+# The list of communication channels with client devices.
+# There are three levels of communication possible on each channel: 
+#  L1: '*-sr' = Periodic status report send/receive, 
+#  L2: '*-rr' = L1 + config param retrival (request and reply)
+#  L3: '*-cc' = L2 + command and control (c2)
+# Currently supported options are:
+#  'ts-sr'  = ThingSpeak feed status report send
+#  'ts-cc'  = ThingSpeak feed receive command/control and send feedback on TalkBack REST feed
+#  'aio-sr' = Adafruit IO feed
+#  'ws-sr'  = WebSockets
+# If rc_type is empty, all communication channels are disabled, regardless of token_file settings.
+rc_type: [] #['ts-sr', 'ws-cc'] 
+# List of token/authentication files (txt) for the available 'ts', 'aio' and 'ws' communication channels. 
+# The token file names have to follow the naming convention channel_name>_<name>.txt e.g. 'ws_tokens.txt'.
+# The token file content varies depending on the communication channel used.
+# If there is no token file listed for a specific communication channel, that communication channel is disabled, regardless of rc_type settings.
+# If the list is empty, all communication channels are disabled, regardless of rc_type settings.
+token_file: ['ws_tokens.txt'] 
+# Port number of WebSockets connectivity
+ws_port = 0
 # Timeout in seconds for Cmd mode (activated/deactivated via remote control options).
 # When Cmd mode is activated, if no valid command is received within this time, Cmd mode is deactivated.
 # Set to -1 to disable timeout (Cmd mode remains active until deactivated with command).

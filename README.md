@@ -3,7 +3,7 @@
 ![Exp](https://img.shields.io/badge/Dev-Experimental-orange.svg)
 [![Lic](https://img.shields.io/badge/License-Apache2.0-green)](http://www.apache.org/licenses/LICENSE-2.0)
 ![Py](https://img.shields.io/badge/Python-3.12+-green)
-![Ver](https://img.shields.io/badge/Version-8.0rc2-blue)
+![Ver](https://img.shields.io/badge/Version-8.2-blue)
 
 ## Implementation and configuration
 
@@ -70,6 +70,8 @@ PIR sensor support, as external trigger via GPIO for the camera job, is in BETA.
 <details>
 <summary>Further info about the other implemenation modules</summary>
 
+### General functionalities/modules
+
 #### rpimgdir:	Manage the set of locally saved images by rpicam.  
 
 #### rpimgdb:	Manage images in a Dropbox remote directory (API V2).
@@ -86,16 +88,45 @@ PIR sensor support, as external trigger via GPIO for the camera job, is in BETA.
 
 #### rpififo:	Implements the FIFO buffer for the image file names (full path) generated in the rpicam.
 
+### Communication channels
+> NOTE: Work ongoing! Not fully operational yet.
+
+There are three types of communication channels available:
+- ts-*  = ThingSpeak feed and TalkBack REST feed (as client)
+- aio-* = Adafruit IO feed (as client)
+- ws-*  = Websocket (as server)
+
+There are three levels of communication possible on each channel: 
+- L1: '*-sr' = Periodic status report send/receive, 
+- L2: '*-rr' = L1 + config param retrival (request and reply)
+- L3: '*-cc' = L2 + command and control (c2)
+
+The currently supported communication options are:
+- 'ts-sr'  = ThingSpeak feed status report send
+- 'ts-cc'  = ThingSpeak feed receive command/control and send feedback on TalkBack REST feed
+- 'aio-sr' = Adafruit IO feed
+- 'ws-sr'  = WebSockets
+
+The above communication channels and options are specified in the `rcConfig` section of the `rpiconfig.yaml`, for example like:
+```
+rc_type: ['ts-sr', 'ws-cc]
+token_file: ['ts_tokens.txt', 'ws_tokens.txt']
+```
+See description below for details on each.
+
+If `rc_type` is empty, all communication channels are disabled, regardless of `token_file` settings.
+If there is no token file listed in `token_file` for a specific communication channel, that communication channel is disabled, regardless of `rc_type` settings.
+If the `token_file` list is empty, all communication channels are disabled, regardless of `rc_type` settings.
+
 #### thingspk:	A simple REST request abstraction layer and a light client ThingSpeak API and TalkBack API. 
 
-  - The implementation of the thingspk module follows the [ThingSpeak API documentation](https://www.mathworks.com/help/thingspeak/)
-  and the [TalkBack API documentation](https://www.mathworks.com/help/thingspeak/talkback-app.html)
-  - The REST client implementation follows the model of the older [Python Xively API client](https://github.com/xively/xively-python).
+  The implementation of the thingspk module follows the [ThingSpeak API documentation](https://www.mathworks.com/help/thingspeak/)
+  and the [TalkBack API documentation](https://www.mathworks.com/help/thingspeak/talkback-app.html). The REST client implementation follows the model of the older [Python Xively API client](https://github.com/xively/xively-python).
 
-  - The use of the ThingSpeak API (to send status messages) and ThingSpeak TalkBack API (to receive remote control commands) requires
-  in the 6th section (rcConfig) of the `rpiconfig.yaml` the configuration of:
+  The use of the ThingSpeak API (to send status messages) and ThingSpeak TalkBack API (to receive remote control commands) requires
+  in the `rcConfig`section of the `rpiconfig.yaml` the configuration of:
 ```
-  rc_type: ['ts-status', 'ts-cmd']
+  rc_type: ['ts-sr', 'ts-cc']
   token_file: ['ts_tokens.txt']
 ```
 
@@ -106,15 +137,29 @@ PIR sensor support, as external trigger via GPIO for the camera job, is in BETA.
   <talkback_id>,<talkback_key>
 ```
 
+#### rpiaio: A lite wrapper for AIO API client to send status messages to an AIO dashboard.
+
+The use of the AIO API (to send status messages) requires in the `rcConfig`section of the `rpiconfig.yaml` the configuration of:
+
+```
+  rc_type: ['aio-sr']
+  token_file: ['aio_tokens.txt']
+```
+
+  where `aio_tokens.txt` (only example file name) is a text file which contains one line with the necessary AIO API client/user id and access key, as follows:
+```
+  <user_id>,<access_key>
+```
+
 #### rpiwsocket: A simple threaded WebSocket server implementation to send status messages and receive remote control commands.
 
-  - The use of the WebSocket server to send status messages and/or receive remote control commands requires in the 6th section (rcConfig) of the `rpiconfig.yaml` the configuration of:
+  The use of the WebSocket server to send status messages and/or receive remote control commands requires in the `rcConfig` section of the `rpiconfig.yaml` the configuration of:
 ```
-  rc_type: ['ws-status', 'ws-cmd']
+  rc_type: ['ws-sr', 'ws-cc']
   token_file: ['ws_tokens.txt']
 ```
 
-where `ws_tokens.txt` (only example file name) is a text file with the access tokens which need to be provided by each client during the initial authoriastion handshake, when connecting to this server, as follows:
+where `ws_tokens.txt` (only example file name) is a text file with the access tokens which need to be provided by each client during the initial authorisation handshake, when connecting to this server, as follows:
 
 ```
   <recv_status_token>,<send_cmd_token>
@@ -131,7 +176,7 @@ where `ws_tokens.txt` (only example file name) is a text file with the access to
 
 #### Dependencies on other python modules
 
-Installed with `sudo apt install --upgrade python3-<package>`
+Installed with `sudo apt install --upgrade python3-<package>` or `python3 -m pip install -U <package>`
 
 - apscheduler: [Advanced Python Scheduler](https://pypi.python.org/pypi/APScheduler)
 
@@ -150,6 +195,8 @@ Installed with `sudo apt install --upgrade python3-<package>`
 - systemd: [python3-systemd](https://github.com/systemd/python-systemd)
 
 - websockets: [python3-websockets](https://pypi.org/project/websockets/)
+
+- Adafruit_IO: [adafruit-io](https://github.com/adafruit/Adafruit_IO_Python)
 
 #### System dependencies
 

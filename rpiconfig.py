@@ -18,10 +18,8 @@
 Implements the rpicampy configuration
 """
 import os
-import time
 import sys
 import socket
-import subprocess
 import signal
 
 from rpilogger import rpiLogger
@@ -36,7 +34,7 @@ __all__ = ('HOST_NAME', 'RPICAMPY_VER', 'IMAGE_COPYRIGHT',
             'rpigexit')
 
 ### The version string
-RPICAMPY_VER = 'RPiCamPy/V8.1'
+RPICAMPY_VER = 'RPiCamPy/V8.2'
 
 ### Image copyright info (saved in EXIF tag)
 IMAGE_COPYRIGHT = 'Copyright (c) 2026 Istvan Z. Kovacs - All rights reserved'
